@@ -1,0 +1,70 @@
+name: Completar PR
+
+# Al abrir un pull request, toma la clave de Jira del nombre de la rama
+# (por ejemplo feature/MC-12-login-y-registro -> MC-12) y completa:
+#  - el título, con el formato [MC-12] Login y registro
+#  - el enlace al ticket de Jira en la descripción
+# Si la descripción está vacía, usa la plantilla de .github/pull_request_template.md.
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  completar:
+    name: Completar título y ticket
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código (para leer la plantilla)
+        uses: actions/checkout@v4
+
+      - name: Completar título y enlace al ticket
+        uses: actions/github-script@v7
+        env:
+          # El nombre de la rama se pasa como variable de entorno y no dentro del script,
+          # para que un nombre de rama raro no pueda ejecutar código.
+          RAMA: ${{ github.head_ref }}
+        with:
+          script: |
+            const fs = require('fs');
+            const pr = context.payload.pull_request;
+            const rama = process.env.RAMA || '';
+            const base = 'https://113872-micomuna.atlassian.net/browse/';
+
+            const m = rama.match(/MC-\d+/i);
+            if (!m) {
+              core.notice('La rama no tiene una clave de Jira (MC-n): no se completa nada.');
+              return;
+            }
+            const clave = m[0].toUpperCase();
+            const cambios = {};
+
+            // Título: [MC-12] Login y registro (si todavía no tiene la clave entre corchetes)
+            if (!pr.title.includes(`[${clave}]`)) {
+              const resto = rama.replace(/^.*?MC-\d+-?/i, '').replace(/-/g, ' ').trim();
+              const texto = resto || pr.title.replace(new RegExp(clave, 'i'), '').trim() || 'Completar descripción';
+              cambios.title = `[${clave}] ${texto.charAt(0).toUpperCase()}${texto.slice(1)}`;
+            }
+
+            // Descripción: plantilla si está vacía, y el enlace al ticket completo
+            let cuerpo = pr.body || '';
+            if (!cuerpo.trim() && fs.existsSync('.github/pull_request_template.md')) {
+              cuerpo = fs.readFileSync('.github/pull_request_template.md', 'utf8');
+            }
+            cuerpo = cuerpo.replace(/(Ticket:\s*https:\/\/113872-micomuna\.atlassian\.net\/browse\/)MC-(?!\d)/, `$1${clave}`);
+            if (cuerpo !== (pr.body || '')) cambios.body = cuerpo;
+
+            if (Object.keys(cambios).length === 0) {
+              core.notice('El PR ya tiene título y ticket: no hay nada que completar.');
+              return;
+            }
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              ...cambios,
+            });
+            core.notice(`PR completado con la clave ${clave}.`);
