@@ -17,8 +17,29 @@ concurrency:
 
 jobs:
   backend:
-    name: Backend compila
+    name: Backend compila y prueba
     runs-on: ubuntu-latest
+    # Base Oracle Free para las pruebas (el mismo motor que se usa en desarrollo).
+    # Las claves son solo de prueba: el contenedor existe mientras corre el job.
+    services:
+      oracle:
+        image: gvenzl/oracle-free:23-slim
+        env:
+          ORACLE_PASSWORD: ci_sys_password
+          APP_USER: micomuna
+          APP_USER_PASSWORD: ci_micomuna_password
+        ports:
+          - 1521:1521
+        options: >-
+          --health-cmd healthcheck.sh
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 30
+          --health-start-period 60s
+    env:
+      ORACLE_PORT: 1521
+      APP_USER: micomuna
+      APP_USER_PASSWORD: ci_micomuna_password
     defaults:
       run:
         working-directory: backend
@@ -36,11 +57,9 @@ jobs:
       - name: Dar permiso de ejecución al wrapper de Maven
         run: chmod +x mvnw
 
-      # Compila el código y las pruebas, y arma el paquete.
-      # TODO (MC-9): cuando Oracle esté conectado, sacar -DskipTests para que también
-      # se ejecuten las pruebas. Hoy MiComunaApplicationTests.contextLoads necesita una base de datos.
-      - name: Compilar y empaquetar
-        run: ./mvnw -B -ntp -DskipTests verify
+      # Compila, ejecuta las pruebas contra Oracle y arma el paquete.
+      - name: Compilar, probar y empaquetar
+        run: ./mvnw -B -ntp verify
 
   frontend:
     name: Frontend compila y prueba
