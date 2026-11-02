@@ -1,0 +1,26 @@
+# Oracle Database Free para desarrollo local.
+# Uso (desde esta carpeta):
+#   cp .env.example .env     (y cambiar las contraseñas)
+#   docker compose up -d
+# El puerto local es 1522 (no 1521) para no chocar con un Oracle instalado en Windows.
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: micomuna-oracle
+    ports:
+      - "${ORACLE_PORT:-1522}:1521"
+    environment:
+      ORACLE_PASSWORD: ${ORACLE_PASSWORD}
+      APP_USER: ${APP_USER}
+      APP_USER_PASSWORD: ${APP_USER_PASSWORD}
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  oracle-data:
