@@ -82,7 +82,7 @@ cd backend
 
 En Windows con PowerShell: `.\mvnw spring-boot:run`.
 
-- Corre en <http://localhost:8080>.
+- Corre en <http://localhost:8081> (con el perfil `dev`). La comprobación `http://localhost:8081/api/salud` responde `{"estado":"ok"}` sin iniciar sesión.
 - Usa el perfil `dev`, que está activo por defecto. Lee la conexión y las claves de `db/.env`, por eso hay que haber hecho el paso 2 antes.
 - Al iniciar, Flyway aplica las migraciones de `backend/src/main/resources/db/migration`. En una base vacía se crean las tablas solas.
 - Para correr las pruebas (necesitan la base levantada): `./mvnw test`.
@@ -95,13 +95,13 @@ npm install
 npm start
 ```
 
-Se abre en <http://localhost:4200>. Pruebas: `npm test`. Compilación de producción: `npm run build`.
+Se abre en <http://localhost:4200> y muestra "Backend: conectado" si el backend está corriendo. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
 
 ## Problemas comunes
 
 - **El backend dice que no puede conectarse:** revisar que el contenedor esté `healthy` (`docker compose ps` dentro de `db/`) y que exista `db/.env`.
 - **"ports are not available" al levantar Docker:** el puerto está ocupado por otro programa. Cambiar `ORACLE_PORT` en `db/.env`.
-- **"Port 8080 was already in use" al iniciar el backend:** otro programa usa el 8080 (por ejemplo el Oracle XE instalado en Windows). Iniciar el backend en otro puerto: `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8081`.
+- **"Port 8081 was already in use" al iniciar el backend:** otro programa usa ese puerto. Cambiarlo con `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=<otro>` y actualizar `target` en `frontend/proxy.conf.json`.
 - **Falta la clave (`APP_USER_PASSWORD`) al iniciar el backend:** el backend se ejecutó desde otra carpeta o falta `db/.env`. Ejecutarlo desde `backend/`.
 
 ## Cómo trabajamos
