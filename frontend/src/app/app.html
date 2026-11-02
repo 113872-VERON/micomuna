@@ -6,6 +6,14 @@
   <h1>{{ titulo() }}</h1>
   <p>Gestor de reclamos municipales.</p>
   <button matButton="filled">Material funcionando</button>
+
+  <p class="estado-backend" [attr.data-estado]="backend()">
+    @switch (backend()) {
+      @case ('consultando') { Consultando al backend... }
+      @case ('conectado') { Backend: conectado }
+      @case ('sin-conexion') { Backend: sin conexión }
+    }
+  </p>
 </main>
 
 <router-outlet />
