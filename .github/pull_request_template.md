@@ -29,7 +29,7 @@ Ticket: https://113872-micomuna.atlassian.net/browse/MC-
 ## Checklist
 
 - [ ] Las pruebas pasan y el proyecto compila.
-- [ ] El contrato de la API (`docs/api/openapi.yaml`) está actualizado, si cambió algún endpoint.
+- [ ] Los endpoints nuevos o cambiados están documentados en Swagger.
 - [ ] Las migraciones de base de datos (Flyway) corren desde una base vacía, si las hay.
 - [ ] No hay claves, tokens ni contraseñas reales en el código ni en el historial.
 - [ ] El cambio está dentro del alcance acordado (sin pagos ni tasas).

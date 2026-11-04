@@ -60,6 +60,9 @@ jobs:
       # Compila, ejecuta las pruebas contra Oracle y arma el paquete.
       - name: Compilar, probar y empaquetar
         run: ./mvnw -B -ntp verify
+        env:
+          # Secreto de prueba: solo existe mientras corre el job.
+          JWT_SECRET: ci_jwt_secret_de_prueba_solo_para_el_job_de_github
 
   frontend:
     name: Frontend compila y prueba
