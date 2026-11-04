@@ -17,6 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	boolean existsByRol(Rol rol);
 
+	boolean existsByComunaIdAndCorreo(Long idComuna, String correo);
+
 	// Trae la comuna junto con el usuario: la sesión de Hibernate ya está cerrada cuando se usa.
 	@Query("select u from Usuario u left join fetch u.comuna where u.id = :id")
 	Optional<Usuario> findConComunaPorId(@Param("id") Long id);
