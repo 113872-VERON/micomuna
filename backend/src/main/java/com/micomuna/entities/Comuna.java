@@ -2,6 +2,7 @@ package com.micomuna.entities;
 
 import java.time.Instant;
 
+import com.micomuna.enums.ColorComuna;
 import com.micomuna.enums.Provincia;
 
 import jakarta.persistence.Column;
@@ -11,6 +12,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -40,6 +42,18 @@ public class Comuna {
 
 	@Column(nullable = false)
 	private boolean activa = true;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private ColorComuna color = ColorComuna.CELESTE;
+
+	private String departamento;
+
+	@Lob
+	private byte[] logo;
+
+	@Column(name = "logo_tipo")
+	private String logoTipo;
 
 	@Column(name = "creada_en", nullable = false)
 	private Instant creadaEn;
