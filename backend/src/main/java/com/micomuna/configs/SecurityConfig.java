@@ -29,7 +29,7 @@ public class SecurityConfig {
 				.exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.GET, "/api/comunas/*").permitAll()
-						.requestMatchers(HttpMethod.POST, "/api/comunas/*/registro").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/comunas/*/registro", "/api/comunas/*/login").permitAll()
 						.requestMatchers("/api/salud", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(new JwtAuthFilter(jwt, usuarios), UsernamePasswordAuthenticationFilter.class);

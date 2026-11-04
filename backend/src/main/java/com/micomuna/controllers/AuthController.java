@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.micomuna.dtos.AuthRespuesta;
+import com.micomuna.dtos.LoginRequest;
 import com.micomuna.dtos.RegistroRequest;
 import com.micomuna.services.AuthService;
 
@@ -25,6 +26,15 @@ import lombok.RequiredArgsConstructor;
 public class AuthController {
 
 	private final AuthService authService;
+
+	@Operation(summary = "Iniciar sesión en una comuna", description = "Devuelve el token y los datos del usuario. Cualquier falla de credenciales responde lo mismo: 401 «Credenciales incorrectas». El superadmin no entra por acá.")
+	@ApiResponse(responseCode = "400", description = "Datos inválidos")
+	@ApiResponse(responseCode = "401", description = "Credenciales incorrectas")
+	@ApiResponse(responseCode = "404", description = "La comuna no existe o está inactiva")
+	@PostMapping("/login")
+	public AuthRespuesta iniciarSesion(@PathVariable String slug, @Valid @RequestBody LoginRequest pedido) {
+		return authService.login(slug, pedido);
+	}
 
 	@Operation(summary = "Registrar un vecino", description = "Crea una cuenta de vecino en la comuna y devuelve el token para seguir con la sesión iniciada. El rol siempre es VECINO.")
 	@ApiResponse(responseCode = "400", description = "Datos inválidos")
