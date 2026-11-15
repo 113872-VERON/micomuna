@@ -34,7 +34,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/comunas/*/registro", "/api/comunas/*/login",
 								"/api/comunas/*/recuperar-clave", "/api/comunas/*/restablecer-clave",
 								"/api/comunas/*/aceptar-invitacion", "/api/admin/login").permitAll()
-						.requestMatchers("/api/salud", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+						.requestMatchers("/api/salud", "/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(new JwtAuthFilter(jwt, usuarios), UsernamePasswordAuthenticationFilter.class);
 		return http.build();
