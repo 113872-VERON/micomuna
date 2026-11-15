@@ -1,0 +1,146 @@
+@if (creada(); as resultado) {
+  <section class="confirmacion" aria-labelledby="titulo-creada">
+    <div class="sello" aria-hidden="true">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></svg>
+    </div>
+    <h1 id="titulo-creada">Comuna creada</h1>
+    <p><b>{{ resultado.comuna.nombre }}</b> ya está lista.</p>
+
+    <div>
+      <p class="etiqueta">Enlace para los vecinos y el personal</p>
+      <div class="enlace-caja">{{ enlaceCompleto() }}</div>
+      <button type="button" class="btn sec" (click)="copiarEnlace()">{{ enlaceCopiado() ? 'Enlace copiado' : 'Copiar el enlace de la comuna' }}</button>
+    </div>
+
+    @if (invitacionEnviada()) {
+      <div class="aviso ok" role="status">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
+        <span><b>Invitación enviada a {{ resultado.adminCorreo }}.</b> Tiene 72 horas para elegir su contraseña con el enlace del correo. Hasta entonces figura como Pendiente.</span>
+      </div>
+    } @else {
+      <div class="aviso alerta" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span><b>La comuna se creó, pero el correo no salió a {{ resultado.adminCorreo }}.</b> El administrador quedó como Pendiente. Probá mandar la invitación de nuevo.</span>
+      </div>
+      @if (errorReenvio(); as mensaje) {
+        <p class="msg-error caja-error" role="alert">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+          {{ mensaje }}
+        </p>
+      }
+      <button type="button" class="btn pri" [disabled]="reenviando()" (click)="reintentarInvitacion()">
+        {{ reenviando() ? 'Enviando…' : 'Reintentar' }}
+      </button>
+    }
+
+    <a class="btn" [class.pri]="invitacionEnviada()" [class.sec]="!invitacionEnviada()" routerLink="/admin/comunas">Listo</a>
+  </section>
+} @else {
+  <div class="enc">
+    <h1>Nueva comuna</h1>
+    <a class="btn sec" routerLink="/admin/comunas">Cancelar</a>
+  </div>
+
+  <form class="dos-columnas" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+    <div class="col">
+      <fieldset class="bloque">
+        <legend>Datos de la comuna</legend>
+        <div>
+          <label for="nombre">Nombre</label>
+          <input id="nombre" type="text" formControlName="nombre" autocomplete="off" [attr.aria-invalid]="c.nombre.touched && c.nombre.invalid" />
+          @if (c.nombre.touched && c.nombre.invalid) { <p class="msg-error" role="alert">Escribí el nombre de la comuna.</p> }
+        </div>
+        <div class="par">
+          <div>
+            <label for="provincia">Provincia</label>
+            <select id="provincia" formControlName="provincia" [attr.aria-invalid]="c.provincia.touched && c.provincia.invalid">
+              <option value="">Elegí la provincia</option>
+              @for (p of provincias; track p.clave) { <option [value]="p.clave">{{ p.nombre }}</option> }
+            </select>
+            @if (c.provincia.touched && c.provincia.invalid) { <p class="msg-error" role="alert">Elegí la provincia.</p> }
+          </div>
+          <div>
+            <label for="departamento">Departamento <small>(opcional)</small></label>
+            <input id="departamento" type="text" formControlName="departamento" autocomplete="off" />
+            @if (c.departamento.invalid) { <p class="msg-error" role="alert">Puede tener hasta 80 caracteres.</p> }
+          </div>
+        </div>
+        <div>
+          <label for="slug">Enlace para los vecinos</label>
+          <input id="slug" type="text" formControlName="slug" autocomplete="off" autocapitalize="none" spellcheck="false" (input)="enlaceTocado()" />
+          <p class="ayuda-c">Se arma solo con el nombre y la provincia. Si ya existe, agregá el departamento.</p>
+          @if (c.slug.invalid) { <p class="msg-error" role="alert">Solo minúsculas, números y guiones.</p> }
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Contacto para los vecinos <small>(opcional)</small></legend>
+        <div class="par">
+          <div>
+            <label for="telefono">Teléfono</label>
+            <input id="telefono" type="tel" formControlName="telefono" autocomplete="off" />
+            @if (c.telefono.invalid) { <p class="msg-error" role="alert">Solo números, espacios, +, - y paréntesis.</p> }
+          </div>
+          <div>
+            <label for="whatsapp">WhatsApp</label>
+            <input id="whatsapp" type="tel" formControlName="whatsapp" autocomplete="off" inputmode="numeric" />
+            <p class="ayuda-c">Solo números, con el código de país.</p>
+            @if (c.whatsapp.invalid) { <p class="msg-error" role="alert">Solo números, con el código de país (por ejemplo 5493510000000).</p> }
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Administrador de la comuna</legend>
+        <div class="par">
+          <div>
+            <label for="adminNombre">Nombre</label>
+            <input id="adminNombre" type="text" formControlName="adminNombre" autocomplete="off" [attr.aria-invalid]="c.adminNombre.touched && c.adminNombre.invalid" />
+            @if (c.adminNombre.touched && c.adminNombre.invalid) { <p class="msg-error" role="alert">Escribí el nombre del administrador.</p> }
+          </div>
+          <div>
+            <label for="adminCorreo">Correo</label>
+            <input id="adminCorreo" type="email" formControlName="adminCorreo" autocomplete="off" inputmode="email" [attr.aria-invalid]="c.adminCorreo.touched && c.adminCorreo.invalid" />
+            @if (c.adminCorreo.touched && c.adminCorreo.invalid) {
+              <p class="msg-error" role="alert">{{ c.adminCorreo.hasError('required') ? 'Escribí el correo del administrador.' : mensajeCorreo() }}</p>
+            }
+          </div>
+        </div>
+        <p class="ayuda-c">Le mandamos un correo con un enlace para que elija su propia contraseña. Vos no vas a ver ninguna clave.</p>
+      </fieldset>
+    </div>
+
+    <div class="col">
+      <fieldset class="bloque">
+        <legend>Color</legend>
+        <div class="paleta">
+          @for (col of colores; track col.clave) {
+            <label class="muestra">
+              <input type="radio" name="color" [value]="col.clave" [attr.value]="col.clave" formControlName="color" />
+              <i [style.background]="col.hex"></i>
+              {{ col.nombre }}
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <div class="bloque">
+        <h2>Así lo van a ver los vecinos</h2>
+        <div class="vista-previa" [style.--p]="colorVistaPrevia()">
+          <app-cabecera-comuna [comuna]="vistaPrevia()" />
+        </div>
+      </div>
+
+      @if (error(); as mensaje) {
+        <p class="msg-error caja-error" role="alert">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+          {{ mensaje }}
+        </p>
+      }
+
+      <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+        {{ enviando() ? 'Creando la comuna…' : 'Crear comuna' }}
+      </button>
+    </div>
+  </form>
+}

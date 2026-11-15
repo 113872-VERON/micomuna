@@ -13,6 +13,16 @@ export const COLORES_COMUNA: Record<ColorComuna, string> = {
   PIZARRA: '#3F4F5F',
 };
 
+export const NOMBRES_COLOR: Record<ColorComuna, string> = {
+  CELESTE: 'Celeste',
+  MARINO: 'Marino',
+  VERDE_AZULADO: 'Verde azulado',
+  BOSQUE: 'Bosque',
+  CIRUELA: 'Ciruela',
+  OCRE: 'Ocre',
+  PIZARRA: 'Pizarra',
+};
+
 // Escribe las variables de CSS del tema en la raíz: ningún componente lleva colores de comuna escritos a mano.
 @Injectable({ providedIn: 'root' })
 export class TemaComunaService {

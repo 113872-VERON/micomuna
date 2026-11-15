@@ -20,6 +20,9 @@ export class RestablecerClave {
   readonly slug = input.required<string>();
   readonly comuna = input.required<ComunaDto>();
   readonly codigo = input<string | undefined>();
+  // La misma pantalla sirve para recuperar la contraseña y para aceptar la invitación del correo (ruta `invitacion`).
+  readonly modo = input<'restablecer' | 'invitacion'>('restablecer');
+  protected readonly invitacion = computed(() => this.modo() === 'invitacion');
 
   private readonly acceso = inject(AccesoService);
 
@@ -53,7 +56,10 @@ export class RestablecerClave {
     }
     this.enviando.set(true);
     this.error.set(null);
-    this.acceso.restablecer(this.slug(), codigo, this.clave.value).subscribe({
+    const pedido = this.invitacion()
+      ? this.acceso.aceptarInvitacion(this.slug(), codigo, this.clave.value)
+      : this.acceso.restablecer(this.slug(), codigo, this.clave.value);
+    pedido.subscribe({
       next: () => {
         this.enviando.set(false);
         this.listo.set(true);

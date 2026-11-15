@@ -101,3 +101,75 @@ describe('RestablecerClave', () => {
     expect(el(f).querySelector('form')).not.toBeNull();
   });
 });
+
+describe('RestablecerClave en modo invitación', () => {
+  let http: HttpTestingController;
+  const URL_INVITACION = '/api/comunas/salsipuedes-cordoba/aceptar-invitacion';
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [RestablecerClave],
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
+    http = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => http.verify());
+
+  function crear(codigo: string | undefined): ComponentFixture<RestablecerClave> {
+    const fixture = TestBed.createComponent(RestablecerClave);
+    fixture.componentRef.setInput('slug', 'salsipuedes-cordoba');
+    fixture.componentRef.setInput('comuna', comuna);
+    fixture.componentRef.setInput('codigo', codigo);
+    fixture.componentRef.setInput('modo', 'invitacion');
+    fixture.detectChanges();
+    return fixture;
+  }
+  const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
+  function elegir(f: ComponentFixture<unknown>, clave: string) {
+    const campo = el(f).querySelector('#clave') as HTMLInputElement;
+    campo.value = clave;
+    campo.dispatchEvent(new Event('input'));
+    f.detectChanges();
+    el(f).querySelector('form')!.dispatchEvent(new Event('submit'));
+    f.detectChanges();
+  }
+
+  it('pideElegirLaContrasenaConLasPalabrasDeLaInvitacion', () => {
+    const texto = el(crear('abc')).textContent ?? '';
+    expect(texto).toContain('Elegí tu contraseña');
+    expect(texto).toContain('Tiene 8 o más caracteres');
+    expect(texto).not.toContain('contraseña nueva');
+  });
+
+  it('aceptaLaInvitacionConElCodigoDeLaURL', () => {
+    const f = crear('codigo-invitacion');
+    elegir(f, 'miclave2026');
+
+    const pedido = http.expectOne(URL_INVITACION);
+    expect(pedido.request.body).toEqual({ codigo: 'codigo-invitacion', claveNueva: 'miclave2026' });
+    pedido.flush(null, { status: 204, statusText: 'No Content' });
+    f.detectChanges();
+
+    expect(el(f).textContent).toContain('Listo, ya elegiste tu contraseña');
+    const enlaces = Array.from(el(f).querySelectorAll('a')).map((a) => a.getAttribute('href'));
+    expect(enlaces).toContain('/salsipuedes-cordoba/login');
+  });
+
+  it('unaInvitacionVencidaExplicaQuePidanOtra', () => {
+    const f = crear('vieja');
+    elegir(f, 'miclave2026');
+
+    http.expectOne(URL_INVITACION).flush({ detail: 'El enlace no es válido', codigo: 'PETICION_INVALIDA' }, { status: 400, statusText: 'Bad Request' });
+    f.detectChanges();
+
+    const texto = el(f).textContent ?? '';
+    expect(texto).toContain('Esta invitación ya no sirve');
+    expect(texto).toContain('Pedile a quien te invitó que te mande otra');
+    expect(texto).not.toContain('Pedir un enlace nuevo');
+  });
+
+  it('sinCodigoMuestraLaInvitacionVencida', () => {
+    expect(el(crear(undefined)).textContent).toContain('Esta invitación ya no sirve');
+  });
+});

@@ -1,0 +1,55 @@
+<div class="pantalla">
+  <header class="cab">
+    <div class="plataforma">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+        <circle cx="12" cy="10" r="2.5" stroke="currentColor" stroke-width="2" />
+      </svg>
+      Plataforma
+    </div>
+    <div class="marca">MiComuna</div>
+  </header>
+
+  <main class="hoja">
+    <div>
+      <h1>Ingresar</h1>
+      <p class="sub">Acceso del administrador de la plataforma.</p>
+
+      <form class="formulario" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+        <div>
+          <label for="correo">Correo electrónico</label>
+          <div class="campo" [class.error]="correo.touched && correo.invalid">
+            <input id="correo" type="email" formControlName="correo" autocomplete="username" inputmode="email" [attr.aria-invalid]="correo.touched && correo.invalid" aria-describedby="error-correo" />
+          </div>
+          @if (correo.touched && correo.invalid) {
+            <p class="msg-error" id="error-correo" role="alert">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+              {{ mensajeCorreo() }}
+            </p>
+          }
+        </div>
+
+        <div>
+          <app-campo-clave [control]="clave" etiqueta="Contraseña" idCampo="clave" autocompletar="current-password" [conError]="clave.touched && clave.invalid" descripcion="error-clave" />
+          @if (clave.touched && clave.invalid) {
+            <p class="msg-error" id="error-clave" role="alert">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+              Escribí tu contraseña.
+            </p>
+          }
+        </div>
+
+        @if (error(); as mensaje) {
+          <p class="msg-error caja-error" role="alert">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+            {{ mensaje }}
+          </p>
+        }
+
+        <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+          {{ enviando() ? 'Entrando…' : 'Entrar' }}
+        </button>
+      </form>
+    </div>
+  </main>
+</div>
