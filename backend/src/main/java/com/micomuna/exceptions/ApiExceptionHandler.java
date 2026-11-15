@@ -44,6 +44,11 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", e.getCodigo(), e.getMessage());
 	}
 
+	@ExceptionHandler(CorreoNoEnviadoException.class)
+	ProblemDetail correoNoEnviado(CorreoNoEnviadoException e) {
+		return problema(HttpStatus.BAD_GATEWAY, "Correo no enviado", "CORREO_NO_ENVIADO", e.getMessage());
+	}
+
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO", e.getMessage());

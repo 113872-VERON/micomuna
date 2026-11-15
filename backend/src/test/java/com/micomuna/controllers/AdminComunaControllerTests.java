@@ -150,9 +150,8 @@ class AdminComunaControllerTests {
 		long id = idDe(respuesta);
 		String viejo = codigoDelUltimoCorreo();
 
-		mockMvc.perform(post(RUTA + "/" + id + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.invitacionEnviada").value(true));
+		mockMvc.perform(post(RUTA + "/" + id + "/administrador/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isNoContent());
 		String nuevo = codigoDelUltimoCorreo();
 
 		assertThat(nuevo).isNotEqualTo(viejo);
@@ -161,14 +160,14 @@ class AdminComunaControllerTests {
 	}
 
 	@Test
-	void reenviarSiFallaElCorreoLoAvisaSinError() throws Exception {
+	void reenviarSiFallaElCorreoDevuelve502() throws Exception {
 		long id = idDe(crear(tokenSuperadmin, cuerpo("Reenvio", "CORDOBA", ",\"slug\":\"t10-reenvio\""))
 				.andReturn().getResponse().getContentAsString());
 		doThrow(new MailSendException("SMTP caído")).when(mail).enviar(anyString(), anyString(), anyString());
 
-		mockMvc.perform(post(RUTA + "/" + id + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.invitacionEnviada").value(false));
+		mockMvc.perform(post(RUTA + "/" + id + "/administrador/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isBadGateway())
+				.andExpect(jsonPath("$.codigo").value("CORREO_NO_ENVIADO"));
 	}
 
 	@Test
@@ -176,7 +175,7 @@ class AdminComunaControllerTests {
 		Comuna c = comuna("t10-activa");
 		usuario(c, "jefe@mail.com", Rol.ADMIN_COMUNA);
 
-		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/administrador/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
 				.andExpect(status().isConflict())
 				.andExpect(jsonPath("$.codigo").value("CONFLICTO"));
 		verify(mail, never()).enviar(anyString(), anyString(), anyString());
@@ -184,7 +183,7 @@ class AdminComunaControllerTests {
 
 	@Test
 	void reenviarEnUnaComunaInexistenteDevuelve404() throws Exception {
-		mockMvc.perform(post(RUTA + "/999999/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+		mockMvc.perform(post(RUTA + "/999999/administrador/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
 				.andExpect(status().isNotFound());
 	}
 
@@ -193,9 +192,9 @@ class AdminComunaControllerTests {
 		Comuna c = comuna("t10-permisos");
 		String tokenAdminComuna = jwt.generar(usuario(c, "otro@mail.com", Rol.ADMIN_COMUNA));
 
-		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion"))
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/administrador/reenviar-invitacion"))
 				.andExpect(status().isUnauthorized());
-		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenAdminComuna))
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/administrador/reenviar-invitacion").header("Authorization", "Bearer " + tokenAdminComuna))
 				.andExpect(status().isForbidden());
 	}
 

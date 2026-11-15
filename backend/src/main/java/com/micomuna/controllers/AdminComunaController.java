@@ -17,7 +17,6 @@ import com.micomuna.dtos.ActualizarComunaRequest;
 import com.micomuna.dtos.ComunaAdminDto;
 import com.micomuna.dtos.ComunaCreadaDto;
 import com.micomuna.dtos.CrearComunaRequest;
-import com.micomuna.dtos.InvitacionRespuesta;
 import com.micomuna.services.ComunaService;
 import com.micomuna.services.InvitacionService;
 
@@ -49,13 +48,15 @@ public class AdminComunaController {
 		return comunaService.crear(pedido);
 	}
 
-	@Operation(summary = "Reenviar la invitación al administrador de una comuna", description = "Para cuando el correo no salió o se perdió. Genera un enlace nuevo y deja sin efecto el anterior. La respuesta dice si el correo salió.")
+	@Operation(summary = "Reenviar la invitación al administrador de una comuna", description = "Para cuando el correo no salió o se perdió. Genera un enlace nuevo y deja sin efecto el anterior. Si el correo no sale responde 502 CORREO_NO_ENVIADO.")
 	@ApiResponse(responseCode = "403", description = "Solo el superadmin")
 	@ApiResponse(responseCode = "404", description = "La comuna no existe")
 	@ApiResponse(responseCode = "409", description = "El administrador ya eligió su contraseña")
-	@PostMapping("/{id}/reenviar-invitacion")
-	public InvitacionRespuesta reenviarInvitacion(@PathVariable Long id) {
-		return invitacionService.reenviarAlAdministrador(id);
+	@ApiResponse(responseCode = "502", description = "El correo no pudo enviarse")
+	@PostMapping("/{id}/administrador/reenviar-invitacion")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void reenviarInvitacion(@PathVariable Long id) {
+		invitacionService.reenviarAlAdministrador(id);
 	}
 
 	@Operation(summary = "Listar todas las comunas", description = "Incluye las inactivas. No trae la imagen del logo.")

@@ -297,13 +297,13 @@ paths:
                 $ref: "#/components/schemas/ComunaCreadaDto"
       security:
       - bearerAuth: []
-  /api/admin/comunas/{id}/reenviar-invitacion:
+  /api/admin/comunas/{id}/administrador/reenviar-invitacion:
     post:
       tags:
       - Administración
       summary: Reenviar la invitación al administrador de una comuna
       description: Para cuando el correo no salió o se perdió. Genera un enlace nuevo
-        y deja sin efecto el anterior. La respuesta dice si el correo salió.
+        y deja sin efecto el anterior. Si el correo no sale responde 502 CORREO_NO_ENVIADO.
       operationId: reenviarInvitacion
       parameters:
       - name: id
@@ -315,22 +315,14 @@ paths:
       responses:
         "403":
           description: Solo el superadmin
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/InvitacionRespuesta"
         "404":
           description: La comuna no existe
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/InvitacionRespuesta"
         "409":
           description: El administrador ya eligió su contraseña
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/InvitacionRespuesta"
+        "502":
+          description: El correo no pudo enviarse
+        "204":
+          description: No Content
       security:
       - bearerAuth: []
   /api/admin/comunas/{id}:
@@ -607,11 +599,6 @@ components:
           $ref: "#/components/schemas/ComunaAdminDto"
         adminCorreo:
           type: string
-        invitacionEnviada:
-          type: boolean
-    InvitacionRespuesta:
-      type: object
-      properties:
         invitacionEnviada:
           type: boolean
     ActualizarComunaRequest:

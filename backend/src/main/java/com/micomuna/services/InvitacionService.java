@@ -3,7 +3,7 @@ package com.micomuna.services;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import com.micomuna.dtos.InvitacionRespuesta;
+import com.micomuna.exceptions.CorreoNoEnviadoException;
 import com.micomuna.entities.Comuna;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.Rol;
@@ -44,7 +44,7 @@ public class InvitacionService {
 
 	// El superadmin reenvía la invitación al administrador que todavía no eligió su contraseña.
 	// La invitación anterior queda sin efecto.
-	public InvitacionRespuesta reenviarAlAdministrador(Long comunaId) {
+	public void reenviarAlAdministrador(Long comunaId) {
 		Invitacion invitacion = transaccion.execute(estado -> {
 			Comuna comuna = comunas.findById(comunaId)
 					.orElseThrow(() -> new RecursoNoEncontradoException("No encontramos esa comuna"));
@@ -55,6 +55,8 @@ public class InvitacionService {
 							"El administrador de esta comuna ya eligió su contraseña. Que use «Olvidé mi contraseña» si no la recuerda"));
 			return preparar(admin, comuna);
 		});
-		return new InvitacionRespuesta(enviar(invitacion));
+		if (!enviar(invitacion)) {
+			throw new CorreoNoEnviadoException("No pudimos enviar el correo. Probá de nuevo en unos minutos");
+		}
 	}
 }
