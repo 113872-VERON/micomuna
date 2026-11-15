@@ -13,7 +13,8 @@ export const authInterceptor: HttpInterceptorFn = (pedido, siguiente) => {
 
   // El token solo viaja al propio backend (rutas relativas), nunca a otro servidor.
   const token = auth.token();
-  const propio = pedido.url.startsWith('/');
+  // `//otro-host/...` también empieza con "/" pero apunta a otro servidor.
+  const propio = pedido.url.startsWith('/') && !pedido.url.startsWith('//');
   const enviado = token && propio ? pedido.clone({ setHeaders: { Authorization: `Bearer ${token}` } }) : pedido;
 
   return siguiente(enviado).pipe(

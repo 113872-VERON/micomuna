@@ -61,6 +61,14 @@ describe('authInterceptor', () => {
     pedido.flush({});
   });
 
+  it('noMandaElTokenAUnaUrlSinProtocolo', () => {
+    auth.guardarSesion(vecino);
+    http.get('//otro.example.com/datos').subscribe();
+    const pedido = controlador.expectOne('//otro.example.com/datos');
+    expect(pedido.request.headers.has('Authorization')).toBe(false);
+    pedido.flush({});
+  });
+
   it('unaRespuesta401LimpiaLaSesionYVaAlLoginDeLaComuna', () => {
     auth.guardarSesion(vecino);
     http.get('/api/reclamos').subscribe({ error: () => undefined });

@@ -58,6 +58,8 @@ Contenido de `.env`:
 | `APP_USER` | Usuario que usa la aplicación (por defecto `micomuna`) |
 | `APP_USER_PASSWORD` | Clave del usuario de la aplicación |
 | `ORACLE_PORT` | Puerto local (por defecto `1522`, para no chocar con un Oracle instalado en Windows que usa el 1521) |
+| `JWT_SECRET` | Secreto para firmar los tokens de sesión. Al menos 32 caracteres, aleatorio y distinto en cada entorno. El backend no arranca sin él |
+| `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` | Correo y clave (de 8 a 72 caracteres) del superadmin de la plataforma. Opcionales: ver "Primer superadmin" |
 
 El archivo `.env` no se sube a git. Levantar la base:
 
@@ -86,6 +88,16 @@ En Windows con PowerShell: `.\mvnw spring-boot:run`.
 - Usa el perfil `dev`, que está activo por defecto. Lee la conexión y las claves de `db/.env`, por eso hay que haber hecho el paso 2 antes.
 - Al iniciar, Flyway aplica las migraciones de `backend/src/main/resources/db/migration`. En una base vacía se crean las tablas solas.
 - Para correr las pruebas (necesitan la base levantada): `./mvnw test`.
+- **Swagger** (documentación de la API, solo con el perfil `dev`): <http://localhost:8081/swagger-ui.html>. Los endpoints protegidos se prueban con el botón "Authorize" y un token que devuelve el login.
+- La duración del token sale de `jwt.expiracion` (por defecto `4h`; se cambia con la variable `JWT_EXPIRACION`).
+
+#### Primer superadmin
+
+El superadmin es el único usuario que no pertenece a una comuna: crea las comunas e invita a su administrador. Se crea solo al iniciar el backend, si todavía no existe ninguno y están definidos `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` en `db/.env`. Cambiar esas variables después no modifica al que ya existe. Ingresa en <http://localhost:4200/admin/login>.
+
+#### Cómo se entra a cada comuna
+
+Cada comuna tiene su propio enlace, armado con el nombre y la provincia (por ejemplo `salsipuedes-cordoba`). Los vecinos se registran e ingresan desde `/<enlace>/login`, y las pantallas se ven con el nombre, el logo y el color de esa comuna. Las comunas y sus administradores los da de alta el superadmin; al crear una comuna, su administrador recibe una invitación por correo para elegir su contraseña (nadie ve ni comparte una clave).
 
 ### 4. Frontend
 
@@ -95,7 +107,7 @@ npm install
 npm start
 ```
 
-Se abre en <http://localhost:4200> y muestra "Backend: conectado" si el backend está corriendo. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
+Se abre en <http://localhost:4200>. La raíz no es una pantalla: se entra por el enlace de una comuna (`/<enlace>/login`) o por `/admin/login` si sos superadmin. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
 
 ## Problemas comunes
 
