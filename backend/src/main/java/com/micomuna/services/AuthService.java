@@ -73,13 +73,30 @@ public class AuthService {
 		Comuna comuna = comunaService.buscarActivaPorSlug(slug);
 		Usuario usuario = usuarios.findByComunaIdAndCorreo(comuna.getId(), pedido.correo()).orElse(null);
 
+		verificarCredenciales(usuario, pedido.clave());
+
+		return new AuthRespuesta(jwt.generar(usuario), UsuarioDto.desde(usuario, comuna.getSlug()));
+	}
+
+	// El superadmin no pertenece a ninguna comuna y entra solo por acá, con las mismas reglas de error que el login.
+	@Transactional(readOnly = true)
+	public AuthRespuesta loginSuperadmin(LoginRequest pedido) {
+		Usuario usuario = usuarios.findByComunaIsNullAndCorreo(pedido.correo())
+				.filter(u -> u.getRol() == Rol.SUPERADMIN)
+				.orElse(null);
+
+		verificarCredenciales(usuario, pedido.clave());
+
+		return new AuthRespuesta(jwt.generar(usuario), UsuarioDto.desde(usuario, null));
+	}
+
+	// Siempre compara contra un hash (el real o el de relleno) para que tarde parecido exista o no el usuario.
+	private void verificarCredenciales(Usuario usuario, String clave) {
 		String hash = usuario == null || usuario.getClaveHash() == null ? hashDeRelleno : usuario.getClaveHash();
-		boolean claveCorrecta = claveEntraEnBcrypt(pedido.clave()) && encoder.matches(pedido.clave(), hash);
+		boolean claveCorrecta = claveEntraEnBcrypt(clave) && encoder.matches(clave, hash);
 		if (usuario == null || usuario.getClaveHash() == null || !claveCorrecta || !usuario.isActivo()) {
 			throw new CredencialesInvalidasException();
 		}
-
-		return new AuthRespuesta(jwt.generar(usuario), UsuarioDto.desde(usuario, comuna.getSlug()));
 	}
 
 	private boolean claveEntraEnBcrypt(String clave) {

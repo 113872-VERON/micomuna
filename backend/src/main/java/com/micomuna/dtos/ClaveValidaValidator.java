@@ -13,21 +13,26 @@ public class ClaveValidaValidator implements ConstraintValidator<ClaveValida, St
 
 	@Override
 	public boolean isValid(String clave, ConstraintValidatorContext contexto) {
-		if (clave == null) {
-			return rechazar(contexto, "La contraseña es obligatoria");
+		String motivo = motivoDeRechazo(clave);
+		if (motivo == null) {
+			return true;
 		}
-		if (clave.length() < MINIMO_CARACTERES) {
-			return rechazar(contexto, "La contraseña debe tener al menos " + MINIMO_CARACTERES + " caracteres");
-		}
-		if (clave.getBytes(StandardCharsets.UTF_8).length > MAXIMO_BYTES) {
-			return rechazar(contexto, "La contraseña no puede superar los " + MAXIMO_BYTES + " caracteres");
-		}
-		return true;
+		contexto.disableDefaultConstraintViolation();
+		contexto.buildConstraintViolationWithTemplate(motivo).addConstraintViolation();
+		return false;
 	}
 
-	private boolean rechazar(ConstraintValidatorContext contexto, String mensaje) {
-		contexto.disableDefaultConstraintViolation();
-		contexto.buildConstraintViolationWithTemplate(mensaje).addConstraintViolation();
-		return false;
+	// Devuelve por qué la clave no sirve, o null si es válida. Se usa también fuera de los formularios.
+	public static String motivoDeRechazo(String clave) {
+		if (clave == null) {
+			return "La contraseña es obligatoria";
+		}
+		if (clave.length() < MINIMO_CARACTERES) {
+			return "La contraseña debe tener al menos " + MINIMO_CARACTERES + " caracteres";
+		}
+		if (clave.getBytes(StandardCharsets.UTF_8).length > MAXIMO_BYTES) {
+			return "La contraseña no puede superar los " + MAXIMO_BYTES + " caracteres";
+		}
+		return null;
 	}
 }

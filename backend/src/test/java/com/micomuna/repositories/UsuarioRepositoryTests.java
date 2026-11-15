@@ -45,6 +45,12 @@ class UsuarioRepositoryTests {
 		return usuarios.saveAndFlush(u);
 	}
 
+	// Puede haber un superadmin real en la base de desarrollo; se borra dentro de la transacción de la prueba.
+	private void sinSuperadmin() {
+		usuarios.deleteAll(usuarios.findAll().stream().filter(u -> u.getRol() == Rol.SUPERADMIN).toList());
+		usuarios.flush();
+	}
+
 	@Test
 	void noPermiteDosUsuariosConElMismoCorreoEnUnaComuna() {
 		Comuna c = comuna("Salsipuedes", Provincia.CORDOBA, "t2-salsipuedes-cordoba");
@@ -67,6 +73,7 @@ class UsuarioRepositoryTests {
 
 	@Test
 	void noPermiteDosSuperadminsConElMismoCorreo() {
+		sinSuperadmin();
 		usuario(null, "root@mail.com", Rol.SUPERADMIN);
 
 		assertThat(usuarios.findByComunaIsNullAndCorreo("root@mail.com")).isPresent();
@@ -77,6 +84,7 @@ class UsuarioRepositoryTests {
 
 	@Test
 	void noPermiteDosSuperadminsAunqueTenganDistintoCorreo() {
+		sinSuperadmin();
 		usuario(null, "t3-uno@mail.com", Rol.SUPERADMIN);
 
 		assertThatThrownBy(() -> usuario(null, "t3-dos@mail.com", Rol.SUPERADMIN))
