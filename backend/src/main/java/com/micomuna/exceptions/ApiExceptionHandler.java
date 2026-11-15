@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -29,6 +30,13 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(CredencialesInvalidasException.class)
 	ProblemDetail credencialesInvalidas(CredencialesInvalidasException e) {
 		return problema(HttpStatus.UNAUTHORIZED, "No autorizado", "CREDENCIALES_INVALIDAS", e.getMessage());
+	}
+
+	// Lo lanza @PreAuthorize cuando el rol no alcanza. Sin este manejador lo atraparía el de errores inesperados (500).
+	@ExceptionHandler(AccessDeniedException.class)
+	ProblemDetail accesoDenegado() {
+		return problema(HttpStatus.FORBIDDEN, "Acceso denegado", "ACCESO_DENEGADO",
+				"No tenés permiso para hacer esto");
 	}
 
 	@ExceptionHandler(PeticionInvalidaException.class)
