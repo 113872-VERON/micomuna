@@ -39,7 +39,8 @@ public class Usuario {
 	@Column(nullable = false)
 	private String correo;
 
-	@Column(name = "clave_hash", nullable = false)
+	// Vacía mientras la invitación está pendiente: el usuario todavía no eligió su contraseña.
+	@Column(name = "clave_hash")
 	private String claveHash;
 
 	@Column(nullable = false)
@@ -51,9 +52,6 @@ public class Usuario {
 
 	@Column(nullable = false)
 	private boolean activo = true;
-
-	@Column(name = "debe_cambiar_clave", nullable = false)
-	private boolean debeCambiarClave = false;
 
 	@Column(name = "creado_en", nullable = false)
 	private Instant creadoEn;

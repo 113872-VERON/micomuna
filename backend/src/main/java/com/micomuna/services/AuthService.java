@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.micomuna.dtos.AuthRespuesta;
+import com.micomuna.dtos.CambiarClaveRequest;
 import com.micomuna.dtos.LoginRequest;
 import com.micomuna.dtos.RegistroRequest;
 import com.micomuna.dtos.UsuarioDto;
@@ -16,8 +17,10 @@ import com.micomuna.entities.Usuario;
 import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.ConflictoException;
 import com.micomuna.exceptions.CredencialesInvalidasException;
+import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.repositories.UsuarioRepository;
 import com.micomuna.security.JwtService;
+import com.micomuna.security.UsuarioAutenticado;
 
 @Service
 public class AuthService {
@@ -88,6 +91,26 @@ public class AuthService {
 		verificarCredenciales(usuario, pedido.clave());
 
 		return new AuthRespuesta(jwt.generar(usuario), UsuarioDto.desde(usuario, null));
+	}
+
+	// Cada persona cambia solo su propia clave: el usuario sale del token, nunca de un dato enviado por el cliente.
+	// Los tokens ya emitidos siguen valiendo hasta que venzan (no hay revocación).
+	@Transactional
+	public void cambiarClave(UsuarioAutenticado autenticado, CambiarClaveRequest pedido) {
+		Usuario usuario = usuarios.findById(autenticado.id()).orElseThrow(CredencialesInvalidasException::new);
+
+		boolean actualCorrecta = usuario.getClaveHash() != null && claveEntraEnBcrypt(pedido.claveActual())
+				&& encoder.matches(pedido.claveActual(), usuario.getClaveHash());
+		if (!actualCorrecta) {
+			throw new PeticionInvalidaException("CLAVE_ACTUAL_INCORRECTA", "La contraseña actual no es correcta");
+		}
+		if (pedido.claveNueva().equals(pedido.claveActual())) {
+			throw new PeticionInvalidaException("CLAVE_NUEVA_IGUAL",
+					"La contraseña nueva tiene que ser distinta de la actual");
+		}
+
+		usuario.setClaveHash(encoder.encode(pedido.claveNueva()));
+		usuarios.save(usuario);
 	}
 
 	// Siempre compara contra un hash (el real o el de relleno) para que tarde parecido exista o no el usuario.

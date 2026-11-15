@@ -31,6 +31,11 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.UNAUTHORIZED, "No autorizado", "CREDENCIALES_INVALIDAS", e.getMessage());
 	}
 
+	@ExceptionHandler(PeticionInvalidaException.class)
+	ProblemDetail reglaDeNegocio(PeticionInvalidaException e) {
+		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", e.getCodigo(), e.getMessage());
+	}
+
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO", e.getMessage());
