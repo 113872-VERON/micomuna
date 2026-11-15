@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.micomuna.dtos.ActualizarComunaRequest;
 import com.micomuna.dtos.ComunaAdminDto;
@@ -31,6 +32,8 @@ public class ComunaService {
 
 	private final ComunaRepository comunas;
 	private final UsuarioRepository usuarios;
+	private final InvitacionService invitaciones;
+	private final TransactionTemplate transaccion;
 
 	public Comuna buscarActivaPorSlug(String slug) {
 		if (!SlugUtil.esValido(slug)) {
@@ -46,10 +49,18 @@ public class ComunaService {
 		return comunas.listarParaAdmin();
 	}
 
-	// Crea la comuna y su administrador en una sola transacción: si algo falla, no queda ninguna de las dos.
-	// El administrador queda sin contraseña (pendiente); la invitación por correo le llega aparte.
-	@Transactional
+	// Crea la comuna, su administrador y el código de invitación en una sola transacción: si algo falla, no queda nada.
+	// El administrador queda sin contraseña (pendiente). El correo sale después de guardar: si falla,
+	// la comuna queda creada y la respuesta avisa (invitacionEnviada = false) para reenviarlo.
 	public ComunaCreadaDto crear(CrearComunaRequest pedido) {
+		Creada creada = transaccion.execute(estado -> crearEnTransaccion(pedido));
+		return new ComunaCreadaDto(creada.comuna(), creada.adminCorreo(), invitaciones.enviar(creada.invitacion()));
+	}
+
+	private record Creada(ComunaAdminDto comuna, String adminCorreo, InvitacionService.Invitacion invitacion) {
+	}
+
+	private Creada crearEnTransaccion(CrearComunaRequest pedido) {
 		String slug = pedido.slug() != null ? pedido.slug() : generarEnlace(pedido);
 		if (comunas.existsBySlug(slug)) {
 			throw new ConflictoException(ENLACE_REPETIDO);
@@ -79,7 +90,7 @@ public class ComunaService {
 			throw new ConflictoException(ENLACE_REPETIDO);
 		}
 
-		return new ComunaCreadaDto(ComunaAdminDto.desde(comuna), admin.getCorreo());
+		return new Creada(ComunaAdminDto.desde(comuna), admin.getCorreo(), invitaciones.preparar(admin, comuna));
 	}
 
 	// Solo cambia lo que viene en el pedido. El enlace no se toca: ya está repartido entre los vecinos.

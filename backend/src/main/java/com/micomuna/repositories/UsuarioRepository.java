@@ -1,5 +1,6 @@
 package com.micomuna.repositories;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -14,6 +15,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	Optional<Usuario> findByComunaIdAndCorreo(Long idComuna, String correo);
 
 	Optional<Usuario> findByComunaIsNullAndCorreo(String correo);
+
+	List<Usuario> findByComunaIdAndRol(Long idComuna, Rol rol);
 
 	boolean existsByRol(Rol rol);
 

@@ -1,6 +1,13 @@
 package com.micomuna.controllers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -8,19 +15,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.ArgumentCaptor;
+import org.springframework.mail.MailSendException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.micomuna.client.MailService;
 import com.micomuna.entities.Comuna;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.ColorComuna;
@@ -54,6 +68,9 @@ class AdminComunaControllerTests {
 
 	@Autowired
 	private ObjectMapper json;
+
+	@MockitoBean
+	private MailService mail;
 
 	private String tokenSuperadmin;
 
@@ -101,6 +118,99 @@ class AdminComunaControllerTests {
 
 	private long idDe(String respuesta) throws Exception {
 		return json.readTree(respuesta).get("comuna").get("id").asLong();
+	}
+
+	// ---- Invitación por correo
+
+	@Test
+	void alCrearLaComunaSeLeEnviaLaInvitacionAlAdministrador() throws Exception {
+		crear(tokenSuperadmin, cuerpo("Invitada", "CORDOBA", ",\"slug\":\"t10-invitada\""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.invitacionEnviada").value(true));
+
+		verify(mail).enviar(eq("jefe@mail.com"), anyString(),
+				contains("http://localhost:4200/t10-invitada/invitacion?codigo="));
+	}
+
+	@Test
+	void siFallaElCorreoLaComunaSeCreaIgualYSeAvisa() throws Exception {
+		doThrow(new MailSendException("SMTP caído")).when(mail).enviar(anyString(), anyString(), anyString());
+
+		crear(tokenSuperadmin, cuerpo("Sin correo", "CORDOBA", ",\"slug\":\"t10-sin-correo\""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.invitacionEnviada").value(false));
+
+		assertThat(comunas.existsBySlug("t10-sin-correo")).isTrue();
+	}
+
+	@Test
+	void reenviarGeneraUnaInvitacionNuevaEInvalidaLaAnterior() throws Exception {
+		String respuesta = crear(tokenSuperadmin, cuerpo("Reenvio", "CORDOBA", ",\"slug\":\"t10-reenvio\""))
+				.andReturn().getResponse().getContentAsString();
+		long id = idDe(respuesta);
+		String viejo = codigoDelUltimoCorreo();
+
+		mockMvc.perform(post(RUTA + "/" + id + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.invitacionEnviada").value(true));
+		String nuevo = codigoDelUltimoCorreo();
+
+		assertThat(nuevo).isNotEqualTo(viejo);
+		aceptarInvitacion("t10-reenvio", viejo).andExpect(status().isBadRequest());
+		aceptarInvitacion("t10-reenvio", nuevo).andExpect(status().isNoContent());
+	}
+
+	@Test
+	void reenviarSiFallaElCorreoLoAvisaSinError() throws Exception {
+		long id = idDe(crear(tokenSuperadmin, cuerpo("Reenvio", "CORDOBA", ",\"slug\":\"t10-reenvio\""))
+				.andReturn().getResponse().getContentAsString());
+		doThrow(new MailSendException("SMTP caído")).when(mail).enviar(anyString(), anyString(), anyString());
+
+		mockMvc.perform(post(RUTA + "/" + id + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.invitacionEnviada").value(false));
+	}
+
+	@Test
+	void noSePuedeReenviarSiElAdministradorYaEligioSuClave() throws Exception {
+		Comuna c = comuna("t10-activa");
+		usuario(c, "jefe@mail.com", Rol.ADMIN_COMUNA);
+
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.codigo").value("CONFLICTO"));
+		verify(mail, never()).enviar(anyString(), anyString(), anyString());
+	}
+
+	@Test
+	void reenviarEnUnaComunaInexistenteDevuelve404() throws Exception {
+		mockMvc.perform(post(RUTA + "/999999/reenviar-invitacion").header("Authorization", "Bearer " + tokenSuperadmin))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void reenviarExigeSerSuperadmin() throws Exception {
+		Comuna c = comuna("t10-permisos");
+		String tokenAdminComuna = jwt.generar(usuario(c, "otro@mail.com", Rol.ADMIN_COMUNA));
+
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion"))
+				.andExpect(status().isUnauthorized());
+		mockMvc.perform(post(RUTA + "/" + c.getId() + "/reenviar-invitacion").header("Authorization", "Bearer " + tokenAdminComuna))
+				.andExpect(status().isForbidden());
+	}
+
+	private String codigoDelUltimoCorreo() {
+		ArgumentCaptor<String> texto = ArgumentCaptor.forClass(String.class);
+		verify(mail, atLeastOnce()).enviar(anyString(), anyString(), texto.capture());
+		Matcher m = Pattern.compile("codigo=([A-Za-z0-9_-]+)").matcher(texto.getValue());
+		assertThat(m.find()).isTrue();
+		return m.group(1);
+	}
+
+	private ResultActions aceptarInvitacion(String slug, String codigo) throws Exception {
+		return mockMvc.perform(post("/api/comunas/" + slug + "/aceptar-invitacion")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"codigo\":\"" + codigo + "\",\"claveNueva\":\"mi-clave-elegida-1\"}"));
 	}
 
 	// ---- Alta

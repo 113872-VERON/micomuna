@@ -17,7 +17,9 @@ import com.micomuna.dtos.ActualizarComunaRequest;
 import com.micomuna.dtos.ComunaAdminDto;
 import com.micomuna.dtos.ComunaCreadaDto;
 import com.micomuna.dtos.CrearComunaRequest;
+import com.micomuna.dtos.InvitacionRespuesta;
 import com.micomuna.services.ComunaService;
+import com.micomuna.services.InvitacionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -35,6 +37,7 @@ import lombok.RequiredArgsConstructor;
 public class AdminComunaController {
 
 	private final ComunaService comunaService;
+	private final InvitacionService invitacionService;
 
 	@Operation(summary = "Crear una comuna con su administrador", description = "Crea la comuna y a su administrador, sin contraseña: elige la suya con la invitación por correo. Si no se manda el enlace, se arma con el nombre y la provincia. Las comunas no se borran, solo se desactivan.")
 	@ApiResponse(responseCode = "400", description = "Datos inválidos")
@@ -44,6 +47,15 @@ public class AdminComunaController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ComunaCreadaDto crear(@Valid @RequestBody CrearComunaRequest pedido) {
 		return comunaService.crear(pedido);
+	}
+
+	@Operation(summary = "Reenviar la invitación al administrador de una comuna", description = "Para cuando el correo no salió o se perdió. Genera un enlace nuevo y deja sin efecto el anterior. La respuesta dice si el correo salió.")
+	@ApiResponse(responseCode = "403", description = "Solo el superadmin")
+	@ApiResponse(responseCode = "404", description = "La comuna no existe")
+	@ApiResponse(responseCode = "409", description = "El administrador ya eligió su contraseña")
+	@PostMapping("/{id}/reenviar-invitacion")
+	public InvitacionRespuesta reenviarInvitacion(@PathVariable Long id) {
+		return invitacionService.reenviarAlAdministrador(id);
 	}
 
 	@Operation(summary = "Listar todas las comunas", description = "Incluye las inactivas. No trae la imagen del logo.")

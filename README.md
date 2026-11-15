@@ -75,6 +75,8 @@ docker compose ps
 
 La base se llama `FREEPDB1`. Los datos quedan en un volumen de Docker, así que sobreviven a reinicios. Para apagarla sin perder datos: `docker compose down`. Para borrar también los datos y empezar de cero: `docker compose down -v`.
 
+**Correo de desarrollo (Mailpit).** El mismo `docker compose up -d` levanta Mailpit, una casilla falsa que recibe los correos de la app (invitaciones a administradores y recuperación de contraseña) sin mandarlos a nadie. Se ven en <http://localhost:8025>. Los enlaces de esos correos apuntan a `http://localhost:4200`; si el frontend corre en otra dirección, definir `FRONTEND_URL`. Para un SMTP real se usan `MAIL_HOST`, `MAIL_PORT`, `MAIL_USUARIO`, `MAIL_CLAVE` y `MAIL_REMITENTE` (opcionales en desarrollo).
+
 ### 3. Backend
 
 ```bash

@@ -32,7 +32,8 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.GET, "/api/comunas/*").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/comunas/*/registro", "/api/comunas/*/login",
-								"/api/admin/login").permitAll()
+								"/api/comunas/*/recuperar-clave", "/api/comunas/*/restablecer-clave",
+								"/api/comunas/*/aceptar-invitacion", "/api/admin/login").permitAll()
 						.requestMatchers("/api/salud", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(new JwtAuthFilter(jwt, usuarios), UsernamePasswordAuthenticationFilter.class);

@@ -22,5 +22,14 @@ services:
       retries: 30
       start_period: 60s
 
+  # Casilla de correo de desarrollo: recibe los mails de la app sin mandarlos a nadie.
+  # Interfaz web en http://localhost:8025 (SMTP en el puerto 1025).
+  mailpit:
+    image: axllent/mailpit:v1.21
+    container_name: micomuna-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   oracle-data:
