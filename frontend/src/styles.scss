@@ -36,4 +36,155 @@ body {
   margin: 0;
   height: 100%;
 }
-/* You can add global styles to this file, and also import other style files */
+// ---- Pantallas de una comuna (diseño: letra grande y alto contraste para vecinos mayores) ----
+// --p, --fondo y --ayuda los escribe TemaComunaService según el color de la comuna (Celeste por defecto).
+:root {
+  --p: #1d6aa8;
+  --fondo: color-mix(in srgb, var(--p) 5%, white);
+  --ayuda: color-mix(in srgb, var(--p) 12%, white);
+  --tinta: #1f2933;
+  --sub: #3e4c59;
+  --borde: #52606d;
+  --error: #b42318;
+  --error-fondo: #fdecea;
+}
+
+.hoja {
+  margin-top: -24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 32px 24px 28px;
+  border-radius: 28px 28px 0 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-size: 20px;
+  line-height: 1.3;
+
+  // Cada pantalla es un componente dentro de la hoja: él lleva el espaciado y estira hasta el pie.
+  > * { flex: 1; display: flex; flex-direction: column; gap: 16px; }
+  > router-outlet { display: none; }
+
+  h1 { margin: 0; font-size: 30px; line-height: 1.15; }
+  .sub { margin: 0; color: var(--sub); }
+  label { display: block; margin-bottom: 8px; font-size: 18px; font-weight: 500; }
+  .formulario { display: flex; flex-direction: column; gap: 16px; }
+  .espacio { flex: 1; }
+
+  .campo {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 4px 0 16px;
+    border: 2px solid var(--borde);
+    border-radius: 16px;
+    background: #fff;
+    font-size: 20px;
+
+    &:focus-within { border-color: var(--p); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p) 30%, white); }
+    &.error { border-color: var(--error); background: var(--error-fondo); }
+    input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; font: inherit; color: var(--tinta); }
+    input::placeholder { color: #52606d; opacity: 0.8; }
+  }
+
+  .ojo {
+    flex: none;
+    min-width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--p);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  .btn {
+    width: 100%;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 16px;
+    font: inherit;
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 160ms ease;
+
+    &.pri { background: var(--p); color: #fff; }
+    &.sec { background: #fff; color: var(--p); border: 2px solid var(--p); }
+    &:active:not(:disabled) { transform: scale(0.97); }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
+  .link {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--p);
+    font-size: 18px;
+    font-weight: 700;
+    text-decoration: underline;
+  }
+
+  .ayuda {
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--ayuda);
+    font-size: 18px;
+    b { display: block; margin-bottom: 4px; }
+    a { color: var(--p); font-weight: 700; }
+  }
+
+  .sello {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--ayuda);
+    color: var(--p);
+    &.error { background: var(--error-fondo); color: var(--error); }
+  }
+
+  .reglas {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 18px;
+    color: var(--sub);
+    div { display: flex; gap: 8px; align-items: center; }
+    svg { flex: none; }
+    .cumplida { color: var(--p); font-weight: 500; }
+  }
+
+  // Los errores llevan ícono, texto y fondo rosado: nunca solo color.
+  .msg-error {
+    display: flex;
+    gap: 8px;
+    margin: 8px 0 0;
+    color: var(--error);
+    font-size: 18px;
+    font-weight: 500;
+    svg { flex: none; margin-top: 2px; }
+  }
+  .caja-error { margin: 0; padding: 12px 14px; border-radius: 14px; background: var(--error-fondo); }
+}
+
+:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hoja .btn { transition: none; }
+}

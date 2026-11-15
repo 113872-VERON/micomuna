@@ -1,0 +1,62 @@
+@if (listo()) {
+  <div class="sello" aria-hidden="true">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></svg>
+  </div>
+  <h1>Listo, ya cambiaste tu contraseña</h1>
+  <p class="sub">Ahora podés ingresar con la contraseña nueva.</p>
+  <div class="espacio"></div>
+  <a class="btn pri" [routerLink]="['/', slug(), 'login']">Ingresar</a>
+} @else if (vencido()) {
+  <div class="sello error" aria-hidden="true">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 2.5h6" /></svg>
+  </div>
+  <h1>Este enlace ya no sirve</h1>
+  <p class="sub">Los enlaces duran una hora y se pueden usar una sola vez. Pedí uno nuevo, es rápido.</p>
+  <div class="espacio"></div>
+  <a class="btn pri" [routerLink]="['/', slug(), 'recuperar']">Pedir un enlace nuevo</a>
+  <a class="link" [routerLink]="['/', slug(), 'login']">Volver a ingresar</a>
+} @else {
+  <h1>Elegí tu contraseña nueva</h1>
+  <p class="sub">Usá al menos 8 letras o números. Anotala en un lugar seguro.</p>
+
+  <form class="formulario" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+    <div>
+      <app-campo-clave
+        [control]="clave"
+        etiqueta="Contraseña nueva"
+        idCampo="clave"
+        autocompletar="new-password"
+        [conError]="clave.touched && clave.invalid"
+        descripcion="reglas-clave error-clave"
+      />
+      <div class="reglas" id="reglas-clave">
+        <div [class.cumplida]="largoCumplido()">
+          @if (largoCumplido()) {
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></svg>
+          } @else {
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /></svg>
+          }
+          Tiene 8 o más caracteres
+        </div>
+      </div>
+      @if (clave.touched && clave.invalid) {
+        <p class="msg-error" id="error-clave" role="alert">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+          {{ mensajeClave() }}
+        </p>
+      }
+    </div>
+
+    @if (error(); as mensaje) {
+      <p class="msg-error caja-error" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        {{ mensaje }}
+      </p>
+    }
+
+    <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+      {{ enviando() ? 'Guardando…' : 'Guardar contraseña nueva' }}
+    </button>
+  </form>
+  <div class="espacio"></div>
+}
