@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
@@ -65,6 +67,18 @@ public class ApiExceptionHandler {
 				"Revisá los datos ingresados");
 		problema.setProperty("errores", errores);
 		return problema;
+	}
+
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	ProblemDetail metodoNoPermitido() {
+		return problema(HttpStatus.METHOD_NOT_ALLOWED, "Método no permitido", "METODO_NO_PERMITIDO",
+				"Ese método no está permitido en esta ruta");
+	}
+
+	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+	ProblemDetail tipoNoSoportado() {
+		return problema(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado", "TIPO_NO_SOPORTADO",
+				"El formato de los datos enviados no está soportado");
 	}
 
 	@ExceptionHandler(NoResourceFoundException.class)

@@ -37,7 +37,7 @@ class SuperadminInicializadorTests {
 	}
 
 	private void iniciar(String correo, String clave) throws Exception {
-		new SuperadminInicializador(usuarios, encoder, correo, clave).run(null);
+		new SuperadminInicializador(usuarios, encoder, correo, clave, 8).run(null);
 		usuarios.flush();
 	}
 
@@ -112,5 +112,16 @@ class SuperadminInicializadorTests {
 		iniciar("root@mail.com", CLAVE);
 
 		assertThat(salida.getOut()).doesNotContain(CLAVE);
+	}
+
+	@Test
+	void enProduccionLaClaveDebeTenerElMinimoConfigurado() throws Exception {
+		new SuperadminInicializador(usuarios, encoder, "root@mail.com", "once-chars1", 12).run(null);
+		usuarios.flush();
+		assertThat(usuarios.findByComunaIsNullAndCorreo("root@mail.com")).isEmpty();
+
+		new SuperadminInicializador(usuarios, encoder, "root@mail.com", "doce-chars12", 12).run(null);
+		usuarios.flush();
+		assertThat(usuarios.findByComunaIsNullAndCorreo("root@mail.com")).isPresent();
 	}
 }

@@ -481,11 +481,13 @@ components:
         correo:
           type: string
           format: email
-          minLength: 1
+          maxLength: 254
+          minLength: 0
         clave:
           type: string
           format: password
-          minLength: 1
+          maxLength: 200
+          minLength: 0
       required:
       - clave
       - correo

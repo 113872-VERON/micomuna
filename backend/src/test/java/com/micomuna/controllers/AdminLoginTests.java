@@ -159,10 +159,18 @@ class AdminLoginTests {
 	}
 
 	@Test
+	void correoOClaveDemasiadoLargosDan400() throws Exception {
+		login("a".repeat(250) + "@mail.com", "clave-segura-1").andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errores.correo").exists());
+		login("root@mail.com", "x".repeat(201)).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errores.clave").exists());
+	}
+
+	@Test
 	void unaClaveMuyLargaDa401YNoUnError500() throws Exception {
 		usuario(null, "root@mail.com", Rol.SUPERADMIN, true);
 
-		login("root@mail.com", "ñ".repeat(500)).andExpect(status().isUnauthorized());
+		login("root@mail.com", "ñ".repeat(100)).andExpect(status().isUnauthorized());
 	}
 
 	@Test

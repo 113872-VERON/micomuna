@@ -179,11 +179,21 @@ class AuthControllerLoginTests {
 	}
 
 	@Test
+	void correoOClaveDemasiadoLargosDan400() throws Exception {
+		comuna("t6-tope", true);
+
+		login("t6-tope", "a".repeat(250) + "@mail.com", "clave-segura-1").andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errores.correo").exists());
+		login("t6-tope", "ana@mail.com", "x".repeat(201)).andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.errores.clave").exists());
+	}
+
+	@Test
 	void unaClaveMuyLargaDa401YNoUnError500() throws Exception {
 		Comuna c = comuna("t6-larga", true);
 		usuario(c, "ana@mail.com", Rol.VECINO, true);
 
-		login("t6-larga", "ana@mail.com", "ñ".repeat(500)).andExpect(status().isUnauthorized());
+		login("t6-larga", "ana@mail.com", "ñ".repeat(100)).andExpect(status().isUnauthorized());
 	}
 
 	@Test

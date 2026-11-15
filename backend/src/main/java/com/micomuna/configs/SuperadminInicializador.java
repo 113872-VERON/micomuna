@@ -31,13 +31,16 @@ public class SuperadminInicializador implements ApplicationRunner {
 	private final PasswordEncoder encoder;
 	private final String correo;
 	private final String clave;
+	private final int claveMinima;
 
 	public SuperadminInicializador(UsuarioRepository usuarios, PasswordEncoder encoder,
-			@Value("${superadmin.correo:}") String correo, @Value("${superadmin.clave:}") String clave) {
+			@Value("${superadmin.correo:}") String correo, @Value("${superadmin.clave:}") String clave,
+			@Value("${superadmin.clave-minima:8}") int claveMinima) {
 		this.usuarios = usuarios;
 		this.encoder = encoder;
 		this.correo = correo;
 		this.clave = clave;
+		this.claveMinima = claveMinima;
 	}
 
 	@Override
@@ -57,6 +60,9 @@ public class SuperadminInicializador implements ApplicationRunner {
 			return;
 		}
 		String motivo = ClaveValidaValidator.motivoDeRechazo(clave);
+		if (motivo == null && clave.length() < claveMinima) {
+			motivo = "tiene que tener al menos " + claveMinima + " caracteres";
+		}
 		if (motivo != null) {
 			log.error("SUPERADMIN_CLAVE no sirve ({}): no se crea el superadmin.", motivo);
 			return;

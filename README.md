@@ -111,6 +111,17 @@ npm start
 
 Se abre en <http://localhost:4200>. La raíz no es una pantalla: se entra por el enlace de una comuna (`/<enlace>/login`) o por `/admin/login` si sos superadmin. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
 
+## Puesta en producción
+
+Sin perfil explícito el backend arranca en `dev`, pensado para la máquina del desarrollador (Swagger abierto y base local). Un despliegue tiene que activar el perfil `prod` con `SPRING_PROFILES_ACTIVE=prod` y definir estas variables de entorno: `DB_URL`, `DB_USUARIO`, `DB_CLAVE`, `JWT_SECRET` y, solo para crear al superadmin la primera vez, `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` (en `prod` la clave tiene que tener al menos 12 caracteres). Con ese perfil la documentación de la API no se publica. Para el correo ver `MAIL_*` y `FRONTEND_URL` más arriba.
+
+## Limitaciones conocidas y decisiones de seguridad (MC-12)
+
+- **Sin límite de intentos de login** (deuda, fuera del alcance acordado). La cuenta del superadmin es la más expuesta. Una mejora posible es limitar intentos por correo y por dirección, o poner un límite en el proxy.
+- **Los tokens no se revocan.** Cambiar o restablecer la contraseña no invalida los tokens ya emitidos: valen hasta que vencen (4 horas). Deuda marcada; se resolvería guardando cuándo cambió la clave y rechazando tokens anteriores.
+- **El registro avisa si un correo ya existe en la comuna** (409). Decisión aceptada: es el compromiso habitual de usabilidad. La recuperación de contraseña, en cambio, responde siempre igual exista o no la cuenta.
+- **Una cuenta por correo en cada comuna:** una persona con dos roles en la misma comuna necesitaría dos correos.
+
 ## Problemas comunes
 
 - **El backend dice que no puede conectarse:** revisar que el contenedor esté `healthy` (`docker compose ps` dentro de `db/`) y que exista `db/.env`.
