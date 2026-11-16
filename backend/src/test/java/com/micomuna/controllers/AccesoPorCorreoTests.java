@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -67,6 +68,8 @@ class AccesoPorCorreoTests {
 	@MockitoBean
 	private MailService mail;
 
+	private Usuario usuarioDePrueba;
+
 	private Comuna comuna(String slug) {
 		Comuna c = new Comuna();
 		c.setNombre("Comuna de prueba");
@@ -83,7 +86,13 @@ class AccesoPorCorreoTests {
 		u.setNombre("Vecino");
 		u.setRol(Rol.VECINO);
 		u.setActivo(activo);
-		return usuarios.saveAndFlush(u);
+		usuarioDePrueba = usuarios.saveAndFlush(u);
+		return usuarioDePrueba;
+	}
+
+	// La base de desarrollo puede tener códigos de otras comunas: cada prueba mira solo los de su usuario.
+	private List<CodigoRecuperacion> codigosDeLaPrueba() {
+		return codigos.findPendientesDelUsuario(usuarioDePrueba.getId());
 	}
 
 	private ResultActions llamar(String slug, String accion, String cuerpo) throws Exception {
@@ -229,7 +238,7 @@ class AccesoPorCorreoTests {
 		usuario(comuna(SLUG), "vecino@mail.com", "clave-vieja-1", true);
 		recuperar(SLUG, "vecino@mail.com");
 		String codigo = ultimoCodigo();
-		for (CodigoRecuperacion c : codigos.findAll()) {
+		for (CodigoRecuperacion c : codigosDeLaPrueba()) {
 			c.setVenceEn(Instant.now().minus(1, ChronoUnit.MINUTES));
 			codigos.saveAndFlush(c);
 		}
@@ -298,7 +307,7 @@ class AccesoPorCorreoTests {
 		recuperar(SLUG, "vecino@mail.com");
 		String codigo = ultimoCodigo();
 
-		assertThat(codigos.findAll()).hasSize(1).allSatisfy(c -> {
+		assertThat(codigosDeLaPrueba()).hasSize(1).allSatisfy(c -> {
 			assertThat(c.getCodigoHash()).isNotEqualTo(codigo).doesNotContain(codigo);
 			assertThat(c.getVenceEn()).isBetween(Instant.now().plus(55, ChronoUnit.MINUTES),
 					Instant.now().plus(61, ChronoUnit.MINUTES));
@@ -352,7 +361,7 @@ class AccesoPorCorreoTests {
 		usuario(comuna(SLUG), "nuevo@mail.com", null, true);
 		recuperar(SLUG, "nuevo@mail.com");
 		String codigo = ultimoCodigo();
-		for (CodigoRecuperacion c : codigos.findAll()) {
+		for (CodigoRecuperacion c : codigosDeLaPrueba()) {
 			c.setVenceEn(Instant.now().minus(1, ChronoUnit.MINUTES));
 			codigos.saveAndFlush(c);
 		}
