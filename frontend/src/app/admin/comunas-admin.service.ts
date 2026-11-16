@@ -22,6 +22,13 @@ export class ComunasAdminService {
     return this.http.patch<ComunaAdminDto>(`${BASE}/${id}`, { activa });
   }
 
+  // Sin Content-Type a mano: el navegador arma el multipart con su boundary.
+  subirLogo(id: number, archivo: File): Observable<ComunaAdminDto> {
+    const datos = new FormData();
+    datos.append('archivo', archivo);
+    return this.http.put<ComunaAdminDto>(`${BASE}/${id}/logo`, datos);
+  }
+
   reenviarInvitacion(id: number): Observable<void> {
     return this.http.post<void>(`${BASE}/${id}/administrador/reenviar-invitacion`, null);
   }

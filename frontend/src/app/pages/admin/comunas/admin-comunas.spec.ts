@@ -107,6 +107,110 @@ describe('AdminComunas', () => {
     expect(el(f).textContent).toContain('No pudimos conectarnos');
   });
 
+  describe('logo', () => {
+    const botonLogo = (f: ComponentFixture<unknown>, id: number) =>
+      el(f).querySelector<HTMLButtonElement>(`[data-logo-boton="${id}"]`)!;
+    const entrada = (f: ComponentFixture<unknown>, id: number) =>
+      el(f).querySelector<HTMLInputElement>(`[data-logo-entrada="${id}"]`)!;
+
+    function elegir(f: ComponentFixture<unknown>, id: number, archivo: File): HTMLInputElement {
+      const input = entrada(f, id);
+      // El entorno de pruebas no trae DataTransfer: se simula la lista de archivos.
+      Object.defineProperty(input, 'files', { value: [archivo], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      f.detectChanges();
+      return input;
+    }
+    const png = (bytes = 10) => new File([new Uint8Array(bytes)], 'logo.png', { type: 'image/png' });
+
+    it('elBotonDiceSubirOCambiarSegunTengaLogo', () => {
+      const f = crear();
+      expect(botonLogo(f, 1).textContent).toContain('Subir logo');
+      expect(botonLogo(f, 2).textContent).toContain('Cambiar logo');
+    });
+
+    it('lasEntradasAceptanSoloPngYJpegYLaAyudaDiceLosRequisitos', () => {
+      const f = crear();
+      expect(entrada(f, 1).getAttribute('accept')).toBe('image/png,image/jpeg');
+      expect(el(f).textContent).toContain('cuadrado, PNG o JPG, hasta 512 KB');
+    });
+
+    it('muestraMiniaturaSoloSiTieneLogo', () => {
+      const f = crear();
+      expect(el(f).querySelector('[data-logo-miniatura="1"]')).toBeNull();
+      const img = el(f).querySelector('[data-logo-miniatura="2"] img');
+      expect(img?.getAttribute('src')).toBe('/api/comunas/salsipuedes-neuquen/logo');
+    });
+
+    it('rechazaSinLlamarAlBackendUnArchivoDeMasDe512KB', () => {
+      const f = crear();
+      const input = elegir(f, 1, png(512 * 1024 + 1));
+
+      http.expectNone(`${URL}/1/logo`);
+      expect(el(f).textContent).toContain('El logo pesa más de 512 KB. Elegí una imagen más liviana.');
+      expect(input.value).toBe('');
+    });
+
+    it('rechazaSinLlamarAlBackendUnArchivoQueNoEsPngNiJpeg', () => {
+      const f = crear();
+      elegir(f, 1, new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }));
+
+      http.expectNone(`${URL}/1/logo`);
+      expect(el(f).textContent).toContain('El logo tiene que ser una imagen PNG o JPG.');
+    });
+
+    it('aceptaJpegYElLimiteExactoDe512KB', () => {
+      const f = crear();
+      elegir(f, 1, new File([new Uint8Array(512 * 1024)], 'logo.jpg', { type: 'image/jpeg' }));
+
+      http.expectOne(`${URL}/1/logo`).flush({ ...salsipuedes, tieneLogo: true });
+    });
+
+    it('mientrasSubeMuestraSubiendoYDeshabilitaElBoton', () => {
+      const f = crear();
+      elegir(f, 1, png());
+
+      expect(botonLogo(f, 1).disabled).toBe(true);
+      expect(botonLogo(f, 1).textContent).toContain('Subiendo…');
+      http.expectOne(`${URL}/1/logo`).flush({ ...salsipuedes, tieneLogo: true });
+    });
+
+    it('alTerminarBienActualizaLaFilaYMuestraLaMiniaturaConParametroDeCache', () => {
+      const f = crear();
+      elegir(f, 1, png());
+      const pedido = http.expectOne(`${URL}/1/logo`);
+      expect(pedido.request.method).toBe('PUT');
+      expect((pedido.request.body as FormData).get('archivo')).toBeTruthy();
+      pedido.flush({ ...salsipuedes, tieneLogo: true });
+      f.detectChanges();
+
+      expect(botonLogo(f, 1).textContent).toContain('Cambiar logo');
+      expect(botonLogo(f, 1).disabled).toBe(false);
+      const src = el(f).querySelector('[data-logo-miniatura="1"] img')?.getAttribute('src');
+      expect(src).toMatch(/^\/api\/comunas\/salsipuedes-cordoba\/logo\?v=\d+$/);
+    });
+
+    it('conLogoInvalidoDelServidorMuestraSuMensajeYVuelveAHabilitar', () => {
+      const f = crear();
+      elegir(f, 2, png());
+      http.expectOne(`${URL}/2/logo`).flush(
+        { codigo: 'LOGO_INVALIDO', detail: 'El archivo no es una imagen PNG o JPEG válida.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      f.detectChanges();
+
+      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('El archivo no es una imagen PNG o JPEG válida.');
+      expect(botonLogo(f, 2).disabled).toBe(false);
+    });
+
+    it('despuesDeElegirUnArchivoElInputQuedaVacioParaPoderRepetirlo', () => {
+      const f = crear();
+      const input = elegir(f, 1, png());
+      expect(input.value).toBe('');
+      http.expectOne(`${URL}/1/logo`).flush({ ...salsipuedes, tieneLogo: true });
+    });
+  });
+
   it('siFallaLaCargaOfreceReintentar', () => {
     const f = TestBed.createComponent(AdminComunas);
     f.detectChanges();
