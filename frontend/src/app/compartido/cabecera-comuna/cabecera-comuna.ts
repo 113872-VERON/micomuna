@@ -26,8 +26,9 @@ import { ComunaDto } from '../../auth/modelos';
     </header>
   `,
   styles: `
-    :host { display: block; }
-    .cab { background: var(--p); color: #fff; padding: 52px 24px 56px; display: flex; flex-direction: column; gap: 18px; }
+    :host { display: flex; flex-direction: column; }
+    .cab { flex: 1; background: var(--p); color: #fff; padding: 52px 24px 56px; display: flex; flex-direction: column; gap: 18px; }
+    @media (min-width: 900px) { :host-context(.pantalla) .cab { justify-content: center; padding: 48px 56px; } }
     .plataforma { font-size: 17px; font-weight: 500; display: flex; gap: 8px; align-items: center; }
     .comuna { display: flex; gap: 16px; align-items: center; }
     .logo { flex: none; width: 76px; height: 76px; background: #fff; border-radius: 18px; padding: 8px; display: flex; align-items: center; justify-content: center; }

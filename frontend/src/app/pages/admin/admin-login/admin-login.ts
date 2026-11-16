@@ -14,8 +14,8 @@ import { CampoClave } from '../../../compartido/campo-clave/campo-clave';
   templateUrl: './admin-login.html',
   styles: `
     :host { display: block; min-height: 100dvh; background: var(--fondo); }
-    .pantalla { max-width: 520px; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; }
     .cab { background: var(--p); color: #fff; padding: 52px 24px 56px; display: flex; flex-direction: column; gap: 6px; }
+    @media (min-width: 900px) { .cab { justify-content: center; padding: 48px 56px; } }
     .plataforma { font-size: 18px; font-weight: 500; display: flex; gap: 8px; align-items: center; }
     .marca { font-size: 40px; line-height: 1.08; font-weight: 700; }
   `,

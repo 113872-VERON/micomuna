@@ -16,7 +16,6 @@ import { TemaComunaService } from '../../tema/tema-comuna.service';
   `,
   styles: `
     :host { display: block; min-height: 100dvh; background: var(--fondo); }
-    .pantalla { max-width: 520px; min-height: 100dvh; margin: 0 auto; display: flex; flex-direction: column; background: var(--fondo); }
   `,
 })
 export class ComunaLayout {

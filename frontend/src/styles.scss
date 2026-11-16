@@ -49,6 +49,32 @@ body {
   --error-fondo: #fdecea;
 }
 
+// Marco de las pantallas de entrada. En el celular es una columna (cabecera arriba, hoja abajo);
+// en una pantalla ancha la cabecera pasa a la izquierda y el formulario queda centrado a la derecha.
+.pantalla {
+  max-width: 520px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--fondo);
+
+  @media (min-width: 900px) {
+    max-width: none;
+    flex-direction: row;
+
+    > app-cabecera-comuna, > .cab { flex: 0 0 42%; max-width: 560px; }
+    > .hoja {
+      margin-top: 0;
+      border-radius: 0;
+      padding: 48px 56px;
+      align-items: center;
+      justify-content: center;
+      > * { flex: 0 1 auto; width: 100%; max-width: 460px; }
+    }
+  }
+}
+
 .hoja {
   margin-top: -24px;
   flex: 1;
