@@ -82,4 +82,15 @@ class JwtServiceTests {
 		assertThatThrownBy(() -> new JwtService("", Duration.ofHours(4)))
 				.isInstanceOf(IllegalArgumentException.class);
 	}
+
+	@Test
+	void unTokenPropioSinSubjectONiRolSeTrataComoInvalido() {
+		JwtService jwt = new JwtService(SECRETO, Duration.ofHours(4));
+		var clave = io.jsonwebtoken.security.Keys.hmacShaKeyFor(SECRETO.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		String sinSubject = io.jsonwebtoken.Jwts.builder().claim("rol", "VECINO").signWith(clave).compact();
+		String sinRol = io.jsonwebtoken.Jwts.builder().subject("7").signWith(clave).compact();
+
+		assertThatThrownBy(() -> jwt.leer(sinSubject)).isInstanceOf(JwtException.class);
+		assertThatThrownBy(() -> jwt.leer(sinRol)).isInstanceOf(JwtException.class);
+	}
 }

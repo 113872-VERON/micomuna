@@ -1,0 +1,86 @@
+<h1>Crear mi cuenta</h1>
+<p class="sub">Con tu cuenta podés reportar problemas y ver cómo avanzan.</p>
+
+<form class="formulario" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div>
+    <label for="nombre">Nombre y apellido</label>
+    <div class="campo" [class.error]="nombre.touched && nombre.invalid">
+      <input
+        id="nombre"
+        type="text"
+        formControlName="nombre"
+        autocomplete="name"
+        [attr.aria-invalid]="nombre.touched && nombre.invalid"
+        aria-describedby="error-nombre"
+      />
+    </div>
+    @if (nombre.touched && nombre.invalid) {
+      <p class="msg-error" id="error-nombre" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        Escribí tu nombre.
+      </p>
+    }
+  </div>
+
+  <div>
+    <label for="correo">Correo electrónico</label>
+    <div class="campo" [class.error]="correo.touched && correo.invalid">
+      <input
+        id="correo"
+        type="email"
+        formControlName="correo"
+        autocomplete="email"
+        inputmode="email"
+        placeholder="ejemplo@correo.com"
+        [attr.aria-invalid]="correo.touched && correo.invalid"
+        aria-describedby="error-correo"
+      />
+    </div>
+    @if (correo.touched && correo.invalid) {
+      <p class="msg-error" id="error-correo" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        {{ mensajeCorreo() }}
+      </p>
+    }
+  </div>
+
+  <div>
+    <app-campo-clave
+      [control]="clave"
+      etiqueta="Contraseña"
+      idCampo="clave"
+      autocompletar="new-password"
+      [conError]="clave.touched && clave.invalid"
+      descripcion="reglas-clave error-clave"
+    />
+    <div class="reglas" id="reglas-clave">
+      <div [class.cumplida]="largoCumplido()">
+        @if (largoCumplido()) {
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></svg>
+        } @else {
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /></svg>
+        }
+        Tiene 8 o más caracteres
+      </div>
+    </div>
+    @if (clave.touched && clave.invalid) {
+      <p class="msg-error" id="error-clave" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        {{ mensajeClave() }}
+      </p>
+    }
+  </div>
+
+  @if (error(); as mensaje) {
+    <p class="msg-error caja-error" role="alert">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+      {{ mensaje }}
+    </p>
+  }
+
+  <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+    {{ enviando() ? 'Creando tu cuenta…' : 'Crear mi cuenta' }}
+  </button>
+</form>
+
+<a class="link" [routerLink]="['/', slug(), 'login']">Ya tengo cuenta</a>

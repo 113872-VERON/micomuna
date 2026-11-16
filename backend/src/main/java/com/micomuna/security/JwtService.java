@@ -51,9 +51,14 @@ public class JwtService {
 	public DatosToken leer(String token) {
 		try {
 			Claims claims = Jwts.parser().verifyWith(clave).build().parseSignedClaims(token).getPayload();
+			String subject = claims.getSubject();
+			String rol = claims.get("rol", String.class);
+			if (subject == null || rol == null) {
+				// Firmado con nuestra clave pero sin los datos que esperamos: no es un token nuestro.
+				throw new JwtException("Token inválido");
+			}
 			Long comunaId = claims.get("comuna", Long.class);
-			return new DatosToken(Long.valueOf(claims.getSubject()), Rol.valueOf(claims.get("rol", String.class)),
-					comunaId);
+			return new DatosToken(Long.valueOf(subject), Rol.valueOf(rol), comunaId);
 		} catch (IllegalArgumentException e) {
 			// Datos del token con formato inesperado: se trata como un token inválido.
 			throw new JwtException("Token inválido", e);

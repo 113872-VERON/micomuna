@@ -1,17 +1,17 @@
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { Router, provideRouter } from '@angular/router';
 import { App } from './app';
 
-describe('App', () => {
-  let http: HttpTestingController;
+@Component({ template: '<h1>Pantalla de prueba</h1>' })
+class Prueba {}
 
+describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideRouter([{ path: 'prueba', component: Prueba }])],
     }).compileComponents();
-    http = TestBed.inject(HttpTestingController);
   });
 
   it('should create the app', () => {
@@ -19,26 +19,10 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  it('should render title', async () => {
+  it('muestra la pantalla de la ruta activa', async () => {
     const fixture = TestBed.createComponent(App);
+    await TestBed.inject(Router).navigateByUrl('/prueba');
     await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain('MiComuna');
-  });
-
-  it('muestra que el backend está conectado cuando /api/salud responde', async () => {
-    const fixture = TestBed.createComponent(App);
-    fixture.detectChanges();
-    http.expectOne('/api/salud').flush({ estado: 'ok' });
-    await fixture.whenStable();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Backend: conectado');
-  });
-
-  it('muestra sin conexión cuando /api/salud falla', async () => {
-    const fixture = TestBed.createComponent(App);
-    fixture.detectChanges();
-    http.expectOne('/api/salud').flush(null, { status: 500, statusText: 'Error' });
-    await fixture.whenStable();
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Backend: sin conexión');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pantalla de prueba');
   });
 });

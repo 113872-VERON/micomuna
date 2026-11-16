@@ -1,0 +1,57 @@
+<h1>Ingresar</h1>
+<p class="sub">Escribí tu correo y tu contraseña.</p>
+
+<form class="formulario" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+  <div>
+    <label for="correo">Correo electrónico</label>
+    <div class="campo" [class.error]="correo.touched && correo.invalid">
+      <input
+        id="correo"
+        type="email"
+        formControlName="correo"
+        autocomplete="email"
+        inputmode="email"
+        placeholder="ejemplo@correo.com"
+        [attr.aria-invalid]="correo.touched && correo.invalid"
+        aria-describedby="error-correo"
+      />
+    </div>
+    @if (correo.touched && correo.invalid) {
+      <p class="msg-error" id="error-correo" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        {{ mensajeCorreo() }}
+      </p>
+    }
+  </div>
+
+  <div>
+    <app-campo-clave
+      [control]="clave"
+      etiqueta="Contraseña"
+      idCampo="clave"
+      autocompletar="current-password"
+      [conError]="clave.touched && clave.invalid"
+      descripcion="error-clave"
+    />
+    @if (clave.touched && clave.invalid) {
+      <p class="msg-error" id="error-clave" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        Escribí tu contraseña.
+      </p>
+    }
+  </div>
+
+  @if (error(); as mensaje) {
+    <p class="msg-error caja-error" role="alert">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+      {{ mensaje }}
+    </p>
+  }
+
+  <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+    {{ enviando() ? 'Entrando…' : 'Entrar' }}
+  </button>
+</form>
+
+<a class="link" [routerLink]="['/', slug(), 'recuperar']">Olvidé mi contraseña</a>
+<a class="btn sec" [routerLink]="['/', slug(), 'registro']">Crear mi cuenta</a>

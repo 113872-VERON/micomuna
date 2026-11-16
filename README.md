@@ -58,6 +58,8 @@ Contenido de `.env`:
 | `APP_USER` | Usuario que usa la aplicación (por defecto `micomuna`) |
 | `APP_USER_PASSWORD` | Clave del usuario de la aplicación |
 | `ORACLE_PORT` | Puerto local (por defecto `1522`, para no chocar con un Oracle instalado en Windows que usa el 1521) |
+| `JWT_SECRET` | Secreto para firmar los tokens de sesión. Al menos 32 caracteres, aleatorio y distinto en cada entorno. El backend no arranca sin él |
+| `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` | Correo y clave (de 8 a 72 caracteres) del superadmin de la plataforma. Opcionales: ver "Primer superadmin" |
 
 El archivo `.env` no se sube a git. Levantar la base:
 
@@ -73,6 +75,8 @@ docker compose ps
 
 La base se llama `FREEPDB1`. Los datos quedan en un volumen de Docker, así que sobreviven a reinicios. Para apagarla sin perder datos: `docker compose down`. Para borrar también los datos y empezar de cero: `docker compose down -v`.
 
+**Correo de desarrollo (Mailpit).** El mismo `docker compose up -d` levanta Mailpit, una casilla falsa que recibe los correos de la app (invitaciones a administradores y recuperación de contraseña) sin mandarlos a nadie. Se ven en <http://localhost:8025>. Los enlaces de esos correos apuntan a `http://localhost:4200`; si el frontend corre en otra dirección, definir `FRONTEND_URL`. Para un SMTP real se usan `MAIL_HOST`, `MAIL_PORT`, `MAIL_USUARIO`, `MAIL_CLAVE` y `MAIL_REMITENTE` (opcionales en desarrollo).
+
 ### 3. Backend
 
 ```bash
@@ -86,6 +90,16 @@ En Windows con PowerShell: `.\mvnw spring-boot:run`.
 - Usa el perfil `dev`, que está activo por defecto. Lee la conexión y las claves de `db/.env`, por eso hay que haber hecho el paso 2 antes.
 - Al iniciar, Flyway aplica las migraciones de `backend/src/main/resources/db/migration`. En una base vacía se crean las tablas solas.
 - Para correr las pruebas (necesitan la base levantada): `./mvnw test`.
+- **Swagger** (documentación de la API, solo con el perfil `dev`): <http://localhost:8081/swagger-ui.html>. Los endpoints protegidos se prueban con el botón "Authorize" y un token que devuelve el login.
+- La duración del token sale de `jwt.expiracion` (por defecto `4h`; se cambia con la variable `JWT_EXPIRACION`).
+
+#### Primer superadmin
+
+El superadmin es el único usuario que no pertenece a una comuna: crea las comunas e invita a su administrador. Se crea solo al iniciar el backend, si todavía no existe ninguno y están definidos `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` en `db/.env`. Cambiar esas variables después no modifica al que ya existe. Ingresa en <http://localhost:4200/admin/login>.
+
+#### Cómo se entra a cada comuna
+
+Cada comuna tiene su propio enlace, armado con el nombre y la provincia (por ejemplo `salsipuedes-cordoba`). Los vecinos se registran e ingresan desde `/<enlace>/login`, y las pantallas se ven con el nombre, el logo y el color de esa comuna. Las comunas y sus administradores los da de alta el superadmin; al crear una comuna, su administrador recibe una invitación por correo para elegir su contraseña (nadie ve ni comparte una clave).
 
 ### 4. Frontend
 
@@ -95,7 +109,18 @@ npm install
 npm start
 ```
 
-Se abre en <http://localhost:4200> y muestra "Backend: conectado" si el backend está corriendo. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
+Se abre en <http://localhost:4200>. La raíz no es una pantalla: se entra por el enlace de una comuna (`/<enlace>/login`) o por `/admin/login` si sos superadmin. Las llamadas a `/api` se reenvían al backend (puerto 8081) con `frontend/proxy.conf.json`; si se cambia ese archivo hay que reiniciar `npm start`. Pruebas: `npm test`. Compilación de producción: `npm run build`.
+
+## Puesta en producción
+
+Sin perfil explícito el backend arranca en `dev`, pensado para la máquina del desarrollador (Swagger abierto y base local). Un despliegue tiene que activar el perfil `prod` con `SPRING_PROFILES_ACTIVE=prod` y definir estas variables de entorno: `DB_URL`, `DB_USUARIO`, `DB_CLAVE`, `JWT_SECRET` y, solo para crear al superadmin la primera vez, `SUPERADMIN_CORREO` y `SUPERADMIN_CLAVE` (en `prod` la clave tiene que tener al menos 12 caracteres). Con ese perfil la documentación de la API no se publica. Para el correo ver `MAIL_*` y `FRONTEND_URL` más arriba.
+
+## Limitaciones conocidas y decisiones de seguridad (MC-12)
+
+- **Sin límite de intentos de login** (deuda, fuera del alcance acordado). La cuenta del superadmin es la más expuesta. Una mejora posible es limitar intentos por correo y por dirección, o poner un límite en el proxy.
+- **Los tokens no se revocan.** Cambiar o restablecer la contraseña no invalida los tokens ya emitidos: valen hasta que vencen (4 horas). Deuda marcada; se resolvería guardando cuándo cambió la clave y rechazando tokens anteriores.
+- **El registro avisa si un correo ya existe en la comuna** (409). Decisión aceptada: es el compromiso habitual de usabilidad. La recuperación de contraseña, en cambio, responde siempre igual exista o no la cuenta.
+- **Una cuenta por correo en cada comuna:** una persona con dos roles en la misma comuna necesitaría dos correos.
 
 ## Problemas comunes
 

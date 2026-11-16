@@ -1,0 +1,80 @@
+<div class="enc">
+  <h1>Comunas</h1>
+  <a class="btn pri" routerLink="/admin/comunas/nueva">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+    Nueva comuna
+  </a>
+</div>
+
+@if (errorAccion(); as mensaje) {
+  <p class="msg-error caja-error" role="alert">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+    {{ mensaje }}
+  </p>
+}
+
+@if (cargando()) {
+  <p class="estado-vacio" aria-live="polite">Cargando las comunas…</p>
+} @else if (errorCarga()) {
+  <div class="estado-vacio" role="alert">
+    <p>No pudimos cargar las comunas.</p>
+    <button type="button" class="btn sec" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (comunas().length === 0) {
+  <div class="estado-vacio">
+    <p><b>Todavía no hay comunas</b></p>
+    <p>Creá la primera y le mandamos una invitación a su administrador.</p>
+  </div>
+} @else {
+  <div class="tarjeta">
+    <table>
+      <thead>
+        <tr><th>Comuna</th><th>Enlace</th><th>Color</th><th>Estado</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+        @for (c of comunas(); track c.id) {
+          <tr>
+            <td><b>{{ c.nombre }}</b><small>{{ ubicacion(c) }}</small></td>
+            <td class="enlace">/{{ c.slug }}</td>
+            <td><span class="punto" [style.background]="hexColor(c)"></span>{{ nombreColor(c) }}</td>
+            <td>
+              @if (c.activa) {
+                <span class="estado-comuna activa">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>
+                  Activa
+                </span>
+              } @else {
+                <span class="estado-comuna inactiva">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M7 7l10 10" /></svg>
+                  Inactiva
+                </span>
+              }
+            </td>
+            <td>
+              @if (c.activa) {
+                <button type="button" class="btn sec chico peligro" [disabled]="cambiando() === c.id" (click)="pedirConfirmacion(c.id)">Desactivar</button>
+              } @else {
+                <button type="button" class="btn sec chico" [disabled]="cambiando() === c.id" (click)="cambiarEstado(c, true)">Activar</button>
+              }
+            </td>
+          </tr>
+          @if (confirmando() === c.id) {
+            <tr class="confirmar">
+              <td colspan="5">
+                <div class="aviso">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+                  <span><b>¿Desactivar {{ c.nombre }}?</b> Nadie de esta comuna podrá ingresar hasta que la actives de nuevo. No se borra nada.</span>
+                </div>
+                <div class="acciones">
+                  <button type="button" class="btn sec chico" (click)="confirmando.set(null)">Cancelar</button>
+                  <button type="button" class="btn pri chico peligro-pleno" (click)="cambiarEstado(c, false)">Sí, desactivar</button>
+                </div>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="nota">Las comunas no se borran: se desactivan. Una comuna inactiva no deja ingresar a nadie.</p>
+}

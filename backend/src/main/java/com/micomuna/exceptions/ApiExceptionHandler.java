@@ -7,7 +7,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -31,6 +34,23 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.UNAUTHORIZED, "No autorizado", "CREDENCIALES_INVALIDAS", e.getMessage());
 	}
 
+	// Lo lanza @PreAuthorize cuando el rol no alcanza. Sin este manejador lo atraparía el de errores inesperados (500).
+	@ExceptionHandler(AccessDeniedException.class)
+	ProblemDetail accesoDenegado() {
+		return problema(HttpStatus.FORBIDDEN, "Acceso denegado", "ACCESO_DENEGADO",
+				"No tenés permiso para hacer esto");
+	}
+
+	@ExceptionHandler(PeticionInvalidaException.class)
+	ProblemDetail reglaDeNegocio(PeticionInvalidaException e) {
+		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", e.getCodigo(), e.getMessage());
+	}
+
+	@ExceptionHandler(CorreoNoEnviadoException.class)
+	ProblemDetail correoNoEnviado(CorreoNoEnviadoException e) {
+		return problema(HttpStatus.BAD_GATEWAY, "Correo no enviado", "CORREO_NO_ENVIADO", e.getMessage());
+	}
+
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO", e.getMessage());
@@ -47,6 +67,18 @@ public class ApiExceptionHandler {
 				"Revisá los datos ingresados");
 		problema.setProperty("errores", errores);
 		return problema;
+	}
+
+	@ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+	ProblemDetail metodoNoPermitido() {
+		return problema(HttpStatus.METHOD_NOT_ALLOWED, "Método no permitido", "METODO_NO_PERMITIDO",
+				"Ese método no está permitido en esta ruta");
+	}
+
+	@ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+	ProblemDetail tipoNoSoportado() {
+		return problema(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado", "TIPO_NO_SOPORTADO",
+				"El formato de los datos enviados no está soportado");
 	}
 
 	@ExceptionHandler(NoResourceFoundException.class)
