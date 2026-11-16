@@ -30,6 +30,8 @@ public class ComunaService {
 	private static final String ENLACE_REPETIDO = "Ya existe una comuna con ese enlace. "
 			+ "Agregale el departamento al enlace para distinguirla (por ejemplo salsipuedes-colon-cordoba)";
 
+	public static final int LOGO_MAXIMO_BYTES = 512 * 1024;
+
 	private final ComunaRepository comunas;
 	private final UsuarioRepository usuarios;
 	private final InvitacionService invitaciones;
@@ -111,6 +113,47 @@ public class ComunaService {
 			comuna.setDepartamento(pedido.departamento().isEmpty() ? null : pedido.departamento());
 		}
 		return ComunaAdminDto.desde(comunas.saveAndFlush(comuna));
+	}
+
+	// El tipo se decide por los primeros bytes del archivo, nunca por lo que declara el cliente. Solo PNG y JPEG:
+	// un SVG puede llevar scripts, así que no se acepta.
+	@Transactional
+	public ComunaAdminDto cambiarLogo(Long id, byte[] imagen) {
+		Comuna comuna = comunas.findById(id).orElseThrow(ComunaService::noEncontrada);
+		if (imagen == null || imagen.length == 0 || imagen.length > LOGO_MAXIMO_BYTES) {
+			throw logoInvalido();
+		}
+		String tipo = tipoDeImagen(imagen);
+		if (tipo == null) {
+			throw logoInvalido();
+		}
+		comuna.setLogo(imagen);
+		comuna.setLogoTipo(tipo);
+		return ComunaAdminDto.desde(comunas.saveAndFlush(comuna));
+	}
+
+	// Devuelve la comuna solo si está activa y tiene logo; si no, el mismo 404 que el resto de la consulta pública.
+	public Comuna buscarActivaConLogo(String slug) {
+		Comuna comuna = buscarActivaPorSlug(slug);
+		if (comuna.getLogo() == null) {
+			throw noEncontrada();
+		}
+		return comuna;
+	}
+
+	private static String tipoDeImagen(byte[] b) {
+		byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+		if (b.length >= png.length && java.util.Arrays.equals(b, 0, png.length, png, 0, png.length)) {
+			return "image/png";
+		}
+		if (b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF) {
+			return "image/jpeg";
+		}
+		return null;
+	}
+
+	private static PeticionInvalidaException logoInvalido() {
+		return new PeticionInvalidaException("LOGO_INVALIDO", "El logo tiene que ser una imagen PNG o JPG de hasta 512 KB");
 	}
 
 	private String generarEnlace(CrearComunaRequest pedido) {
