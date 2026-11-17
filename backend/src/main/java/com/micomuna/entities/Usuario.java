@@ -15,6 +15,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -60,6 +61,22 @@ public class Usuario {
 	void alCrear() {
 		if (creadoEn == null) {
 			creadoEn = Instant.now();
+		}
+		verificarComunaSegunRol();
+	}
+
+	@PreUpdate
+	void alActualizar() {
+		verificarComunaSegunRol();
+	}
+
+	// El superadmin es el único usuario sin comuna; todos los demás roles pertenecen a una.
+	private void verificarComunaSegunRol() {
+		if (rol == Rol.SUPERADMIN && comuna != null) {
+			throw new IllegalStateException("El superadmin no puede pertenecer a una comuna");
+		}
+		if (rol != Rol.SUPERADMIN && comuna == null) {
+			throw new IllegalStateException("Todo usuario que no es superadmin tiene que tener comuna");
 		}
 	}
 }
