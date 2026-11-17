@@ -11,7 +11,7 @@ public record ComunaDto(String nombre, String provincia, String departamento, St
 				comuna.getProvincia().getNombre(),
 				comuna.getDepartamento(),
 				comuna.getSlug(),
-				comuna.getLogo() != null,
+				comuna.tieneLogo(),
 				comuna.getColor().name());
 	}
 }

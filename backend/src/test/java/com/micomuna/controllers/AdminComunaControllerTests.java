@@ -40,6 +40,7 @@ import com.micomuna.entities.Usuario;
 import com.micomuna.enums.ColorComuna;
 import com.micomuna.enums.Provincia;
 import com.micomuna.enums.Rol;
+import com.micomuna.repositories.ComunaLogoRepository;
 import com.micomuna.repositories.ComunaRepository;
 import com.micomuna.repositories.UsuarioRepository;
 import com.micomuna.security.JwtService;
@@ -56,6 +57,9 @@ class AdminComunaControllerTests {
 
 	@Autowired
 	private ComunaRepository comunas;
+
+	@Autowired
+	private ComunaLogoRepository logos;
 
 	@Autowired
 	private UsuarioRepository usuarios;
@@ -386,9 +390,8 @@ class AdminComunaControllerTests {
 		Comuna activa = comuna("t9-lista-activa");
 		Comuna inactiva = comuna("t9-lista-inactiva");
 		inactiva.setActiva(false);
-		inactiva.setLogo(new byte[] { 1, 2, 3 });
-		inactiva.setLogoTipo("image/png");
 		comunas.saveAndFlush(inactiva);
+		logos.guardar(inactiva.getId(), new byte[] { 1, 2, 3 }, "image/png");
 
 		String respuesta = mockMvc.perform(get(RUTA).header("Authorization", "Bearer " + tokenSuperadmin))
 				.andExpect(status().isOk())

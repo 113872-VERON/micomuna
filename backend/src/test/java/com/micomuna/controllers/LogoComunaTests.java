@@ -3,6 +3,7 @@ package com.micomuna.controllers;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,23 +28,32 @@ import com.micomuna.entities.Comuna;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.Provincia;
 import com.micomuna.enums.Rol;
+import com.micomuna.repositories.ComunaLogoRepository;
 import com.micomuna.repositories.ComunaRepository;
 import com.micomuna.repositories.UsuarioRepository;
 import com.micomuna.security.JwtService;
+
+import jakarta.persistence.EntityManager;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
 class LogoComunaTests {
 
-	private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3 };
-	private static final byte[] JPEG = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0, 1, 2, 3 };
+	// Imágenes de verdad: el servicio las abre, no alcanza con que tengan la firma.
+	private static final byte[] PNG = ImagenesDePrueba.png(16, 16);
+	private static final byte[] JPEG = ImagenesDePrueba.jpeg(16, 16);
+	private static final byte[] FIRMA_PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+	private static final byte[] FIRMA_JPEG = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xE0 };
 
 	@Autowired
 	private MockMvc mockMvc;
 
 	@Autowired
 	private ComunaRepository comunas;
+
+	@Autowired
+	private ComunaLogoRepository logos;
 
 	@Autowired
 	private UsuarioRepository usuarios;
@@ -52,6 +63,9 @@ class LogoComunaTests {
 
 	@Autowired
 	private JwtService jwt;
+
+	@Autowired
+	private EntityManager em;
 
 	private Comuna comuna;
 	private String tokenSuperadmin;
@@ -90,6 +104,19 @@ class LogoComunaTests {
 		return mockMvc.perform(token == null ? pedido : pedido.header("Authorization", "Bearer " + token));
 	}
 
+	private void esperarLogoInvalido(byte[] bytes) throws Exception {
+		subir(comuna.getId(), tokenSuperadmin, "image/png", bytes)
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.codigo").value("LOGO_INVALIDO"));
+	}
+
+	// Se lee de la base y no de la sesión de Hibernate, para ver lo que quedó guardado de verdad.
+	private boolean tieneLogoEnLaBase() {
+		em.flush();
+		em.clear();
+		return comunas.findById(comuna.getId()).orElseThrow().tieneLogo();
+	}
+
 	@Test
 	void elSuperadminSubeUnPngYSeSirveSinSesion() throws Exception {
 		subir(comuna.getId(), tokenSuperadmin, "image/png", PNG)
@@ -102,6 +129,7 @@ class LogoComunaTests {
 				.andExpect(header().string("Content-Type", "image/png"))
 				.andExpect(header().string("X-Content-Type-Options", "nosniff"))
 				.andExpect(content().bytes(PNG));
+		mockMvc.perform(get("/api/comunas/t12-logo")).andExpect(jsonPath("$.tieneLogo").value(true));
 	}
 
 	@Test
@@ -126,27 +154,64 @@ class LogoComunaTests {
 	void rechazaUnSvgAunqueSeDeclareComoPng() throws Exception {
 		byte[] svg = "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>alert(1)</script></svg>".getBytes();
 
-		subir(comuna.getId(), tokenSuperadmin, "image/png", svg)
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.codigo").value("LOGO_INVALIDO"));
+		esperarLogoInvalido(svg);
 		subir(comuna.getId(), tokenSuperadmin, "image/svg+xml", svg).andExpect(status().isBadRequest());
-		assertThat(comunas.findById(comuna.getId()).orElseThrow().getLogo()).isNull();
+		assertThat(tieneLogoEnLaBase()).isFalse();
 	}
+
+	// ---- El archivo tiene que ser una imagen que se pueda abrir, no solo empezar como una
+
+	@Test
+	void rechazaUnArchivoConFirmaDePngYContenidoBasura() throws Exception {
+		byte[] falso = Arrays.copyOf(FIRMA_PNG, 200);
+		Arrays.fill(falso, FIRMA_PNG.length, falso.length, (byte) 0x41);
+
+		esperarLogoInvalido(falso);
+		esperarLogoInvalido(FIRMA_PNG);
+		assertThat(tieneLogoEnLaBase()).isFalse();
+	}
+
+	@Test
+	void rechazaUnArchivoConFirmaDeJpegYContenidoBasura() throws Exception {
+		byte[] falso = Arrays.copyOf(FIRMA_JPEG, 200);
+		Arrays.fill(falso, FIRMA_JPEG.length, falso.length, (byte) 0x41);
+
+		esperarLogoInvalido(falso);
+		assertThat(tieneLogoEnLaBase()).isFalse();
+	}
+
+	@Test
+	void rechazaUnaImagenCortadaPorLaMitad() throws Exception {
+		byte[] entera = ImagenesDePrueba.png(200, 200);
+
+		esperarLogoInvalido(Arrays.copyOf(entera, entera.length / 2));
+	}
+
+	@Test
+	void rechazaUnaImagenDeMasDe2000PixelesDeAnchoODeAlto() throws Exception {
+		esperarLogoInvalido(ImagenesDePrueba.png(2001, 10));
+		esperarLogoInvalido(ImagenesDePrueba.png(10, 2001));
+		esperarLogoInvalido(ImagenesDePrueba.jpeg(2001, 10));
+		assertThat(tieneLogoEnLaBase()).isFalse();
+	}
+
+	@Test
+	void aceptaUnaImagenDeExactamente2000PixelesDeLado() throws Exception {
+		subir(comuna.getId(), tokenSuperadmin, "image/png", ImagenesDePrueba.png(2000, 2000))
+				.andExpect(status().isOk());
+	}
+
+	// ---- Peso del archivo
 
 	@Test
 	void rechazaUnArchivoVacio() throws Exception {
-		subir(comuna.getId(), tokenSuperadmin, "image/png", new byte[0])
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.codigo").value("LOGO_INVALIDO"));
+		esperarLogoInvalido(new byte[0]);
 	}
 
+	// Los bytes de relleno después del final de la imagen no impiden abrirla: sirven para llegar al peso exacto.
 	@Test
 	void rechazaUnLogoDeMasDe512KB() throws Exception {
-		byte[] grande = Arrays.copyOf(PNG, 512 * 1024 + 1);
-
-		subir(comuna.getId(), tokenSuperadmin, "image/png", grande)
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.codigo").value("LOGO_INVALIDO"));
+		esperarLogoInvalido(Arrays.copyOf(PNG, 512 * 1024 + 1));
 	}
 
 	@Test
@@ -186,8 +251,9 @@ class LogoComunaTests {
 	@Test
 	void unaComunaInactivaNoSirveSuLogo() throws Exception {
 		subir(comuna.getId(), tokenSuperadmin, "image/png", PNG).andExpect(status().isOk());
-		comuna.setActiva(false);
-		comunas.saveAndFlush(comuna);
+		Comuna guardada = comunas.findById(comuna.getId()).orElseThrow();
+		guardada.setActiva(false);
+		comunas.saveAndFlush(guardada);
 
 		mockMvc.perform(get("/api/comunas/t12-logo/logo")).andExpect(status().isNotFound());
 	}
@@ -196,5 +262,31 @@ class LogoComunaTests {
 	void unEnlaceInexistenteOInvalidoDa404() throws Exception {
 		mockMvc.perform(get("/api/comunas/no-existe/logo")).andExpect(status().isNotFound());
 		mockMvc.perform(get("/api/comunas/NO_VALIDO!/logo")).andExpect(status().isNotFound());
+	}
+
+	// ---- La imagen no viaja con la comuna
+
+	// Cuida la regla del diseño: la entidad Comuna (que se carga en el login y en cada pedido con token)
+	// no tiene ningún campo con los bytes de la imagen. Si alguien lo vuelve a agregar, esta prueba falla.
+	@Test
+	void laEntidadComunaNoCargaLosBytesDelLogo() {
+		assertThat(em.getMetamodel().entity(Comuna.class).getAttributes())
+				.noneMatch(atributo -> atributo.getJavaType() == byte[].class);
+	}
+
+	// Cambiar otros datos de la comuna no pisa el logo, aunque la Comuna en memoria no lo tenga cargado.
+	@Test
+	void cambiarOtrosDatosDeLaComunaNoBorraElLogo() throws Exception {
+		subir(comuna.getId(), tokenSuperadmin, "image/png", PNG).andExpect(status().isOk());
+
+		mockMvc.perform(patch("/api/admin/comunas/" + comuna.getId())
+				.header("Authorization", "Bearer " + tokenSuperadmin)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"nombre\":\"Otro nombre\"}"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.tieneLogo").value(true));
+
+		assertThat(tieneLogoEnLaBase()).isTrue();
+		assertThat(logos.findById(comuna.getId()).orElseThrow().getLogo()).isEqualTo(PNG);
 	}
 }

@@ -18,7 +18,7 @@ public interface ComunaRepository extends JpaRepository<Comuna, Long> {
 	// Arma los datos directamente, sin traer la imagen del logo (hasta 512 KB por comuna).
 	@Query("""
 			select new com.micomuna.dtos.ComunaAdminDto(c.id, c.nombre, c.provincia, c.slug, c.activa, c.color,
-				c.departamento, case when c.logo is null then false else true end)
+				c.departamento, case when c.logoTipo is null then false else true end)
 			from Comuna c order by c.nombre, c.id
 			""")
 	List<ComunaAdminDto> listarParaAdmin();

@@ -16,6 +16,6 @@ public record ComunaAdminDto(Long id, String nombre, String provincia, String sl
 
 	public static ComunaAdminDto desde(Comuna c) {
 		return new ComunaAdminDto(c.getId(), c.getNombre(), c.getProvincia(), c.getSlug(), c.isActiva(), c.getColor(),
-				c.getDepartamento(), c.getLogo() != null);
+				c.getDepartamento(), c.tieneLogo());
 	}
 }

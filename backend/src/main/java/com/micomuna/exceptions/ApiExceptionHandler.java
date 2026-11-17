@@ -89,11 +89,12 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.NOT_FOUND, "No encontrado", "NO_ENCONTRADO", "No encontramos lo que buscás");
 	}
 
-	// El servidor corta la subida antes de llegar al servicio (límite de multipart): mismo error que un logo inválido.
+	// El servidor corta la subida antes de llegar al controlador (tope de spring.servlet.multipart).
+	// Vale para cualquier subida de archivos, por eso el código y el mensaje no hablan de un archivo en particular.
 	@ExceptionHandler(MaxUploadSizeExceededException.class)
 	ProblemDetail archivoMuyGrande() {
-		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", "LOGO_INVALIDO",
-				"El logo tiene que ser una imagen PNG o JPG de hasta 512 KB");
+		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", "ARCHIVO_MUY_GRANDE",
+				"El archivo es demasiado grande.");
 	}
 
 	@ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,

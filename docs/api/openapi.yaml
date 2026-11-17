@@ -331,7 +331,8 @@ paths:
       - Administración
       summary: Subir o reemplazar el logo de una comuna
       description: Formulario multipart con el archivo en el campo "archivo". Solo
-        PNG o JPEG de hasta 512 KB; el tipo se decide por el contenido del archivo.
+        PNG o JPEG de hasta 512 KB y 2000 x 2000 píxeles; el tipo se decide por el
+        contenido del archivo y la imagen se decodifica para comprobar que es válida.
         No se acepta SVG.
       operationId: cambiarLogo
       parameters:
@@ -361,8 +362,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/ComunaAdminDto"
         "400":
-          description: Falta el archivo, está vacío, pesa más de 512 KB o no es PNG
-            ni JPEG (LOGO_INVALIDO)
+          description: "El archivo está vacío, pesa más de 512 KB, no es una imagen\
+            \ PNG o JPEG válida o supera los 2000 px de ancho o alto (LOGO_INVALIDO).\
+            \ Falta la parte \"archivo\" (PETICION_INVALIDA). La subida supera el tope\
+            \ del servidor (ARCHIVO_MUY_GRANDE)."
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
         "403":
           description: Solo el superadmin
         "404":
@@ -442,16 +447,22 @@ paths:
           type: string
       responses:
         "200":
-          description: OK
+          description: La imagen en binario. Los navegadores la pueden guardar
+            en caché hasta 5 minutos.
+          headers:
+            Cache-Control:
+              description: "max-age=300, public"
+              schema:
+                type: string
           content:
             image/png:
               schema:
                 type: string
-                format: byte
+                format: binary
             image/jpeg:
               schema:
                 type: string
-                format: byte
+                format: binary
         "404":
           description: La comuna no existe, está inactiva o no tiene logo
   /api/comunas/{slug}:

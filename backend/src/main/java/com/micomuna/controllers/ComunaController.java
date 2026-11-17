@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.micomuna.dtos.ComunaDto;
-import com.micomuna.entities.Comuna;
+import com.micomuna.entities.ComunaLogo;
 import com.micomuna.services.ComunaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,10 +38,10 @@ public class ComunaController {
 	@ApiResponse(responseCode = "404", description = "La comuna no existe, está inactiva o no tiene logo")
 	@GetMapping("/{slug}/logo")
 	public ResponseEntity<byte[]> logo(@PathVariable String slug) {
-		Comuna comuna = comunaService.buscarActivaConLogo(slug);
+		ComunaLogo logo = comunaService.buscarLogoDeComunaActiva(slug);
 		return ResponseEntity.ok()
-				.contentType(MediaType.parseMediaType(comuna.getLogoTipo()))
+				.contentType(MediaType.parseMediaType(logo.getLogoTipo()))
 				.cacheControl(CacheControl.maxAge(Duration.ofMinutes(5)).cachePublic())
-				.body(comuna.getLogo());
+				.body(logo.getLogo());
 	}
 }
