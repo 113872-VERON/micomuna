@@ -66,12 +66,30 @@ export class AdminComunas implements OnInit {
     return version ? `${base}?v=${version}` : base;
   }
 
+  // El logo se pide al endpoint público, que responde 404 si la comuna está inactiva:
+  // en ese caso ni se intenta cargar la miniatura.
   protected mostrarMiniatura(c: ComunaAdminDto): boolean {
-    return c.tieneLogo && !this.logosRotos().has(c.id);
+    return c.tieneLogo && c.activa && !this.logosRotos().has(c.id);
+  }
+
+  protected logoOcultoPorInactiva(c: ComunaAdminDto): boolean {
+    return c.tieneLogo && !c.activa;
   }
 
   protected logoRoto(id: number): void {
     this.logosRotos.update((s) => new Set(s).add(id));
+  }
+
+  // Después de activar, desactivar o subir un logo, la miniatura merece otro intento.
+  private olvidarLogoRoto(id: number): void {
+    this.logosRotos.update((s) => {
+      if (!s.has(id)) {
+        return s;
+      }
+      const nuevo = new Set(s);
+      nuevo.delete(id);
+      return nuevo;
+    });
   }
 
   protected elegirLogo(comuna: ComunaAdminDto, evento: Event): void {
@@ -93,11 +111,7 @@ export class AdminComunas implements OnInit {
       next: (actualizada) => {
         this.comunas.update((lista) => lista.map((c) => (c.id === actualizada.id ? actualizada : c)));
         this.versionesLogo.update((v) => ({ ...v, [actualizada.id]: Date.now() }));
-        this.logosRotos.update((s) => {
-          const nuevo = new Set(s);
-          nuevo.delete(actualizada.id);
-          return nuevo;
-        });
+        this.olvidarLogoRoto(actualizada.id);
         this.subiendoLogo.set(null);
       },
       error: (e: unknown) => {
@@ -122,6 +136,7 @@ export class AdminComunas implements OnInit {
     this.servicio.cambiarEstado(comuna.id, activa).subscribe({
       next: (actualizada) => {
         this.comunas.update((lista) => lista.map((c) => (c.id === actualizada.id ? actualizada : c)));
+        this.olvidarLogoRoto(actualizada.id);
         this.cambiando.set(null);
       },
       error: (e: unknown) => {

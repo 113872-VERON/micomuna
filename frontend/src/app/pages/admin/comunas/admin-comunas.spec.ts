@@ -135,11 +135,83 @@ describe('AdminComunas', () => {
       expect(el(f).textContent).toContain('cuadrado, PNG o JPG, hasta 512 KB');
     });
 
-    it('muestraMiniaturaSoloSiTieneLogo', () => {
-      const f = crear();
-      expect(el(f).querySelector('[data-logo-miniatura="1"]')).toBeNull();
-      const img = el(f).querySelector('[data-logo-miniatura="2"] img');
-      expect(img?.getAttribute('src')).toBe('/api/comunas/salsipuedes-neuquen/logo');
+    const miniatura = (f: ComponentFixture<unknown>, id: number) =>
+      el(f).querySelector<HTMLImageElement>(`[data-logo-miniatura="${id}"] img`);
+    const nota = (f: ComponentFixture<unknown>, id: number) => el(f).querySelector(`[data-logo-nota="${id}"]`);
+    const activaConLogo: ComunaAdminDto = { ...salsipuedes, tieneLogo: true };
+
+    function cambiarEstado(f: ComponentFixture<unknown>, comuna: ComunaAdminDto, activa: boolean): void {
+      if (activa) {
+        boton(f, 'Activar')!.click();
+      } else {
+        boton(f, 'Desactivar')!.click();
+        f.detectChanges();
+        boton(f, 'Sí, desactivar')!.click();
+      }
+      http.expectOne(`${URL}/${comuna.id}`).flush({ ...comuna, activa });
+      f.detectChanges();
+    }
+
+    it('muestraMiniaturaDeUnaComunaActivaConLogo', () => {
+      const f = crear([activaConLogo]);
+      expect(miniatura(f, 1)?.getAttribute('src')).toBe('/api/comunas/salsipuedes-cordoba/logo');
+      expect(miniatura(f, 1)?.getAttribute('alt')).toBe('Logo actual de Salsipuedes');
+      expect(nota(f, 1)).toBeNull();
+    });
+
+    it('sinLogoNoHayMiniaturaNiNota', () => {
+      const f = crear([salsipuedes]);
+      expect(miniatura(f, 1)).toBeNull();
+      expect(nota(f, 1)).toBeNull();
+    });
+
+    it('unaComunaInactivaConLogoNoPideLaMiniaturaYAvisaQueElLogoEstaCargado', () => {
+      const f = crear([neuquen]);
+      // El endpoint público responde 404 para comunas inactivas: no tiene que haber ningún <img>.
+      expect(el(f).querySelector('img')).toBeNull();
+      expect(nota(f, 2)?.textContent).toContain('Logo cargado (se ve cuando la comuna está activa)');
+      expect(botonLogo(f, 2).textContent).toContain('Cambiar logo');
+    });
+
+    it('alReactivarUnaComunaConLogoVuelveLaMiniatura', () => {
+      const f = crear([neuquen]);
+      cambiarEstado(f, neuquen, true);
+
+      expect(miniatura(f, 2)?.getAttribute('src')).toBe('/api/comunas/salsipuedes-neuquen/logo');
+      expect(nota(f, 2)).toBeNull();
+    });
+
+    it('alDesactivarUnaComunaConLogoSeQuitaLaMiniaturaYApareceLaNota', () => {
+      const f = crear([activaConLogo]);
+      cambiarEstado(f, activaConLogo, false);
+
+      expect(miniatura(f, 1)).toBeNull();
+      expect(nota(f, 1)).not.toBeNull();
+    });
+
+    it('unaMiniaturaQueFalloSeRecuperaAlDesactivarYReactivarLaComuna', () => {
+      const f = crear([activaConLogo]);
+      miniatura(f, 1)!.dispatchEvent(new Event('error'));
+      f.detectChanges();
+      expect(miniatura(f, 1)).toBeNull();
+
+      cambiarEstado(f, activaConLogo, false);
+      cambiarEstado(f, activaConLogo, true);
+
+      expect(miniatura(f, 1)).not.toBeNull();
+    });
+
+    it('unaMiniaturaQueFalloSeRecuperaAlSubirUnLogoNuevo', () => {
+      const f = crear([activaConLogo]);
+      miniatura(f, 1)!.dispatchEvent(new Event('error'));
+      f.detectChanges();
+      expect(miniatura(f, 1)).toBeNull();
+
+      elegir(f, 1, png());
+      http.expectOne(`${URL}/1/logo`).flush(activaConLogo);
+      f.detectChanges();
+
+      expect(miniatura(f, 1)?.getAttribute('src')).toMatch(/\/logo\?v=\d+$/);
     });
 
     it('rechazaSinLlamarAlBackendUnArchivoDeMasDe512KB', () => {
@@ -194,12 +266,12 @@ describe('AdminComunas', () => {
       const f = crear();
       elegir(f, 2, png());
       http.expectOne(`${URL}/2/logo`).flush(
-        { codigo: 'LOGO_INVALIDO', detail: 'El archivo no es una imagen PNG o JPEG válida.' },
+        { codigo: 'LOGO_INVALIDO', detail: 'El logo tiene que ser una imagen PNG o JPG de hasta 512 KB y 2000 x 2000 píxeles' },
         { status: 400, statusText: 'Bad Request' },
       );
       f.detectChanges();
 
-      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('El archivo no es una imagen PNG o JPEG válida.');
+      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('El logo tiene que ser una imagen PNG o JPG de hasta 512 KB y 2000 x 2000 píxeles');
       expect(botonLogo(f, 2).disabled).toBe(false);
     });
 
