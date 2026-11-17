@@ -27,6 +27,7 @@ class EndpointsDeclaranSuAccesoTests {
 
 	private static final Set<String> PUBLICOS = Set.of(
 			"GET /api/comunas/{slug}",
+			"GET /api/comunas/{slug}/logo",
 			"POST /api/comunas/{slug}/registro",
 			"POST /api/comunas/{slug}/login",
 			"POST /api/comunas/{slug}/recuperar-clave",

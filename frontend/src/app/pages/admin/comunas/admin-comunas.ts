@@ -1,9 +1,11 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ComunasAdminService } from '../../../admin/comunas-admin.service';
+import { validarLogo } from '../../../admin/logo';
 import { mensajeDeError } from '../../../auth/errores';
 import { ColorComuna, ComunaAdminDto } from '../../../auth/modelos';
 import { COLORES_COMUNA, NOMBRES_COLOR } from '../../../tema/tema-comuna.service';
+
 
 @Component({
   selector: 'app-admin-comunas',
@@ -21,6 +23,11 @@ export class AdminComunas implements OnInit {
   // La comuna cuya desactivación se está confirmando (desactivar bloquea a todos sus usuarios).
   protected readonly confirmando = signal<number | null>(null);
   protected readonly cambiando = signal<number | null>(null);
+
+  protected readonly subiendoLogo = signal<number | null>(null);
+  // Marca de tiempo por comuna para esquivar la caché del navegador después de subir un logo nuevo.
+  private readonly versionesLogo = signal<Record<number, number>>({});
+  private readonly logosRotos = signal<ReadonlySet<number>>(new Set());
 
   ngOnInit(): void {
     this.cargar();
@@ -53,6 +60,67 @@ export class AdminComunas implements OnInit {
     return COLORES_COMUNA[c.color as ColorComuna] ?? COLORES_COMUNA.CELESTE;
   }
 
+  protected urlLogo(c: ComunaAdminDto): string {
+    const base = `/api/comunas/${encodeURIComponent(c.slug)}/logo`;
+    const version = this.versionesLogo()[c.id];
+    return version ? `${base}?v=${version}` : base;
+  }
+
+  // El logo se pide al endpoint público, que responde 404 si la comuna está inactiva:
+  // en ese caso ni se intenta cargar la miniatura.
+  protected mostrarMiniatura(c: ComunaAdminDto): boolean {
+    return c.tieneLogo && c.activa && !this.logosRotos().has(c.id);
+  }
+
+  protected logoOcultoPorInactiva(c: ComunaAdminDto): boolean {
+    return c.tieneLogo && !c.activa;
+  }
+
+  protected logoRoto(id: number): void {
+    this.logosRotos.update((s) => new Set(s).add(id));
+  }
+
+  // Después de activar, desactivar o subir un logo, la miniatura merece otro intento.
+  private olvidarLogoRoto(id: number): void {
+    this.logosRotos.update((s) => {
+      if (!s.has(id)) {
+        return s;
+      }
+      const nuevo = new Set(s);
+      nuevo.delete(id);
+      return nuevo;
+    });
+  }
+
+  protected elegirLogo(comuna: ComunaAdminDto, evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    // Se vacía siempre para poder volver a elegir el mismo archivo.
+    input.value = '';
+    if (!archivo || this.subiendoLogo() !== null) {
+      return;
+    }
+    this.errorAccion.set(null);
+    const problema = validarLogo(archivo);
+    if (problema) {
+      this.errorAccion.set(problema);
+      return;
+    }
+    this.subiendoLogo.set(comuna.id);
+    this.servicio.subirLogo(comuna.id, archivo).subscribe({
+      next: (actualizada) => {
+        this.comunas.update((lista) => lista.map((c) => (c.id === actualizada.id ? actualizada : c)));
+        this.versionesLogo.update((v) => ({ ...v, [actualizada.id]: Date.now() }));
+        this.olvidarLogoRoto(actualizada.id);
+        this.subiendoLogo.set(null);
+      },
+      error: (e: unknown) => {
+        this.errorAccion.set(mensajeDeError(e));
+        this.subiendoLogo.set(null);
+      },
+    });
+  }
+
   protected pedirConfirmacion(id: number): void {
     this.errorAccion.set(null);
     this.confirmando.set(id);
@@ -68,6 +136,7 @@ export class AdminComunas implements OnInit {
     this.servicio.cambiarEstado(comuna.id, activa).subscribe({
       next: (actualizada) => {
         this.comunas.update((lista) => lista.map((c) => (c.id === actualizada.id ? actualizada : c)));
+        this.olvidarLogoRoto(actualizada.id);
         this.cambiando.set(null);
       },
       error: (e: unknown) => {

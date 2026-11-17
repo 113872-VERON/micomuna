@@ -34,6 +34,12 @@ input:focus-visible, select:focus-visible { outline: none; border-color: var(--p
 .muestra input:checked + i { box-shadow: 0 0 0 4px var(--tinta); }
 .muestra input:focus-visible + i { outline: 4px solid #1d4ed8; outline-offset: 3px; }
 
+.oculto { display: none; }
+.logo-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.logo-acciones .btn { min-height: 48px; }
+.logo-nombre { margin: 0; min-width: 0; font-size: 16px; overflow-wrap: anywhere; }
+.caja-error { border: 3px solid var(--error); }
+
 .vista-previa { border-radius: 14px; overflow: hidden; zoom: 0.7; }
 
 .btn {
@@ -54,4 +60,5 @@ input:focus-visible, select:focus-visible { outline: none; border-color: var(--p
 .aviso { display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; font-size: 17px; }
 .aviso svg { flex: none; margin-top: 2px; }
 .aviso.ok { background: var(--ayuda); }
+.aviso.logo-error { background: #fdecea; border: 3px solid var(--error); color: var(--tinta); }
 .aviso.alerta { background: #fff4d6; border: 2px solid #e0a81b; color: #3d2a00; }

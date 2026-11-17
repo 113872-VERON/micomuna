@@ -32,7 +32,7 @@ import { ComunaDto } from '../../auth/modelos';
     .plataforma { font-size: 17px; font-weight: 500; display: flex; gap: 8px; align-items: center; }
     .comuna { display: flex; gap: 16px; align-items: center; }
     .logo { flex: none; width: 76px; height: 76px; background: #fff; border-radius: 18px; padding: 8px; display: flex; align-items: center; justify-content: center; }
-    .logo img { max-width: 100%; max-height: 100%; display: block; }
+    .logo img { max-width: 100%; max-height: 100%; display: block; object-fit: contain; }
     .nombre { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     .de, .prov { font-size: 18px; font-weight: 500; }
     .grande { font-size: 34px; line-height: 1.08; font-weight: 700; overflow-wrap: anywhere; }
@@ -42,9 +42,12 @@ import { ComunaDto } from '../../auth/modelos';
 export class CabeceraComuna {
   readonly comuna = input.required<ComunaDto>();
 
+  // Para la vista previa del alta: un logo todavía no subido (blob local) que se muestra en lugar del guardado.
+  readonly logoLocal = input<string | null>(null);
+
   protected readonly logoFallo = signal(false);
-  protected readonly mostrarLogo = computed(() => this.comuna().tieneLogo && !this.logoFallo());
-  protected readonly urlLogo = computed(() => `/api/comunas/${encodeURIComponent(this.comuna().slug)}/logo`);
+  protected readonly mostrarLogo = computed(() => !!this.logoLocal() || (this.comuna().tieneLogo && !this.logoFallo()));
+  protected readonly urlLogo = computed(() => this.logoLocal() ?? `/api/comunas/${encodeURIComponent(this.comuna().slug)}/logo`);
   protected readonly ubicacion = computed(() => {
     const { departamento, provincia } = this.comuna();
     return departamento ? `${departamento}, ${provincia}` : provincia;

@@ -12,6 +12,13 @@
       <button type="button" class="btn sec" (click)="copiarEnlace()">{{ enlaceCopiado() ? 'Enlace copiado' : 'Copiar el enlace de la comuna' }}</button>
     </div>
 
+    @if (logoFallido()) {
+      <div class="aviso logo-error" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span><b>La comuna se creó, pero el logo no se pudo subir.</b> No hace falta crearla de nuevo: podés subir el logo desde la lista de comunas, con el botón "Subir logo".</span>
+      </div>
+    }
+
     @if (invitacionEnviada()) {
       <div class="aviso ok" role="status">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
@@ -124,10 +131,29 @@
         </div>
       </fieldset>
 
+      <fieldset class="bloque">
+        <legend>Logo de la comuna <small>(opcional)</small></legend>
+        <input #archivo id="logo" class="oculto" type="file" accept="image/png,image/jpeg" tabindex="-1" aria-describedby="ayuda-logo" (change)="elegirLogo($event)" />
+        <div class="logo-acciones">
+          <button type="button" class="btn sec" [disabled]="enviando()" (click)="archivo.click()">{{ logoArchivo() ? 'Cambiar logo' : 'Elegir logo' }}</button>
+          @if (logoArchivo(); as elegido) {
+            <button type="button" class="btn sec" [disabled]="enviando()" (click)="quitarLogo()">Quitar logo</button>
+            <p class="logo-nombre">Archivo elegido: <b>{{ elegido.name }}</b></p>
+          }
+        </div>
+        <p class="ayuda-c" id="ayuda-logo">Cuadrado, PNG o JPG, hasta 512 KB</p>
+        @if (errorLogo(); as mensaje) {
+          <p class="msg-error caja-error" role="alert">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+            {{ mensaje }}
+          </p>
+        }
+      </fieldset>
+
       <div class="bloque">
         <h2>Así lo van a ver los vecinos</h2>
         <div class="vista-previa" [style.--p]="colorVistaPrevia()">
-          <app-cabecera-comuna [comuna]="vistaPrevia()" />
+          <app-cabecera-comuna [comuna]="vistaPrevia()" [logoLocal]="logoUrl()" />
         </div>
       </div>
 

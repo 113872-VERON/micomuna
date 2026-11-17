@@ -1,8 +1,13 @@
 package com.micomuna.controllers;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -57,6 +62,16 @@ public class AdminComunaController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void reenviarInvitacion(@PathVariable Long id) {
 		invitacionService.reenviarAlAdministrador(id);
+	}
+
+	@Operation(summary = "Subir o reemplazar el logo de una comuna", description = "Formulario multipart con el archivo en el campo \"archivo\". Solo PNG o JPEG de hasta 512 KB y 2000 x 2000 píxeles; el tipo se decide por el contenido del archivo, que tiene que poder abrirse como imagen. No se acepta SVG.")
+	@ApiResponse(responseCode = "400", description = "El archivo está vacío, pesa más de 512 KB, no es una imagen PNG o JPEG válida o supera los 2000 píxeles de lado (LOGO_INVALIDO); falta la parte \"archivo\" (PETICION_INVALIDA); o la subida supera el tope del servidor (ARCHIVO_MUY_GRANDE)")
+	@ApiResponse(responseCode = "403", description = "Solo el superadmin")
+	@ApiResponse(responseCode = "404", description = "La comuna no existe")
+	@PutMapping(path = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public ComunaAdminDto cambiarLogo(@PathVariable Long id, @RequestParam("archivo") MultipartFile archivo)
+			throws IOException {
+		return comunaService.cambiarLogo(id, archivo.getBytes());
 	}
 
 	@Operation(summary = "Listar todas las comunas", description = "Incluye las inactivas. No trae la imagen del logo.")

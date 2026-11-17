@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.micomuna.entities.Comuna;
 import com.micomuna.enums.ColorComuna;
 import com.micomuna.enums.Provincia;
+import com.micomuna.repositories.ComunaLogoRepository;
 import com.micomuna.repositories.ComunaRepository;
 
 @SpringBootTest
@@ -27,6 +28,9 @@ class ComunaControllerTests {
 
 	@Autowired
 	private ComunaRepository comunas;
+
+	@Autowired
+	private ComunaLogoRepository logos;
 
 	private Comuna guardar(String slug, boolean activa) {
 		Comuna c = new Comuna();
@@ -56,9 +60,7 @@ class ComunaControllerTests {
 	@Test
 	void indicaSiLaComunaTieneLogoSinDevolverLaImagen() throws Exception {
 		Comuna c = guardar("t3c-con-logo", true);
-		c.setLogo(new byte[] { 1, 2, 3 });
-		c.setLogoTipo("image/png");
-		comunas.saveAndFlush(c);
+		logos.guardar(c.getId(), new byte[] { 1, 2, 3 }, "image/png");
 
 		mockMvc.perform(get("/api/comunas/t3c-con-logo"))
 				.andExpect(status().isOk())

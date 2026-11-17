@@ -15,7 +15,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 // Errores con el mismo formato en toda la API, en español y sin detalles internos.
@@ -86,7 +89,16 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.NOT_FOUND, "No encontrado", "NO_ENCONTRADO", "No encontramos lo que buscás");
 	}
 
-	@ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class })
+	// El servidor corta la subida antes de llegar al controlador (tope de spring.servlet.multipart).
+	// Vale para cualquier subida de archivos, por eso el código y el mensaje no hablan de un archivo en particular.
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	ProblemDetail archivoMuyGrande() {
+		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", "ARCHIVO_MUY_GRANDE",
+				"El archivo es demasiado grande.");
+	}
+
+	@ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+			MissingServletRequestPartException.class, MissingServletRequestParameterException.class })
 	ProblemDetail peticionInvalida() {
 		return problema(HttpStatus.BAD_REQUEST, "Petición inválida", "PETICION_INVALIDA",
 				"Los datos enviados no son válidos");

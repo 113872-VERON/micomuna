@@ -29,7 +29,7 @@
   <div class="tarjeta">
     <table>
       <thead>
-        <tr><th>Comuna</th><th>Enlace</th><th>Color</th><th>Estado</th><th>Acciones</th></tr>
+        <tr><th>Comuna</th><th>Enlace</th><th>Color</th><th>Estado</th><th>Logo</th><th>Acciones</th></tr>
       </thead>
       <tbody>
         @for (c of comunas(); track c.id) {
@@ -51,6 +51,20 @@
               }
             </td>
             <td>
+              <div class="logo-celda">
+                @if (mostrarMiniatura(c)) {
+                  <div class="miniatura" [attr.data-logo-miniatura]="c.id"><img [src]="urlLogo(c)" [alt]="'Logo actual de ' + c.nombre" (error)="logoRoto(c.id)" /></div>
+                }
+                <button type="button" class="btn sec chico" [attr.data-logo-boton]="c.id" aria-describedby="ayuda-logo" [disabled]="subiendoLogo() === c.id" (click)="archivo.click()">
+                  {{ subiendoLogo() === c.id ? 'Subiendo…' : c.tieneLogo ? 'Cambiar logo' : 'Subir logo' }}
+                </button>
+                <input #archivo type="file" accept="image/png,image/jpeg" hidden tabindex="-1" [attr.data-logo-entrada]="c.id" [attr.aria-label]="'Logo de ' + c.nombre" (change)="elegirLogo(c, $event)" />
+              </div>
+              @if (logoOcultoPorInactiva(c)) {
+                <small class="logo-nota" [attr.data-logo-nota]="c.id">Logo cargado (se ve cuando la comuna está activa)</small>
+              }
+            </td>
+            <td>
               @if (c.activa) {
                 <button type="button" class="btn sec chico peligro" [disabled]="cambiando() === c.id" (click)="pedirConfirmacion(c.id)">Desactivar</button>
               } @else {
@@ -60,7 +74,7 @@
           </tr>
           @if (confirmando() === c.id) {
             <tr class="confirmar">
-              <td colspan="5">
+              <td colspan="6">
                 <div class="aviso">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
                   <span><b>¿Desactivar {{ c.nombre }}?</b> Nadie de esta comuna podrá ingresar hasta que la actives de nuevo. No se borra nada.</span>
@@ -76,5 +90,6 @@
       </tbody>
     </table>
   </div>
+  <p class="nota" id="ayuda-logo">Logo de la comuna: cuadrado, PNG o JPG, hasta 512 KB.</p>
   <p class="nota">Las comunas no se borran: se desactivan. Una comuna inactiva no deja ingresar a nadie.</p>
 }

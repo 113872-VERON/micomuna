@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import type { MockInstance } from 'vitest';
 import { ComunaCreadaDto } from '../../../auth/modelos';
 import { NuevaComuna } from './nueva-comuna';
 
@@ -202,6 +203,146 @@ describe('NuevaComuna', () => {
     expect(el(f).textContent).toContain('Ya existe una comuna con ese enlace');
     expect(el(f).querySelector('form')).not.toBeNull();
     expect(campo(f, 'nombre').value).toBe('Salsipuedes');
+  });
+
+  describe('logo opcional', () => {
+    const URL_OBJETO = {} as {
+      crear: MockInstance<(obj: Blob | MediaSource) => string>;
+      liberar: MockInstance<(url: string) => void>;
+    };
+    const png = (bytes = 100, tipo = 'image/png') => new File([new Uint8Array(bytes)], 'escudo.png', { type: tipo });
+
+    function elegirLogo(f: ComponentFixture<unknown>, archivo: File) {
+      const input = el(f).querySelector('input[type="file"]') as HTMLInputElement;
+      Object.defineProperty(input, 'files', { value: [archivo], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      f.detectChanges();
+    }
+    const quitar = (f: ComponentFixture<unknown>) => {
+      boton(f, 'Quitar logo')!.click();
+      f.detectChanges();
+    };
+
+    beforeEach(() => {
+      // `URL` de este archivo es la ruta de la API: el objeto del navegador se toma de globalThis.
+      URL_OBJETO.crear = vi.spyOn(globalThis.URL, 'createObjectURL').mockReturnValue('blob:logo-1');
+      URL_OBJETO.liberar = vi.spyOn(globalThis.URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('ofreceElegirElLogoConAyudaYSinQuitarAntesDeElegir', () => {
+      const f = crear();
+      const input = el(f).querySelector('input[type="file"]') as HTMLInputElement;
+      expect(input.accept).toBe('image/png,image/jpeg');
+      expect(boton(f, 'Elegir logo')).toBeTruthy();
+      expect(boton(f, 'Quitar logo')).toBeUndefined();
+      expect(el(f).textContent).toContain('Cuadrado, PNG o JPG, hasta 512 KB');
+    });
+
+    it('alElegirUnLogoMuestraElNombreLaVistaPreviaYElBotonQuitar', () => {
+      const f = crear();
+      elegirLogo(f, png());
+
+      expect(el(f).textContent).toContain('escudo.png');
+      expect(boton(f, 'Quitar logo')).toBeTruthy();
+      const img = el(f).querySelector('.vista-previa .logo img') as HTMLImageElement;
+      expect(img.getAttribute('src')).toBe('blob:logo-1');
+      http.expectNone(URL);
+    });
+
+    it('unTipoInvalidoOUnArchivoPesadoSeRechazanSinLlamarAlBackend', () => {
+      const f = crear();
+      elegirLogo(f, png(100, 'image/gif'));
+      expect(el(f).textContent).toContain('El logo tiene que ser una imagen PNG o JPG.');
+      expect(el(f).querySelector('.vista-previa .logo')).toBeNull();
+
+      elegirLogo(f, png(512 * 1024 + 1));
+      expect(el(f).textContent).toContain('El logo pesa más de 512 KB. Elegí una imagen más liviana.');
+      expect(el(f).querySelector('.vista-previa .logo')).toBeNull();
+      expect(URL_OBJETO.crear).not.toHaveBeenCalled();
+    });
+
+    it('quitarElLogoLiberaLaUrlYVuelveALaVistaPreviaSinLogo', () => {
+      const f = crear();
+      elegirLogo(f, png());
+      quitar(f);
+
+      expect(URL_OBJETO.liberar).toHaveBeenCalledWith('blob:logo-1');
+      expect(el(f).querySelector('.vista-previa .logo')).toBeNull();
+      expect(el(f).textContent).not.toContain('escudo.png');
+    });
+
+    it('cambiarElLogoLiberaLaUrlAnterior', () => {
+      const f = crear();
+      elegirLogo(f, png());
+      URL_OBJETO.crear.mockReturnValue('blob:logo-2');
+      elegirLogo(f, png());
+      expect(URL_OBJETO.liberar).toHaveBeenCalledWith('blob:logo-1');
+    });
+
+    it('alDestruirElComponenteLiberaLaUrl', () => {
+      const f = crear();
+      elegirLogo(f, png());
+      f.destroy();
+      expect(URL_OBJETO.liberar).toHaveBeenCalledWith('blob:logo-1');
+    });
+
+    it('creaLaComunaYDespuesSubeElLogo', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      const archivo = png();
+      elegirLogo(f, archivo);
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      const subida = http.expectOne(`${URL}/7/logo`);
+      expect(subida.request.method).toBe('PUT');
+      expect((subida.request.body as FormData).get('archivo')).toBeInstanceOf(File);
+      subida.flush({ ...creada(true).comuna, tieneLogo: true });
+      f.detectChanges();
+
+      expect(el(f).textContent).toContain('Comuna creada');
+      expect(el(f).textContent).not.toContain('el logo no se pudo subir');
+    });
+
+    it('sinLogoNoLlamaALaSubida', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      enviar(f);
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectNone(`${URL}/7/logo`);
+    });
+
+    it('siLaSubidaFallaLaComunaQuedaCreadaYSeAvisaQueSeSubeDesdeLaLista', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      elegirLogo(f, png());
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectOne(`${URL}/7/logo`).flush({ detail: 'Archivo inválido' }, { status: 400, statusText: 'Bad Request' });
+      f.detectChanges();
+
+      const texto = el(f).textContent ?? '';
+      expect(texto).toContain('Comuna creada');
+      expect(texto).toContain('el logo no se pudo subir');
+      // Una comuna sin logo muestra "Subir logo" en la lista, no "Cambiar logo".
+      expect(texto).toContain('con el botón "Subir logo"');
+      expect(texto).not.toContain('Cambiar logo');
+      expect(el(f).querySelector('form')).toBeNull();
+      http.expectNone(URL);
+    });
+
+    it('noEnviaDosVecesMientrasSeSubeElLogo', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      elegirLogo(f, png());
+      enviar(f);
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      enviar(f);
+      http.expectOne(`${URL}/7/logo`);
+      http.expectNone(URL);
+    });
   });
 
   it('noEnviaDosVecesMientrasEspera', () => {
