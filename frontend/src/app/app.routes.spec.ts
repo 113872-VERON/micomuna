@@ -46,7 +46,21 @@ describe('Rutas de la aplicación', () => {
   it('unVecinoNoEntraAlPanelDelSuperadmin', async () => {
     entrar('VECINO');
     await harness.navigateByUrl('/admin/comunas/nueva');
-    expect(TestBed.inject(Router).url).toBe('/admin/login');
+    expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+    expect((harness.routeNativeElement as HTMLElement).textContent).toContain('No tenés permiso');
+  });
+
+  it('cadaRolQueNoEsSuperadminVaASinPermisoAlPanel', async () => {
+    for (const rol of ['VECINO', 'ADMINISTRATIVO', 'AGENTE', 'ADMIN_COMUNA'] as Rol[]) {
+      entrar(rol);
+      await harness.navigateByUrl('/admin/comunas');
+      expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+    }
+  });
+
+  it('sinPermisoSinSesionNoMuestraNada', async () => {
+    await harness.navigateByUrl('/sin-permiso');
+    expect(TestBed.inject(Router).url).toBe('/no-encontrada');
   });
 
   it('elSuperadminVeLaListaDeComunas', async () => {

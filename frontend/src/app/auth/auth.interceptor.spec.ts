@@ -86,6 +86,23 @@ describe('authInterceptor', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/admin/login');
   });
 
+  it('unaRespuesta403VaASinPermisoYNoCierraLaSesion', () => {
+    auth.guardarSesion(vecino);
+    http.get('/api/admin/comunas').subscribe({ error: () => undefined });
+    controlador.expectOne('/api/admin/comunas').flush({ codigo: 'ACCESO_DENEGADO' }, { status: 403, statusText: 'Prohibido' });
+
+    expect(auth.estaAutenticado()).toBe(true);
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/sin-permiso');
+  });
+
+  it('unaRespuesta403DeOtroServidorNoRedirige', () => {
+    auth.guardarSesion(vecino);
+    http.get('https://otro.example.com/datos').subscribe({ error: () => undefined });
+    controlador.expectOne('https://otro.example.com/datos').flush(null, { status: 403, statusText: 'Prohibido' });
+
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
   it('unLoginIncorrectoNoRedirigeNiLimpiaLaSesion', () => {
     auth.guardarSesion(vecino);
     http.post('/api/comunas/salsipuedes-cordoba/login', {}).subscribe({ error: () => undefined });

@@ -27,6 +27,10 @@ export const authInterceptor: HttpInterceptorFn = (pedido, siguiente) => {
           : `/${encodeURIComponent(usuario.comunaSlug)}/login`;
         void router.navigateByUrl(destino);
       }
+      // 403: la sesión sigue valiendo, pero el rol no alcanza para eso.
+      if (error instanceof HttpErrorResponse && error.status === 403 && propio) {
+        void router.navigateByUrl('/sin-permiso');
+      }
       return throwError(() => error);
     }),
   );
