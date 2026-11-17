@@ -1,9 +1,10 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { merge, startWith } from 'rxjs';
 import { ComunasAdminService } from '../../../admin/comunas-admin.service';
+import { validarLogo } from '../../../admin/logo';
 import { sugerirSlug } from '../../../admin/slug';
 import { mensajeDeError } from '../../../auth/errores';
 import { limpiarCorreo, mensajeCorreo } from '../../../auth/mensajes-de-formulario';
@@ -47,6 +48,12 @@ export class NuevaComuna {
   protected readonly errorReenvio = signal<string | null>(null);
   protected readonly enlaceCopiado = signal(false);
 
+  // Logo opcional: se muestra en la vista previa y se sube recién cuando la comuna ya está creada.
+  protected readonly logoArchivo = signal<File | null>(null);
+  protected readonly logoUrl = signal<string | null>(null);
+  protected readonly errorLogo = signal<string | null>(null);
+  protected readonly logoFallido = signal(false);
+
   // Mientras nadie toque el enlace, se arma solo con el nombre y la provincia.
   private enlaceEditadoAMano = false;
 
@@ -70,6 +77,7 @@ export class NuevaComuna {
   protected readonly colorVistaPrevia = computed(() => COLORES_COMUNA[this.valores().color as ColorComuna] ?? COLORES_COMUNA.CELESTE);
 
   constructor() {
+    inject(DestroyRef).onDestroy(() => this.liberarLogo());
     const { nombre, provincia, slug } = this.form.controls;
     merge(nombre.valueChanges, provincia.valueChanges)
       .pipe(takeUntilDestroyed())
@@ -97,6 +105,41 @@ export class NuevaComuna {
     return `${location.origin}/${this.creada()?.comuna.slug}/login`;
   }
 
+  protected elegirLogo(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    // Se vacía siempre para poder volver a elegir el mismo archivo.
+    input.value = '';
+    if (!archivo || this.enviando()) {
+      return;
+    }
+    const problema = validarLogo(archivo);
+    this.errorLogo.set(problema);
+    if (problema) {
+      return;
+    }
+    this.liberarLogo();
+    this.logoArchivo.set(archivo);
+    this.logoUrl.set(URL.createObjectURL(archivo));
+  }
+
+  protected quitarLogo(): void {
+    if (this.enviando()) {
+      return;
+    }
+    this.errorLogo.set(null);
+    this.liberarLogo();
+  }
+
+  private liberarLogo(): void {
+    const url = this.logoUrl();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.logoUrl.set(null);
+    this.logoArchivo.set(null);
+  }
+
   protected enviar(): void {
     this.form.markAllAsTouched();
     if (this.form.invalid || this.enviando()) {
@@ -106,15 +149,29 @@ export class NuevaComuna {
     this.error.set(null);
     this.servicio.crear(this.armarPedido()).subscribe({
       next: (resultado) => {
-        this.enviando.set(false);
-        this.creada.set(resultado);
-        this.invitacionEnviada.set(resultado.invitacionEnviada);
+        const logo = this.logoArchivo();
+        if (!logo) {
+          this.terminarAlta(resultado, false);
+          return;
+        }
+        // La comuna ya existe: si el logo falla no se vuelve a crear, se sube después desde la lista.
+        this.servicio.subirLogo(resultado.comuna.id, logo).subscribe({
+          next: () => this.terminarAlta(resultado, false),
+          error: () => this.terminarAlta(resultado, true),
+        });
       },
       error: (e: unknown) => {
         this.enviando.set(false);
         this.error.set(mensajeDeError(e));
       },
     });
+  }
+
+  private terminarAlta(resultado: ComunaCreadaDto, logoFallo: boolean): void {
+    this.enviando.set(false);
+    this.logoFallido.set(logoFallo);
+    this.creada.set(resultado);
+    this.invitacionEnviada.set(resultado.invitacionEnviada);
   }
 
   protected reintentarInvitacion(): void {

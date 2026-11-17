@@ -325,6 +325,50 @@ paths:
           description: No Content
       security:
       - bearerAuth: []
+  /api/admin/comunas/{id}/logo:
+    put:
+      tags:
+      - Administración
+      summary: Subir o reemplazar el logo de una comuna
+      description: Formulario multipart con el archivo en el campo "archivo". Solo
+        PNG o JPEG de hasta 512 KB; el tipo se decide por el contenido del archivo.
+        No se acepta SVG.
+      operationId: cambiarLogo
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                archivo:
+                  type: string
+                  format: binary
+              required:
+              - archivo
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ComunaAdminDto"
+        "400":
+          description: Falta el archivo, está vacío, pesa más de 512 KB o no es PNG
+            ni JPEG (LOGO_INVALIDO)
+        "403":
+          description: Solo el superadmin
+        "404":
+          description: La comuna no existe
+      security:
+      - bearerAuth: []
   /api/admin/comunas/{id}:
     patch:
       tags:
@@ -383,6 +427,33 @@ paths:
             '*/*':
               schema:
                 type: string
+  /api/comunas/{slug}/logo:
+    get:
+      tags:
+      - Comunas
+      summary: Logo de una comuna
+      description: Imagen PNG o JPEG. No requiere sesión.
+      operationId: logo
+      parameters:
+      - name: slug
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            image/png:
+              schema:
+                type: string
+                format: byte
+            image/jpeg:
+              schema:
+                type: string
+                format: byte
+        "404":
+          description: La comuna no existe, está inactiva o no tiene logo
   /api/comunas/{slug}:
     get:
       tags:

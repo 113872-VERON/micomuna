@@ -48,7 +48,7 @@ public class SecurityConfig {
 								.permitAll();
 					}
 					auth
-						.requestMatchers(HttpMethod.GET, "/api/comunas/*").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/comunas/*", "/api/comunas/*/logo").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/comunas/*/registro", "/api/comunas/*/login",
 								"/api/comunas/*/recuperar-clave", "/api/comunas/*/restablecer-clave",
 								"/api/comunas/*/aceptar-invitacion", "/api/admin/login").permitAll()
