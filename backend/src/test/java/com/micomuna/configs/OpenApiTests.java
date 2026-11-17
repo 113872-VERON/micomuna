@@ -24,4 +24,29 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.paths['/api/salud']").exists())
 				.andExpect(jsonPath("$.components.securitySchemes.bearerAuth").exists());
 	}
+
+	// MC-13: los endpoints protegidos documentan 401 y, si exigen un rol, también 403 ACCESO_DENEGADO.
+	@Test
+	void losEndpointsDeAdminDocumentan401Y403() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/admin/comunas'].get.responses['401']").exists())
+				.andExpect(jsonPath("$.paths['/api/admin/comunas'].get.responses['403'].description")
+						.value(org.hamcrest.Matchers.containsString("ACCESO_DENEGADO")))
+				.andExpect(jsonPath("$.paths['/api/admin/comunas'].post.responses['403']").exists())
+				.andExpect(jsonPath("$.paths['/api/admin/comunas/{id}'].patch.responses['403']").exists());
+	}
+
+	@Test
+	void losEndpointsDeMiCuentaDocumentan401PeroNoUn403PorRol() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['401']").exists())
+				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['403']").doesNotExist());
+	}
+
+	@Test
+	void losEndpointsPublicosNoDocumentan401() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(jsonPath("$.paths['/api/salud'].get.responses['401']").doesNotExist());
+	}
 }

@@ -254,6 +254,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ComunaAdminDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
       security:
       - bearerAuth: []
     post:
@@ -271,6 +275,8 @@ paths:
               $ref: "#/components/schemas/CrearComunaRequest"
         required: true
       responses:
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
         "400":
           description: Datos inválidos
           content:
@@ -313,6 +319,8 @@ paths:
           type: integer
           format: int64
       responses:
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
         "403":
           description: Solo el superadmin
         "404":
@@ -354,6 +362,10 @@ paths:
             '*/*':
               schema:
                 $ref: "#/components/schemas/ComunaAdminDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
       security:
       - bearerAuth: []
   /api/salud:
