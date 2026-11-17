@@ -12,12 +12,14 @@ import com.micomuna.dtos.ComunaAdminDto;
 import com.micomuna.dtos.ComunaCreadaDto;
 import com.micomuna.dtos.CrearComunaRequest;
 import com.micomuna.entities.Comuna;
+import com.micomuna.entities.ComunaLogo;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.ColorComuna;
 import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.ConflictoException;
 import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
+import com.micomuna.repositories.ComunaLogoRepository;
 import com.micomuna.repositories.ComunaRepository;
 import com.micomuna.repositories.UsuarioRepository;
 
@@ -31,8 +33,10 @@ public class ComunaService {
 			+ "Agregale el departamento al enlace para distinguirla (por ejemplo salsipuedes-colon-cordoba)";
 
 	public static final int LOGO_MAXIMO_BYTES = 512 * 1024;
+	public static final int LOGO_LADO_MAXIMO_PX = 2000;
 
 	private final ComunaRepository comunas;
+	private final ComunaLogoRepository logos;
 	private final UsuarioRepository usuarios;
 	private final InvitacionService invitaciones;
 	private final TransactionTemplate transaccion;
@@ -115,45 +119,40 @@ public class ComunaService {
 		return ComunaAdminDto.desde(comunas.saveAndFlush(comuna));
 	}
 
-	// El tipo se decide por los primeros bytes del archivo, nunca por lo que declara el cliente. Solo PNG y JPEG:
-	// un SVG puede llevar scripts, así que no se acepta.
+	// El tipo se decide por el contenido del archivo, nunca por lo que declara el cliente. Solo PNG y JPEG:
+	// un SVG puede llevar scripts, así que no se acepta. Además de la firma, la imagen se abre de verdad
+	// (ImagenUtil): un archivo con la firma correcta y basura adentro se rechaza.
 	@Transactional
 	public ComunaAdminDto cambiarLogo(Long id, byte[] imagen) {
-		Comuna comuna = comunas.findById(id).orElseThrow(ComunaService::noEncontrada);
+		if (!comunas.existsById(id)) {
+			throw noEncontrada();
+		}
 		if (imagen == null || imagen.length == 0 || imagen.length > LOGO_MAXIMO_BYTES) {
 			throw logoInvalido();
 		}
-		String tipo = tipoDeImagen(imagen);
+		String tipo = ImagenUtil.tipoSiEsValida(imagen, LOGO_LADO_MAXIMO_PX);
 		if (tipo == null) {
 			throw logoInvalido();
 		}
-		comuna.setLogo(imagen);
-		comuna.setLogoTipo(tipo);
-		return ComunaAdminDto.desde(comunas.saveAndFlush(comuna));
-	}
-
-	// Devuelve la comuna solo si está activa y tiene logo; si no, el mismo 404 que el resto de la consulta pública.
-	public Comuna buscarActivaConLogo(String slug) {
-		Comuna comuna = buscarActivaPorSlug(slug);
-		if (comuna.getLogo() == null) {
+		if (logos.guardar(id, imagen, tipo) == 0) {
 			throw noEncontrada();
 		}
-		return comuna;
+		return ComunaAdminDto.desde(comunas.findById(id).orElseThrow(ComunaService::noEncontrada));
 	}
 
-	private static String tipoDeImagen(byte[] b) {
-		byte[] png = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
-		if (b.length >= png.length && java.util.Arrays.equals(b, 0, png.length, png, 0, png.length)) {
-			return "image/png";
-		}
-		if (b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF) {
-			return "image/jpeg";
-		}
-		return null;
+	// Devuelve el logo solo si la comuna está activa y tiene uno; si no, el mismo 404 que el resto de la consulta
+	// pública. Es el único lugar donde se leen los bytes de la imagen.
+	@Transactional(readOnly = true)
+	public ComunaLogo buscarLogoDeComunaActiva(String slug) {
+		Comuna comuna = buscarActivaPorSlug(slug);
+		return logos.findById(comuna.getId())
+				.filter(logo -> logo.getLogo() != null)
+				.orElseThrow(ComunaService::noEncontrada);
 	}
 
 	private static PeticionInvalidaException logoInvalido() {
-		return new PeticionInvalidaException("LOGO_INVALIDO", "El logo tiene que ser una imagen PNG o JPG de hasta 512 KB");
+		return new PeticionInvalidaException("LOGO_INVALIDO",
+				"El logo tiene que ser una imagen PNG o JPG de hasta 512 KB y 2000 x 2000 píxeles");
 	}
 
 	private String generarEnlace(CrearComunaRequest pedido) {

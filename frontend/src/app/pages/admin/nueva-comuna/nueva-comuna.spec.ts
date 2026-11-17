@@ -326,7 +326,9 @@ describe('NuevaComuna', () => {
       const texto = el(f).textContent ?? '';
       expect(texto).toContain('Comuna creada');
       expect(texto).toContain('el logo no se pudo subir');
-      expect(texto).toContain('Cambiar logo');
+      // Una comuna sin logo muestra "Subir logo" en la lista, no "Cambiar logo".
+      expect(texto).toContain('con el botón "Subir logo"');
+      expect(texto).not.toContain('Cambiar logo');
       expect(el(f).querySelector('form')).toBeNull();
       http.expectNone(URL);
     });

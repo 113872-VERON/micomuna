@@ -60,6 +60,9 @@
                 </button>
                 <input #archivo type="file" accept="image/png,image/jpeg" hidden tabindex="-1" [attr.data-logo-entrada]="c.id" [attr.aria-label]="'Logo de ' + c.nombre" (change)="elegirLogo(c, $event)" />
               </div>
+              @if (logoOcultoPorInactiva(c)) {
+                <small class="logo-nota" [attr.data-logo-nota]="c.id">Logo cargado (se ve cuando la comuna está activa)</small>
+              }
             </td>
             <td>
               @if (c.activa) {

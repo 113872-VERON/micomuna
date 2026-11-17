@@ -12,9 +12,9 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -49,11 +49,15 @@ public class Comuna {
 
 	private String departamento;
 
-	@Lob
-	private byte[] logo;
-
-	@Column(name = "logo_tipo")
+	// La imagen del logo no se carga con la comuna: se lee y se cambia con ComunaLogo.
+	// Acá solo se lee el tipo para saber si hay logo (en la base van juntos o no va ninguno: ck_comuna_logo).
+	@Column(name = "logo_tipo", insertable = false, updatable = false)
+	@Setter(AccessLevel.NONE)
 	private String logoTipo;
+
+	public boolean tieneLogo() {
+		return logoTipo != null;
+	}
 
 	@Column(name = "creada_en", nullable = false)
 	private Instant creadaEn;

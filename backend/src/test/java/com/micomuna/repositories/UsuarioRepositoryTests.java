@@ -10,6 +10,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import com.micomuna.entities.Comuna;
+import com.micomuna.entities.ComunaLogo;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.ColorComuna;
 import com.micomuna.enums.Provincia;
@@ -21,6 +22,9 @@ class UsuarioRepositoryTests {
 
 	@Autowired
 	private ComunaRepository comunas;
+
+	@Autowired
+	private ComunaLogoRepository logos;
 
 	@Autowired
 	private UsuarioRepository usuarios;
@@ -98,33 +102,33 @@ class UsuarioRepositoryTests {
 		c.setProvincia(Provincia.CORDOBA);
 		c.setSlug("t3-salsipuedes-colon");
 		c.setDepartamento("Departamento Colón");
-		c.setLogo(new byte[] { 1, 2, 3 });
-		c.setLogoTipo("image/png");
 		comunas.saveAndFlush(c);
+		assertThat(c.tieneLogo()).isFalse();
+
+		// El logo se guarda aparte (ComunaLogo); la comuna solo sabe si tiene uno.
+		assertThat(logos.guardar(c.getId(), new byte[] { 1, 2, 3 }, "image/png")).isEqualTo(1);
 
 		Comuna leida = comunas.findBySlug("t3-salsipuedes-colon").orElseThrow();
 		assertThat(leida.getColor()).isEqualTo(ColorComuna.CELESTE);
 		assertThat(leida.getDepartamento()).isEqualTo("Departamento Colón");
-		assertThat(leida.getLogo()).containsExactly(1, 2, 3);
+		assertThat(leida.tieneLogo()).isTrue();
+		ComunaLogo logo = logos.findById(c.getId()).orElseThrow();
+		assertThat(logo.getLogo()).containsExactly(1, 2, 3);
+		assertThat(logo.getLogoTipo()).isEqualTo("image/png");
+	}
+
+	@Test
+	void guardarElLogoDeUnaComunaQueNoExisteNoCambiaNada() {
+		assertThat(logos.guardar(-999L, new byte[] { 1 }, "image/png")).isZero();
 	}
 
 	@Test
 	void noPermiteUnLogoSinTipoOConTipoNoPermitido() {
-		Comuna sinTipo = new Comuna();
-		sinTipo.setNombre("A");
-		sinTipo.setProvincia(Provincia.CORDOBA);
-		sinTipo.setSlug("t3-sin-tipo");
-		sinTipo.setLogo(new byte[] { 1 });
-		assertThatThrownBy(() -> comunas.saveAndFlush(sinTipo))
-				.isInstanceOf(DataIntegrityViolationException.class);
+		Long id = comuna("A", Provincia.CORDOBA, "t3-sin-tipo").getId();
 
-		Comuna svg = new Comuna();
-		svg.setNombre("B");
-		svg.setProvincia(Provincia.CORDOBA);
-		svg.setSlug("t3-svg");
-		svg.setLogo(new byte[] { 1 });
-		svg.setLogoTipo("image/svg+xml");
-		assertThatThrownBy(() -> comunas.saveAndFlush(svg))
+		assertThatThrownBy(() -> logos.guardar(id, new byte[] { 1 }, null))
+				.isInstanceOf(DataIntegrityViolationException.class);
+		assertThatThrownBy(() -> logos.guardar(id, new byte[] { 1 }, "image/svg+xml"))
 				.isInstanceOf(DataIntegrityViolationException.class);
 	}
 
