@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { comunaDeSesionGuard } from './auth/comuna-de-sesion.guard';
 import { comunaResolver } from './auth/comuna.resolver';
 import { rolGuard } from './auth/rol.guard';
 import { sesionGuard } from './auth/sesion.guard';
@@ -7,6 +8,7 @@ import { sesionGuard } from './auth/sesion.guard';
 // (withComponentInputBinding + paramsInheritanceStrategy 'always' en app.config.ts).
 export const routes: Routes = [
   { path: 'inicio', canActivate: [sesionGuard], loadComponent: () => import('./pages/inicio/inicio').then((m) => m.Inicio) },
+  { path: 'sin-permiso', canActivate: [sesionGuard], loadComponent: () => import('./pages/sin-permiso/sin-permiso').then((m) => m.SinPermiso) },
   { path: 'no-encontrada', loadComponent: () => import('./pages/no-encontrada/no-encontrada').then((m) => m.NoEncontrada) },
   // `admin` va antes que `:slug`: el panel del superadmin no es una comuna.
   {
@@ -27,6 +29,8 @@ export const routes: Routes = [
   },
   {
     path: ':slug',
+    // Una sesión solo vale para su comuna: abrir otra comuna cierra la sesión (ver el guard).
+    canActivate: [comunaDeSesionGuard],
     resolve: { comuna: comunaResolver },
     loadComponent: () => import('./pages/comuna/comuna-layout').then((m) => m.ComunaLayout),
     children: [

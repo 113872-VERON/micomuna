@@ -70,21 +70,21 @@ paths:
         "400":
           description: Datos inválidos
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "404":
           description: La comuna no existe o está inactiva
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "409":
           description: Ese correo ya está registrado en la comuna
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "201":
           description: Created
           content:
@@ -145,21 +145,21 @@ paths:
         "400":
           description: Datos inválidos
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "401":
           description: Credenciales incorrectas
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "404":
           description: La comuna no existe o está inactiva
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
   /api/comunas/{slug}/aceptar-invitacion:
     post:
       tags:
@@ -229,15 +229,15 @@ paths:
         "400":
           description: Datos inválidos
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
         "401":
           description: Credenciales incorrectas
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/AuthRespuesta"
+                $ref: "#/components/schemas/Problema"
   /api/admin/comunas:
     get:
       tags:
@@ -254,6 +254,10 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ComunaAdminDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
       security:
       - bearerAuth: []
     post:
@@ -271,24 +275,26 @@ paths:
               $ref: "#/components/schemas/CrearComunaRequest"
         required: true
       responses:
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
         "400":
           description: Datos inválidos
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ComunaCreadaDto"
+                $ref: "#/components/schemas/Problema"
         "403":
-          description: Solo el superadmin
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ComunaCreadaDto"
+                $ref: "#/components/schemas/Problema"
         "409":
           description: Ya existe una comuna con ese enlace
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ComunaCreadaDto"
+                $ref: "#/components/schemas/Problema"
         "201":
           description: Created
           content:
@@ -313,8 +319,10 @@ paths:
           type: integer
           format: int64
       responses:
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
         "403":
-          description: Solo el superadmin
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
         "404":
           description: La comuna no existe
         "409":
@@ -369,7 +377,7 @@ paths:
         "401":
           description: "Sin sesión, o el token venció o no es válido"
         "403":
-          description: Solo el superadmin
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
         "404":
           description: La comuna no existe
       security:
@@ -400,9 +408,13 @@ paths:
         "404":
           description: La comuna no existe
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ComunaAdminDto"
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
       security:
       - bearerAuth: []
   /api/salud:
@@ -420,18 +432,6 @@ paths:
                 type: object
                 additionalProperties:
                   type: string
-  /api/prueba/yo:
-    get:
-      tags:
-      - ruta-protegida-de-prueba
-      operationId: yo
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: string
   /api/comunas/{slug}/logo:
     get:
       tags:
@@ -483,11 +483,30 @@ paths:
         "404":
           description: La comuna no existe o está inactiva
           content:
-            '*/*':
+            application/problem+json:
               schema:
-                $ref: "#/components/schemas/ComunaDto"
+                $ref: "#/components/schemas/Problema"
 components:
   schemas:
+    Problema:
+      type: object
+      description: Respuesta de error (RFC 9457). El campo codigo identifica el error para el frontend.
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+          format: int32
+        detail:
+          type: string
+          description: Mensaje para mostrar al usuario
+        instance:
+          type: string
+        codigo:
+          type: string
+          description: "Por ejemplo ACCESO_DENEGADO, NO_ENCONTRADO, VALIDACION, LOGO_INVALIDO"
     RestablecerClaveRequest:
       type: object
       properties:

@@ -3,10 +3,15 @@ import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { Rol } from './modelos';
 
-// Deja pasar solo al rol indicado; cualquier otro (o sin sesión) va al destino. El backend vuelve a comprobarlo.
-export function rolGuard(rol: Rol, destino: string): CanActivateFn {
+// Deja pasar solo a los roles indicados. Sin sesión va a `destinoSinSesion` (el login que corresponda);
+// con sesión pero sin el rol adecuado va a "No tenés permiso". El backend vuelve a comprobarlo en cada pedido.
+export function rolGuard(roles: Rol | readonly Rol[], destinoSinSesion: string): CanActivateFn {
+  const permitidos = typeof roles === 'string' ? [roles] : roles;
   return () => {
     const usuario = inject(AuthService).usuario();
-    return usuario?.rol === rol ? true : inject(Router).parseUrl(destino);
+    if (usuario && permitidos.includes(usuario.rol)) {
+      return true;
+    }
+    return inject(Router).parseUrl(usuario ? '/sin-permiso' : destinoSinSesion);
   };
 }

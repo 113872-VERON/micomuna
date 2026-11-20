@@ -16,6 +16,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	Optional<Usuario> findByComunaIsNullAndCorreo(String correo);
 
+	// Patrón para todo lo que es de una comuna: se busca siempre por id Y por la comuna del token (ComunaActual).
+	Optional<Usuario> findByIdAndComunaId(Long id, Long idComuna);
+
 	List<Usuario> findByComunaIdAndRol(Long idComuna, Rol rol);
 
 	boolean existsByRol(Rol rol);

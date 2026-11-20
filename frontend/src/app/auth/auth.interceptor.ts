@@ -7,6 +7,12 @@ import { AuthService } from './auth.service';
 // Un 401 en estos pedidos significa "credenciales incorrectas", no "sesión vencida".
 const PEDIDOS_DE_ENTRADA = /\/(login|registro)$/;
 
+// El backend responde ProblemDetail; `codigo` dice qué tipo de 403 es.
+function esAccesoDenegado(error: HttpErrorResponse): boolean {
+  const cuerpo: unknown = error.error;
+  return typeof cuerpo === 'object' && cuerpo !== null && (cuerpo as { codigo?: unknown }).codigo === 'ACCESO_DENEGADO';
+}
+
 export const authInterceptor: HttpInterceptorFn = (pedido, siguiente) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -26,6 +32,11 @@ export const authInterceptor: HttpInterceptorFn = (pedido, siguiente) => {
           ? '/admin/login'
           : `/${encodeURIComponent(usuario.comunaSlug)}/login`;
         void router.navigateByUrl(destino);
+      }
+      // 403 con `ACCESO_DENEGADO`: la sesión sigue valiendo, pero el rol no alcanza para eso.
+      // Otros 403 son errores de negocio y los muestra la pantalla que hizo el pedido.
+      if (error instanceof HttpErrorResponse && error.status === 403 && propio && esAccesoDenegado(error)) {
+        void router.navigateByUrl('/sin-permiso');
       }
       return throwError(() => error);
     }),

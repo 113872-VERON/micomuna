@@ -11,8 +11,8 @@ function entrar(rol: Rol) {
   });
 }
 
-function evaluar() {
-  return TestBed.runInInjectionContext(() => rolGuard('SUPERADMIN', '/admin/login')({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot));
+function evaluar(roles: Rol | Rol[] = 'SUPERADMIN') {
+  return TestBed.runInInjectionContext(() => rolGuard(roles, '/admin/login')({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot));
 }
 
 describe('rolGuard', () => {
@@ -32,10 +32,24 @@ describe('rolGuard', () => {
     expect((resultado as UrlTree).toString()).toBe('/admin/login');
   });
 
-  it('otroRolNoPasa', () => {
+  it('conSesionPeroOtroRolVaASinPermiso', () => {
     entrar('VECINO');
-    expect((evaluar() as UrlTree).toString()).toBe('/admin/login');
+    expect((evaluar() as UrlTree).toString()).toBe('/sin-permiso');
     entrar('ADMIN_COMUNA');
-    expect((evaluar() as UrlTree).toString()).toBe('/admin/login');
+    expect((evaluar() as UrlTree).toString()).toBe('/sin-permiso');
+  });
+
+  it('aceptaVariosRoles', () => {
+    entrar('ADMINISTRATIVO');
+    expect(evaluar(['ADMINISTRATIVO', 'ADMIN_COMUNA'])).toBe(true);
+    entrar('ADMIN_COMUNA');
+    expect(evaluar(['ADMINISTRATIVO', 'ADMIN_COMUNA'])).toBe(true);
+  });
+
+  it('conVariosRolesRechazaALosQueNoEstan', () => {
+    for (const rol of ['VECINO', 'AGENTE', 'SUPERADMIN'] as Rol[]) {
+      entrar(rol);
+      expect((evaluar(['ADMINISTRATIVO', 'ADMIN_COMUNA']) as UrlTree).toString()).toBe('/sin-permiso');
+    }
   });
 });
