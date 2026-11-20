@@ -78,6 +78,38 @@ describe('Rutas de la aplicación', () => {
     http.expectNone('/api/comunas/admin');
   });
 
+  async function abrirLogin(slug: string, datos: typeof comuna) {
+    const navegacion = harness.navigateByUrl(`/${slug}/login`);
+    await vi.waitFor(() => http.expectOne(`/api/comunas/${slug}`).flush(datos));
+    await navegacion;
+    harness.detectChanges();
+  }
+
+  it('abrirOtraComunaCierraLaSesionYMuestraSuLogin', async () => {
+    entrar('VECINO');
+    await abrirLogin('rio-ceballos', { ...comuna, nombre: 'Río Ceballos', slug: 'rio-ceballos' });
+    expect(TestBed.inject(AuthService).estaAutenticado()).toBe(false);
+    expect(TestBed.inject(Router).url).toBe('/rio-ceballos/login');
+    expect((harness.routeNativeElement as HTMLElement).textContent).toContain('Río Ceballos');
+  });
+
+  it('abrirSuPropiaComunaNoCierraLaSesion', async () => {
+    entrar('VECINO');
+    await abrirLogin('salsipuedes-cordoba', comuna);
+    expect(TestBed.inject(AuthService).estaAutenticado()).toBe(true);
+  });
+
+  it('alSuperadminNoLeCierraLaSesionAbrirUnaComuna', async () => {
+    entrar('SUPERADMIN');
+    await abrirLogin('salsipuedes-cordoba', comuna);
+    expect(TestBed.inject(AuthService).estaAutenticado()).toBe(true);
+  });
+
+  it('sinSesionLaPantallaDeLaComunaSeAbreIgual', async () => {
+    await abrirLogin('rio-ceballos', { ...comuna, nombre: 'Río Ceballos', slug: 'rio-ceballos' });
+    expect(TestBed.inject(Router).url).toBe('/rio-ceballos/login');
+  });
+
   it('elEnlaceDeLaInvitacionMuestraLaComunaYPideLaContrasena', async () => {
     const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/invitacion?codigo=abc');
     await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));

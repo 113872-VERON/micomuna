@@ -86,7 +86,7 @@ describe('authInterceptor', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/admin/login');
   });
 
-  it('unaRespuesta403VaASinPermisoYNoCierraLaSesion', () => {
+  it('unaRespuesta403DeAccesoDenegadoVaASinPermisoYNoCierraLaSesion', () => {
     auth.guardarSesion(vecino);
     http.get('/api/admin/comunas').subscribe({ error: () => undefined });
     controlador.expectOne('/api/admin/comunas').flush({ codigo: 'ACCESO_DENEGADO' }, { status: 403, statusText: 'Prohibido' });
@@ -95,10 +95,29 @@ describe('authInterceptor', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/sin-permiso');
   });
 
+  it('unaRespuesta403ConOtroCodigoNoRedirigeYSePropaga', () => {
+    auth.guardarSesion(vecino);
+    let recibido: unknown;
+    http.post('/api/reclamos/7/estado', {}).subscribe({ error: (e: unknown) => (recibido = e) });
+    controlador.expectOne('/api/reclamos/7/estado').flush({ codigo: 'TRANSICION_NO_PERMITIDA' }, { status: 403, statusText: 'Prohibido' });
+
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+    expect(auth.estaAutenticado()).toBe(true);
+    expect((recibido as { status: number }).status).toBe(403);
+  });
+
+  it('unaRespuesta403SinCuerpoNoRedirige', () => {
+    auth.guardarSesion(vecino);
+    http.get('/api/reclamos').subscribe({ error: () => undefined });
+    controlador.expectOne('/api/reclamos').flush(null, { status: 403, statusText: 'Prohibido' });
+
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+  });
+
   it('unaRespuesta403DeOtroServidorNoRedirige', () => {
     auth.guardarSesion(vecino);
     http.get('https://otro.example.com/datos').subscribe({ error: () => undefined });
-    controlador.expectOne('https://otro.example.com/datos').flush(null, { status: 403, statusText: 'Prohibido' });
+    controlador.expectOne('https://otro.example.com/datos').flush({ codigo: 'ACCESO_DENEGADO' }, { status: 403, statusText: 'Prohibido' });
 
     expect(router.navigateByUrl).not.toHaveBeenCalled();
   });

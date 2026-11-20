@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { comunaDeSesionGuard } from './auth/comuna-de-sesion.guard';
 import { comunaResolver } from './auth/comuna.resolver';
 import { rolGuard } from './auth/rol.guard';
 import { sesionGuard } from './auth/sesion.guard';
@@ -28,6 +29,8 @@ export const routes: Routes = [
   },
   {
     path: ':slug',
+    // Una sesión solo vale para su comuna: abrir otra comuna cierra la sesión (ver el guard).
+    canActivate: [comunaDeSesionGuard],
     resolve: { comuna: comunaResolver },
     loadComponent: () => import('./pages/comuna/comuna-layout').then((m) => m.ComunaLayout),
     children: [
