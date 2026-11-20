@@ -44,6 +44,17 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['403']").doesNotExist());
 	}
 
+	// Los controladores de src/test no son parte de la API: no tienen que colarse en la documentación
+	// (ni en docs/api/openapi.yaml si se genera con las pruebas cargadas). Ver src/test/resources/config/application.properties.
+	@Test
+	void losEndpointsDePruebaNoAparecenEnLaDocumentacion() throws Exception {
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.paths['/api/prueba/yo']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/prueba/usuarios/{id}']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/prueba/{slug}/comuna-actual']").doesNotExist());
+	}
+
 	@Test
 	void losEndpointsPublicosNoDocumentan401() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
