@@ -35,11 +35,7 @@ public class CodigoService {
 
 	// Devuelve el código en claro (solo para ponerlo en el correo) e invalida los anteriores del mismo tipo.
 	public String emitir(Usuario usuario, TipoCodigo tipo) {
-		for (CodigoRecuperacion previo : codigos.findPendientesDelUsuario(usuario.getId())) {
-			if (previo.getTipo() == tipo) {
-				previo.setUsado(true);
-			}
-		}
+		invalidar(usuario, tipo);
 
 		byte[] bytes = new byte[32];
 		ALEATORIO.nextBytes(bytes);
@@ -52,6 +48,16 @@ public class CodigoService {
 		nuevo.setVenceEn(Instant.now().plus(tipo == TipoCodigo.INVITACION ? VIGENCIA_INVITACION : VIGENCIA_RECUPERACION));
 		codigos.saveAndFlush(nuevo);
 		return codigo;
+	}
+
+	// Deja sin efecto los códigos vigentes del usuario de ese tipo (por ejemplo, la invitación que se mandó a un
+	// correo que después se corrigió). Con tipo nulo, los de cualquier tipo.
+	public void invalidar(Usuario usuario, TipoCodigo tipo) {
+		for (CodigoRecuperacion previo : codigos.findPendientesDelUsuario(usuario.getId())) {
+			if (tipo == null || previo.getTipo() == tipo) {
+				previo.setUsado(true);
+			}
+		}
 	}
 
 	// Gasta el código y devuelve a su dueño. Inexistente, de otro tipo, usado, vencido, de otra comuna

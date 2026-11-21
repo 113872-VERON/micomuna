@@ -34,7 +34,8 @@ public class InvitacionService {
 	// Se llama dentro de la transacción que crea al usuario. El correo se manda recién después, con enviar().
 	public Invitacion preparar(Usuario usuario, Comuna comuna) {
 		String codigo = codigos.emitir(usuario, TipoCodigo.INVITACION);
-		return new Invitacion(new Destinatario(usuario.getCorreo(), usuario.getNombre(), comuna.getNombre(), comuna.getSlug()),
+		return new Invitacion(new Destinatario(usuario.getCorreo(), usuario.getNombre(), comuna.getNombre(), comuna.getSlug(),
+				usuario.getRol()),
 				codigo);
 	}
 

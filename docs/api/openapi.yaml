@@ -16,6 +16,8 @@ tags:
   description: "Acciones de quien ya inició sesión, sea cual sea su rol"
 - name: Autenticación
   description: Registro e inicio de sesión de los usuarios de una comuna
+- name: Usuarios de la comuna
+  description: El administrador de la comuna gestiona a los usuarios de su comuna
 - name: Salud
   description: Comprobación de que el backend responde
 paths:
@@ -417,6 +419,193 @@ paths:
           description: Tu rol no permite esto (ACCESO_DENEGADO)
       security:
       - bearerAuth: []
+  /api/usuarios:
+    get:
+      tags:
+      - Usuarios de la comuna
+      summary: Listar los usuarios de mi comuna
+      description: "Solo el administrador de la comuna. Devuelve todos los usuarios\
+        \ de la comuna del token (vecinos y personal), ordenados por nombre. La comuna\
+        \ sale siempre del token, nunca de un parámetro."
+      operationId: listarUsuarios
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UsuarioComunaDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Usuarios de la comuna
+      summary: Dar de alta a una persona del personal
+      description: "Solo el administrador de la comuna. Crea al usuario en la comuna\
+        \ del token, sin contraseña (queda PENDIENTE), y le manda una invitación por\
+        \ correo para que elija la suya. Los vecinos no se dan de alta por acá: se\
+        \ registran solos. Si el correo no sale, el usuario igual queda creado y la\
+        \ respuesta trae invitacionEnviada = false."
+      operationId: crearUsuario
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearUsuarioRequest"
+        required: true
+      responses:
+        "201":
+          description: Usuario creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioCreadoDto"
+        "400":
+          description: "Datos inválidos (VALIDACION) o rol VECINO o SUPERADMIN, que\
+            \ no se dan de alta por acá (ROL_NO_PERMITIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: Ya hay un usuario con ese correo en la comuna (CONFLICTO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/usuarios/{id}:
+    patch:
+      tags:
+      - Usuarios de la comuna
+      summary: Cambiar el rol, el estado o el correo de un usuario
+      description: "Solo el administrador de la comuna. Cambio parcial: se manda solo\
+        \ lo que cambia. El rol puede ser cualquiera menos SUPERADMIN. Desactivar\
+        \ no borra: el usuario no puede iniciar sesión hasta que se lo reactive. El\
+        \ correo solo se puede corregir mientras el usuario está PENDIENTE; al corregirlo\
+        \ la invitación anterior queda sin efecto y hay que reenviarla. Un administrador\
+        \ no puede desactivarse ni quitarse el rol a sí mismo, ni dejar a la comuna\
+        \ sin administradores activos (409). Un usuario de otra comuna responde 404,\
+        \ igual que uno inexistente."
+      operationId: actualizarUsuario
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActualizarUsuarioRequest"
+        required: true
+      responses:
+        "200":
+          description: Usuario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioComunaDto"
+        "400":
+          description: "Datos inválidos (VALIDACION), pedido sin ningún campo (PEDIDO_VACIO)\
+            \ o rol SUPERADMIN (ROL_NO_PERMITIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El usuario no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "Cambio sobre uno mismo, la comuna quedaría sin administradores\
+            \ activos, correo de un usuario que ya no está pendiente, correo ya usado\
+            \ en la comuna u otra persona está cambiando estos datos (CONFLICTO, con\
+            \ el motivo en detail)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/usuarios/{id}/reenviar-invitacion:
+    post:
+      tags:
+      - Usuarios de la comuna
+      summary: Reenviar la invitación a un usuario pendiente
+      description: "Solo el administrador de la comuna. Genera un enlace nuevo y deja\
+        \ sin efecto el anterior. Si el correo no sale responde 502 CORREO_NO_ENVIADO."
+      operationId: reenviarInvitacionUsuario
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Invitación enviada
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El usuario no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El usuario ya eligió su contraseña, está inactivo u otra persona\
+            \ está cambiando estos datos (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "502":
+          description: El correo no pudo enviarse (CORREO_NO_ENVIADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/salud:
     get:
       tags:
@@ -488,6 +677,83 @@ paths:
                 $ref: "#/components/schemas/Problema"
 components:
   schemas:
+    UsuarioComunaDto:
+      type: object
+      description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        correo:
+          type: string
+        rol:
+          type: string
+          enum:
+          - VECINO
+          - ADMINISTRATIVO
+          - AGENTE
+          - ADMIN_COMUNA
+        estado:
+          type: string
+          description: "PENDIENTE: todavía no eligió su contraseña. INACTIVO: desactivado\
+            \ por el administrador (tiene prioridad sobre PENDIENTE). ACTIVO: el resto."
+          enum:
+          - ACTIVO
+          - INACTIVO
+          - PENDIENTE
+        creadoEn:
+          type: string
+          format: date-time
+    CrearUsuarioRequest:
+      type: object
+      required:
+      - nombre
+      - correo
+      - rol
+      properties:
+        nombre:
+          type: string
+          maxLength: 100
+        correo:
+          type: string
+          format: email
+          maxLength: 254
+        rol:
+          type: string
+          description: Solo personal. Los vecinos se registran solos.
+          enum:
+          - ADMINISTRATIVO
+          - AGENTE
+          - ADMIN_COMUNA
+    UsuarioCreadoDto:
+      type: object
+      description: invitacionEnviada = false significa que el usuario se creó pero el correo no salió (se puede reenviar).
+      properties:
+        usuario:
+          $ref: "#/components/schemas/UsuarioComunaDto"
+        invitacionEnviada:
+          type: boolean
+    ActualizarUsuarioRequest:
+      type: object
+      description: Cambio parcial. Al menos un campo.
+      properties:
+        rol:
+          type: string
+          enum:
+          - VECINO
+          - ADMINISTRATIVO
+          - AGENTE
+          - ADMIN_COMUNA
+        activo:
+          type: boolean
+        correo:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+          description: Solo para usuarios PENDIENTE (sin contraseña).
     Problema:
       type: object
       description: Respuesta de error (RFC 9457). El campo codigo identifica el error para el frontend.

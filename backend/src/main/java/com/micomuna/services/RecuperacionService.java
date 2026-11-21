@@ -40,7 +40,7 @@ public class RecuperacionService {
 				.map(usuario -> {
 					TipoCodigo tipo = usuario.getClaveHash() == null ? TipoCodigo.INVITACION : TipoCodigo.RECUPERACION;
 					return new Aviso(new Destinatario(usuario.getCorreo(), usuario.getNombre(), comuna.getNombre(),
-							comuna.getSlug()), tipo, codigos.emitir(usuario, tipo));
+							comuna.getSlug(), usuario.getRol()), tipo, codigos.emitir(usuario, tipo));
 				})
 				.orElse(null));
 
