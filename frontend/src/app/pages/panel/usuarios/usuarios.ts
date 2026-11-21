@@ -220,7 +220,7 @@ export class Usuarios implements OnInit {
         } else if (c.activo) {
           texto = `Listo: activamos a ${actualizado.nombre}.`;
         } else {
-          texto = `Listo: desactivamos a ${actualizado.nombre}. No va a poder ingresar hasta que lo actives.`;
+          texto = `Listo: desactivamos a ${actualizado.nombre}. No va a poder ingresar hasta que vuelvas a activar su usuario.`;
         }
         this.aviso.set({ usuarioId: u.id, tipo: 'ok', texto });
       },
@@ -252,6 +252,15 @@ export class Usuarios implements OnInit {
         this.aviso.set({ usuarioId: u.id, tipo: 'error', texto: mensajeDeError(e) });
       },
     });
+  }
+
+  protected enviandoInvitacion(u: UsuarioComunaDto): boolean {
+    return this.ocupado() === u.id && this.corrigiendo() !== u.id;
+  }
+
+  // Nombre para el lector de pantalla: empieza con el texto visible y suma a quién (todas las filas tienen el mismo botón).
+  protected nombreReenviar(u: UsuarioComunaDto): string {
+    return this.enviandoInvitacion(u) ? `Enviando la invitación a ${u.nombre}` : `Reenviar invitación a ${u.nombre}`;
   }
 
   protected abrirCorreccion(u: UsuarioComunaDto): void {

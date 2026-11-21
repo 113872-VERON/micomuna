@@ -106,18 +106,18 @@
               <td class="c-acciones">
                 <div class="acciones">
                   @if (esPropio(u)) {
-                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" disabled aria-describedby="nota-propia">Desactivar</button>
+                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" disabled aria-describedby="nota-propia" [attr.aria-label]="'Desactivar a ' + u.nombre">Desactivar</button>
                     <small class="nota-propia" id="nota-propia">Es tu usuario: no podés cambiar tu rol ni desactivarte.</small>
                   } @else if (u.estado === 'INACTIVO') {
-                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" (click)="pedirCambioDeEstado(u, true)">Activar</button>
+                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" [attr.aria-label]="'Activar a ' + u.nombre" (click)="pedirCambioDeEstado(u, true)">Activar</button>
                   } @else {
                     @if (u.estado === 'PENDIENTE') {
-                      <button type="button" class="btn sec chico" [disabled]="hayPedido()" (click)="reenviar(u)">
-                        {{ ocupado() === u.id && corrigiendo() !== u.id ? 'Enviando…' : 'Reenviar invitación' }}
+                      <button type="button" class="btn sec chico" [disabled]="hayPedido()" [attr.aria-label]="nombreReenviar(u)" (click)="reenviar(u)">
+                        {{ enviandoInvitacion(u) ? 'Enviando…' : 'Reenviar invitación' }}
                       </button>
-                      <button type="button" [id]="'corregir-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" (click)="abrirCorreccion(u)">Corregir el correo</button>
+                      <button type="button" [id]="'corregir-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" [attr.aria-label]="'Corregir el correo de ' + u.nombre" (click)="abrirCorreccion(u)">Corregir el correo</button>
                     }
-                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" [disabled]="ocupado() === u.id" (click)="pedirCambioDeEstado(u, false)">Desactivar</button>
+                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" [disabled]="ocupado() === u.id" [attr.aria-label]="'Desactivar a ' + u.nombre" (click)="pedirCambioDeEstado(u, false)">Desactivar</button>
                   }
                 </div>
               </td>
@@ -133,7 +133,7 @@
                       } @else if (c.activo) {
                         <p id="confirmar-pregunta"><b>¿Activar a {{ u.nombre }}?</b> Va a poder ingresar de nuevo. Si todavía no había elegido su contraseña, después vas a tener que reenviarle la invitación.</p>
                       } @else {
-                        <p id="confirmar-pregunta"><b>¿Desactivar a {{ u.nombre }}?</b> No va a poder ingresar hasta que lo actives de nuevo. No se borra nada.</p>
+                        <p id="confirmar-pregunta"><b>¿Desactivar a {{ u.nombre }}?</b> No va a poder ingresar hasta que vuelvas a activar su usuario. No se borra nada.</p>
                       }
                       <div class="acciones">
                         <button type="button" id="confirmar-cancelar" class="btn sec chico" (click)="cancelarConfirmacion()">Cancelar</button>
@@ -179,5 +179,5 @@
       </table>
     </div>
   }
-  <p class="nota">Los usuarios no se borran: se desactivan. Nadie puede desactivarse ni quitarse el rol de administrador a sí mismo, y la comuna siempre tiene que tener al menos un administrador activo.</p>
+  <p class="nota">Los usuarios no se borran: se desactivan. Nadie puede desactivar su propio usuario ni quitarse su propio rol de administrador, y la comuna siempre tiene que tener al menos un administrador activo.</p>
 }

@@ -336,6 +336,61 @@ describe('Usuarios', () => {
     });
   });
 
+  describe('nombres accesibles', () => {
+    const nombre = (b: HTMLButtonElement) => b.getAttribute('aria-label');
+
+    it('losBotonesDeCadaFilaDicenAQuienAfectanSinCambiarElTextoVisible', () => {
+      const f = crear();
+
+      expect(nombre(boton(fila(f, 2), 'Desactivar'))).toBe('Desactivar a Marta Gómez');
+      expect(nombre(boton(fila(f, 5), 'Activar'))).toBe('Activar a Raúl Ibarra');
+      expect(nombre(boton(fila(f, 4), 'Reenviar invitación'))).toBe('Reenviar invitación a Julieta Romero');
+      expect(nombre(boton(fila(f, 4), 'Corregir el correo'))).toBe('Corregir el correo de Julieta Romero');
+      expect(nombre(boton(fila(f, 4), 'Desactivar'))).toBe('Desactivar a Julieta Romero');
+      expect(nombre(boton(fila(f, 1), 'Desactivar'))).toBe('Desactivar a Sergio Vera');
+      expect(el(f).querySelector('label[for="rol-3"]')?.textContent?.trim()).toBe('Rol de Lucía Paz');
+    });
+
+    it('dosFilasNoTienenBotonesConElMismoNombre', () => {
+      const f = crear();
+      const nombres = Array.from(el(f).querySelectorAll<HTMLButtonElement>('tr.fila button')).map((b) => b.getAttribute('aria-label'));
+
+      expect(nombres.every((n) => !!n)).toBe(true);
+      expect(new Set(nombres).size).toBe(nombres.length);
+    });
+
+    it('mientrasReenviaElNombreTambienLoDice', () => {
+      const f = crear();
+      tocar(f, fila(f, 4), 'Reenviar invitación');
+
+      expect(nombre(boton(fila(f, 4), 'Enviando…'))).toBe('Enviando la invitación a Julieta Romero');
+      http.expectOne('/api/usuarios/4/reenviar-invitacion').flush(null, { status: 204, statusText: 'No Content' });
+    });
+  });
+
+  describe('textos sin género', () => {
+    it('desactivarNoDependeDeSiEsHombreOMujer', () => {
+      const f = crear();
+      tocar(f, fila(f, 2), 'Desactivar');
+      expect(texto(f)).toContain('¿Desactivar a Marta Gómez? No va a poder ingresar hasta que vuelvas a activar su usuario. No se borra nada.');
+
+      tocar(f, el(f), 'Sí, desactivar');
+      http.expectOne('/api/usuarios/2').flush({ ...LISTA[1], estado: 'INACTIVO' });
+      f.detectChanges();
+
+      expect(el(f).querySelector('[role="status"]')?.textContent?.trim()).toBe(
+        'Listo: desactivamos a Marta Gómez. No va a poder ingresar hasta que vuelvas a activar su usuario.',
+      );
+      expect(texto(f)).not.toMatch(/\blo actives\b|a sí mismo/);
+    });
+
+    it('laNotaDeLaTablaEsNeutra', () => {
+      const f = crear();
+      expect(texto(f)).toContain('Nadie puede desactivar su propio usuario ni quitarse su propio rol de administrador');
+      expect(texto(f)).not.toContain('a sí mismo');
+    });
+  });
+
   describe('fila propia', () => {
     it('elRolYElEstadoDelPropioAdministradorEstanDeshabilitadosConUnaExplicacion', () => {
       const f = crear();
