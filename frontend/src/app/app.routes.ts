@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 import { comunaDeSesionGuard } from './auth/comuna-de-sesion.guard';
 import { comunaResolver } from './auth/comuna.resolver';
-import { rolGuard } from './auth/rol.guard';
+import { loginDeLaComuna, rolGuard } from './auth/rol.guard';
 import { sesionGuard } from './auth/sesion.guard';
 
 // Las pantallas de una comuna reciben `slug`, `comuna` y los datos de la ruta como inputs
@@ -30,20 +30,37 @@ export const routes: Routes = [
   {
     path: ':slug',
     // Una sesión solo vale para su comuna: abrir otra comuna cierra la sesión (ver el guard).
+    // Este guard corre antes que los de las rutas hijas: el de rol ya ve la sesión cerrada.
     canActivate: [comunaDeSesionGuard],
     resolve: { comuna: comunaResolver },
-    loadComponent: () => import('./pages/comuna/comuna-layout').then((m) => m.ComunaLayout),
     children: [
-      { path: 'login', loadComponent: () => import('./pages/login/login').then((m) => m.Login) },
-      { path: 'registro', loadComponent: () => import('./pages/registro/registro').then((m) => m.Registro) },
-      { path: 'recuperar', loadComponent: () => import('./pages/recuperar-clave/recuperar-clave').then((m) => m.RecuperarClave) },
-      { path: 'restablecer', loadComponent: () => import('./pages/restablecer-clave/restablecer-clave').then((m) => m.RestablecerClave) },
+      // Panel del administrador de la comuna: una barra superior con la marca de la comuna,
+      // en lugar de la cabecera grande de las pantallas de entrada (ahí no entra una tabla).
       {
-        path: 'invitacion',
-        data: { modo: 'invitacion' },
-        loadComponent: () => import('./pages/restablecer-clave/restablecer-clave').then((m) => m.RestablecerClave),
+        path: 'panel',
+        canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],
+        loadComponent: () => import('./pages/panel/panel-layout/panel-layout').then((m) => m.PanelLayout),
+        children: [
+          { path: 'usuarios', loadComponent: () => import('./pages/panel/usuarios/usuarios').then((m) => m.Usuarios) },
+          { path: '', pathMatch: 'full', redirectTo: 'usuarios' },
+        ],
       },
-      { path: '', pathMatch: 'full', redirectTo: 'login' },
+      {
+        path: '',
+        loadComponent: () => import('./pages/comuna/comuna-layout').then((m) => m.ComunaLayout),
+        children: [
+          { path: 'login', loadComponent: () => import('./pages/login/login').then((m) => m.Login) },
+          { path: 'registro', loadComponent: () => import('./pages/registro/registro').then((m) => m.Registro) },
+          { path: 'recuperar', loadComponent: () => import('./pages/recuperar-clave/recuperar-clave').then((m) => m.RecuperarClave) },
+          { path: 'restablecer', loadComponent: () => import('./pages/restablecer-clave/restablecer-clave').then((m) => m.RestablecerClave) },
+          {
+            path: 'invitacion',
+            data: { modo: 'invitacion' },
+            loadComponent: () => import('./pages/restablecer-clave/restablecer-clave').then((m) => m.RestablecerClave),
+          },
+          { path: '', pathMatch: 'full', redirectTo: 'login' },
+        ],
+      },
     ],
   },
   { path: '**', redirectTo: 'no-encontrada' },

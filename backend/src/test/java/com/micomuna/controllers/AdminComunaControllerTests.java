@@ -136,6 +136,17 @@ class AdminComunaControllerTests {
 				contains("http://localhost:4200/t10-invitada/invitacion?codigo="));
 	}
 
+	// MC-14: el correo de invitación es el mismo para todos los roles; al administrador que crea el superadmin
+	// le dice que entra como Administrador.
+	@Test
+	void laInvitacionDelAdministradorNombraLaComunaYElRol() throws Exception {
+		crear(tokenSuperadmin, cuerpo("Salsipuedes", "CORDOBA", ",\"slug\":\"t14-invitada\""))
+				.andExpect(status().isCreated());
+
+		verify(mail).enviar(eq("jefe@mail.com"), eq("Te invitaron a MiComuna, Comuna de Salsipuedes"),
+				contains("Te invitaron a sumarte a MiComuna, Comuna de Salsipuedes, como Administrador."));
+	}
+
 	@Test
 	void siFallaElCorreoLaComunaSeCreaIgualYSeAvisa() throws Exception {
 		doThrow(new MailSendException("SMTP caído")).when(mail).enviar(anyString(), anyString(), anyString());

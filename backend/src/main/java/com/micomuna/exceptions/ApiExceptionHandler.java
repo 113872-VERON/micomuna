@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -20,6 +21,9 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 
 // Errores con el mismo formato en toda la API, en español y sin detalles internos.
 @RestControllerAdvice
@@ -57,6 +61,19 @@ public class ApiExceptionHandler {
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO", e.getMessage());
+	}
+
+	// Venció la espera de un bloqueo de fila (ver constants.Bloqueo): otra persona está cambiando lo mismo.
+	// Con Oracle (probado en BloqueosDeUsuarioTests), "FOR UPDATE WAIT 3" vencido responde ORA-00054, Hibernate lo
+	// convierte en su LockTimeoutException y Spring la entrega como CannotAcquireLockException (subclase de
+	// PessimisticLockingFailureException, que también cubre un deadlock). Las de JPA quedan por si alguna llega
+	// sin traducir (por ejemplo, desde un EntityManager usado directamente).
+	@ExceptionHandler({ PessimisticLockingFailureException.class, LockTimeoutException.class,
+			PessimisticLockException.class })
+	ProblemDetail bloqueoOcupado(Exception e) {
+		log.info("Bloqueo de fila ocupado ({})", e.getClass().getSimpleName());
+		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO",
+				"Otra persona está cambiando estos datos. Probá de nuevo en unos segundos.");
 	}
 
 	// Un mensaje por campo, para que el formulario marque cada error donde corresponde.

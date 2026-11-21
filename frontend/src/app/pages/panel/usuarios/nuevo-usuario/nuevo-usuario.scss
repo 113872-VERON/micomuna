@@ -1,0 +1,33 @@
+:host { display: block; }
+
+.nuevo { max-width: 760px; background: #fff; border: 2px solid var(--p); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+h2:focus { outline: none; }
+h2:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 4px; }
+
+.form { display: flex; flex-direction: column; gap: 14px; }
+.par { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.par > div { min-width: 0; }
+.msg-error { margin-top: 6px; }
+
+.roles { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.roles legend { padding: 0; margin-bottom: 6px; font-size: 17px; font-weight: 700; }
+
+// Cada rol es una opción grande, con su explicación: se toca toda la caja, no solo el círculo.
+.rol-op {
+  margin: 0; display: flex; gap: 12px; align-items: flex-start; min-height: 44px; padding: 10px 14px; box-sizing: border-box;
+  border: 2px solid #cbd2d9; border-radius: 12px; font-weight: 400; cursor: pointer;
+  input { flex: none; width: 24px; height: 24px; margin: 2px 0 0; accent-color: var(--p); cursor: pointer; }
+  b { display: block; font-size: 17px; }
+  small { display: block; color: var(--sub); font-size: 15px; }
+  &:has(input:checked) { border-color: var(--p); background: var(--ayuda); box-shadow: inset 0 0 0 2px var(--p); }
+  &:has(input:focus-visible) { outline: 4px solid #1d4ed8; outline-offset: 2px; }
+}
+.roles.con-error .rol-op { border-color: var(--error); }
+
+.fin { justify-content: flex-end; }
+
+@media (max-width: 560px) {
+  .nuevo { padding: 16px; }
+  .par { grid-template-columns: 1fr; }
+  .acciones .btn { flex: 1 1 100%; }
+}

@@ -1,0 +1,95 @@
+<section class="nuevo" aria-labelledby="titulo-nuevo-usuario">
+  @if (resultado(); as r) {
+    @if (r.invitacionEnviada) {
+      <h2 id="titulo-nuevo-usuario" tabindex="-1">Invitación enviada</h2>
+      <div class="aviso ok" role="status">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
+        <span><b>Invitación enviada a {{ r.usuario.correo }}.</b> El enlace del correo sirve una sola vez y vence en 72 horas.</span>
+      </div>
+      <p class="ayuda-c">Hasta que elija su contraseña, {{ r.usuario.nombre }} aparece como <b>Pendiente</b> en la lista. Si no le llega, usá "Reenviar invitación".</p>
+      <div class="acciones">
+        <button type="button" class="btn pri" (click)="cerrar.emit()">Listo</button>
+      </div>
+    } @else {
+      <h2 id="titulo-nuevo-usuario" tabindex="-1">Creamos el usuario, pero el correo no salió</h2>
+      <div class="aviso alerta" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span>{{ r.usuario.nombre }} quedó en la lista como <b>Pendiente</b>, pero no pudimos enviar el correo a <b>{{ r.usuario.correo }}</b>. Revisá que la dirección esté bien escrita y probá de nuevo.</span>
+      </div>
+      @if (errorEnvio(); as mensaje) {
+        <p class="msg-error caja-error" role="alert">{{ mensaje }}</p>
+      }
+      @if (corrigiendo()) {
+        <app-corregir-correo
+          [correo]="r.usuario.correo"
+          idCampo="nuevo-correo-corregido"
+          [enviando]="reenviando()"
+          [error]="errorCorreccion()"
+          (guardar)="corregirCorreo($event)"
+          (cancelar)="corrigiendo.set(false)"
+        />
+      } @else {
+        <div class="acciones">
+          <button type="button" class="btn sec" [disabled]="reenviando()" (click)="abrirCorreccion()">Corregir el correo</button>
+          <button type="button" class="btn pri" [disabled]="reenviando()" [attr.aria-busy]="reenviando()" (click)="reintentarEnvio()">
+            {{ reenviando() ? 'Enviando…' : 'Reintentar el envío' }}
+          </button>
+        </div>
+      }
+      <button type="button" class="btn texto chico" (click)="cerrar.emit()">Cerrar y reenviar más tarde</button>
+    }
+  } @else {
+    <h2 id="titulo-nuevo-usuario" tabindex="-1">Nuevo usuario</h2>
+    <form class="form" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      <div class="par">
+        <div>
+          <label for="nuevo-nombre">Nombre y apellido</label>
+          <input id="nuevo-nombre" type="text" formControlName="nombre" autocomplete="off" enterkeyhint="next"
+            [attr.aria-invalid]="c.nombre.touched && c.nombre.invalid" aria-describedby="error-nuevo-nombre" />
+          @if (c.nombre.touched && c.nombre.invalid) {
+            <p class="msg-error" id="error-nuevo-nombre" role="alert">{{ mensajeNombre() }}</p>
+          }
+        </div>
+        <div>
+          <label for="nuevo-correo">Correo electrónico</label>
+          <input id="nuevo-correo" type="email" formControlName="correo" autocomplete="off" autocapitalize="none" spellcheck="false"
+            inputmode="email" enterkeyhint="next" placeholder="ejemplo@correo.com"
+            [attr.aria-invalid]="c.correo.touched && c.correo.invalid" aria-describedby="error-nuevo-correo" />
+          @if (c.correo.touched && c.correo.invalid) {
+            <p class="msg-error" id="error-nuevo-correo" role="alert">{{ mensajeCorreo() }}</p>
+          }
+        </div>
+      </div>
+
+      <fieldset class="roles" [class.con-error]="c.rol.touched && c.rol.invalid" [attr.aria-describedby]="c.rol.touched && c.rol.invalid ? 'error-nuevo-rol' : null">
+        <legend>¿Qué va a hacer?</legend>
+        @for (r of roles; track r.clave) {
+          <label class="rol-op">
+            <input type="radio" name="rol" formControlName="rol" [value]="r.clave" [attr.value]="r.clave" />
+            <span><b>{{ r.nombre }}</b><small>{{ r.descripcion }}</small></span>
+          </label>
+        }
+        @if (c.rol.touched && c.rol.invalid) {
+          <p class="msg-error" id="error-nuevo-rol" role="alert">Elegí qué va a hacer.</p>
+        }
+      </fieldset>
+      <p class="ayuda-c">Los vecinos no se dan de alta acá: se registran solos con el enlace de la comuna.</p>
+
+      <div class="aviso ok">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
+        <span>Le mandamos un correo con un enlace para que elija su propia contraseña. Vos no vas a ver ninguna clave.</span>
+      </div>
+
+      @if (error(); as mensaje) {
+        <p class="msg-error caja-error" role="alert">{{ mensaje }}</p>
+      }
+
+      <div class="acciones fin">
+        <button type="button" class="btn sec" [disabled]="enviando()" (click)="cerrar.emit()">Cancelar</button>
+        <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+          {{ enviando() ? 'Creando…' : 'Crear y enviar invitación' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

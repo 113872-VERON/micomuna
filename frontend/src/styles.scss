@@ -214,3 +214,53 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .hoja .btn { transition: none; }
 }
+
+// ---- Panel de una comuna (administrador de la comuna) ----
+// Mismo lenguaje visual que el panel del superadmin. Los componentes del panel solo agregan su disposición.
+.panel {
+  h1 { margin: 0; font-size: 30px; line-height: 1.15; }
+  h2 { margin: 0; font-size: 24px; line-height: 1.2; }
+  p { margin: 0; }
+
+  label { display: block; margin-bottom: 6px; font-size: 17px; font-weight: 700; }
+  input[type='text'], input[type='email'], input[type='search'], select {
+    width: 100%; box-sizing: border-box; height: 52px; padding: 0 14px; border: 2px solid var(--borde); border-radius: 12px;
+    background: #fff; color: var(--tinta); font: inherit; font-size: 18px;
+  }
+  input:focus-visible, select:focus-visible { outline: none; border-color: var(--p); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p) 30%, white); }
+  select:disabled { background: #f5f7fa; color: var(--sub); border-color: #cbd2d9; }
+  [aria-invalid='true'] { border-color: var(--error) !important; background: var(--error-fondo) !important; }
+  .ayuda-c { margin-top: 6px; font-size: 15px; color: var(--sub); }
+
+  .btn {
+    min-height: 56px; padding: 0 22px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; box-sizing: border-box;
+    border: 2px solid transparent; border-radius: 16px; font: inherit; font-weight: 700; text-align: center; text-decoration: none; cursor: pointer;
+    touch-action: manipulation; user-select: none; transition: transform 160ms ease;
+    &.pri { background: var(--p); color: #fff; }
+    &.sec { background: #fff; color: var(--p); border-color: var(--p); }
+    &.chico { min-height: 44px; padding: 0 16px; border-radius: 12px; }
+    &.peligro { color: var(--error); border-color: var(--error); }
+    &.peligro-pleno { background: var(--error); border-color: var(--error); color: #fff; }
+    &.texto { background: transparent; color: var(--p); text-decoration: underline; }
+    &:active:not(:disabled) { transform: scale(0.97); }
+    &:disabled { opacity: 0.6; cursor: default; }
+    svg { flex: none; }
+  }
+
+  // Los errores llevan texto y borde, nunca solo color.
+  .msg-error { display: flex; gap: 8px; color: var(--error); font-size: 16px; font-weight: 500; overflow-wrap: anywhere; svg { flex: none; margin-top: 2px; } }
+  .caja-error { padding: 12px 14px; border: 3px solid var(--error); border-radius: 14px; background: var(--error-fondo); font-size: 18px; }
+
+  .aviso { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; font-size: 17px; overflow-wrap: anywhere; svg { flex: none; margin-top: 2px; } }
+  .aviso.ok { background: var(--ayuda); color: var(--tinta); }
+  .aviso.alerta { background: #fff4d6; border: 2px solid #e0a81b; color: #3d2a00; }
+  .aviso.error { background: var(--error-fondo); border: 3px solid var(--error); color: var(--tinta); svg { color: var(--error); } }
+
+  .acciones { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .solo-lector { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel .btn { transition: none; }
+}

@@ -55,6 +55,9 @@ public class SecurityConfig {
 						.requestMatchers("/api/salud").permitAll()
 						// Defensa en profundidad: todo lo de /api/admin es del superadmin, además del @PreAuthorize de cada controlador.
 						.requestMatchers("/api/admin/**").hasRole("SUPERADMIN")
+						// Igual con la gestión de usuarios de una comuna: además, así un rol sin permiso recibe 403
+						// antes de que se valide el cuerpo (si no, un cuerpo inválido respondería 400).
+						.requestMatchers("/api/usuarios", "/api/usuarios/**").hasRole("ADMIN_COMUNA")
 						.anyRequest().authenticated();
 				})
 				.addFilterBefore(new JwtAuthFilter(jwt, usuarios), UsernamePasswordAuthenticationFilter.class);
