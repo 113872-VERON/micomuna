@@ -5,7 +5,7 @@ import { AccesoService } from '../../auth/acceso.service';
 import { AuthService } from '../../auth/auth.service';
 import { mensajeDeError } from '../../auth/errores';
 import { limpiarCorreo, mensajeCorreo } from '../../auth/mensajes-de-formulario';
-import { ComunaDto } from '../../auth/modelos';
+import { ComunaDto, UsuarioDto } from '../../auth/modelos';
 import { CampoClave } from '../../compartido/campo-clave/campo-clave';
 
 @Component({
@@ -51,12 +51,20 @@ export class Login {
     this.acceso.iniciarSesion(this.slug(), limpiarCorreo(correo), clave).subscribe({
       next: (respuesta) => {
         this.auth.guardarSesion(respuesta);
-        void this.router.navigateByUrl('/inicio');
+        void this.router.navigateByUrl(this.destinoDespuesDeEntrar(respuesta.usuario));
       },
       error: (e: unknown) => {
         this.enviando.set(false);
         this.error.set(mensajeDeError(e));
       },
     });
+  }
+
+  // El administrador de la comuna va a su panel; el resto, por ahora, al inicio.
+  private destinoDespuesDeEntrar(usuario: UsuarioDto): string {
+    if (usuario.rol === 'ADMIN_COMUNA') {
+      return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/panel/usuarios`;
+    }
+    return '/inicio';
   }
 }

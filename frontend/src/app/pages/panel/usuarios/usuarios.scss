@@ -1,0 +1,63 @@
+:host { display: flex; flex-direction: column; gap: 16px; }
+
+.enc { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+
+.filtros { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; max-width: 760px; }
+.f-buscar, .f-rol { min-width: 0; }
+.cantidad { color: var(--sub); font-size: 16px; }
+
+.tarjeta { background: #fff; border: 2px solid #cbd2d9; border-radius: 16px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 17px; }
+th { text-align: left; font-size: 15px; color: var(--sub); padding: 12px 14px; border-bottom: 2px solid #cbd2d9; background: #f5f7fa; white-space: nowrap; }
+td { padding: 12px 14px; border-bottom: 1px solid #cbd2d9; vertical-align: middle; }
+td small { display: block; color: var(--sub); font-size: 15px; margin-top: 4px; }
+
+.c-nombre { min-width: 160px; overflow-wrap: anywhere; }
+.vos { margin-left: 6px; color: var(--sub); font-weight: 500; }
+.c-correo { min-width: 180px; overflow-wrap: anywhere; }
+.c-rol { min-width: 210px; }
+.c-rol select { height: 48px; font-size: 17px; }
+.c-estado { white-space: nowrap; }
+.c-estado small { white-space: normal; max-width: 180px; }
+.c-acciones .acciones { gap: 8px; }
+.nota-propia { flex: 1 1 100%; max-width: 260px; margin-top: 0; }
+tr.propia td { background: #f9fafb; }
+
+// Estado con ícono y palabra, nunca solo color.
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; font-weight: 700; font-size: 16px; }
+.chip.activo { background: #dcf3e3; color: #14532d; }
+.chip.inactivo { background: #e5e7eb; color: #3a3a3a; }
+.chip.pendiente { background: #fff4d6; color: #3d2a00; }
+
+.extra td { background: var(--fondo); }
+.confirmar td { background: var(--ayuda); }
+.confirmar.peligro td { background: var(--error-fondo); }
+.pregunta { display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
+.pregunta .acciones { justify-content: flex-end; }
+
+.estado-vacio { padding: 32px 16px; text-align: center; color: var(--sub); background: #fff; border: 2px dashed #cbd2d9; border-radius: 16px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.nota { color: var(--sub); font-size: 16px; }
+
+// En el celular cada usuario es una tarjeta: nombre y correo arriba, y debajo rol, estado y acciones.
+@media (max-width: 760px) {
+  .filtros { grid-template-columns: 1fr; }
+  .tarjeta { background: transparent; border: 0; border-radius: 0; overflow: visible; }
+  table, tbody, tr, td { display: block; }
+  thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  tr.fila { margin-top: 12px; background: #fff; border: 2px solid #cbd2d9; border-radius: 16px; overflow: hidden; }
+  tr.fila td { border-bottom: 0; padding: 8px 14px; }
+  tr.fila td:first-child { padding-top: 14px; }
+  tr.fila td:last-child { padding-bottom: 14px; }
+  .c-nombre, .c-correo, .c-rol { min-width: 0; }
+  .c-nombre { font-size: 19px; }
+  .c-correo { padding-top: 0 !important; color: var(--sub); }
+  .c-rol::before { content: 'Rol'; display: block; margin-bottom: 4px; font-size: 15px; font-weight: 700; color: var(--sub); }
+  .c-estado { white-space: normal; }
+  .c-acciones .btn { flex: 1 1 auto; }
+  .nota-propia { max-width: none; }
+  // Lo que se abre debajo de un usuario (confirmar, corregir, avisos) queda pegado a su tarjeta.
+  tr.extra { border: 2px solid #cbd2d9; border-top: 0; border-radius: 0 0 16px 16px; overflow: hidden; }
+  tr.fila:has(+ tr.extra), tr.extra:has(+ tr.extra) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+  tr.extra:has(+ tr.extra) { border-bottom: 0; }
+  .pregunta .acciones .btn { flex: 1 1 auto; }
+}

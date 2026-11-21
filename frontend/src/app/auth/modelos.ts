@@ -78,3 +78,54 @@ export const PROVINCIAS: readonly { clave: string; nombre: string }[] = [
   { clave: 'TIERRA_DEL_FUEGO', nombre: 'Tierra del Fuego' },
   { clave: 'TUCUMAN', nombre: 'Tucumán' },
 ];
+
+// ---- Usuarios de una comuna (panel del administrador de la comuna) ----
+
+export type RolDeComuna = Exclude<Rol, 'SUPERADMIN'>;
+
+export type EstadoUsuario = 'ACTIVO' | 'INACTIVO' | 'PENDIENTE';
+
+// Un usuario de la comuna tal como lo ve su administrador. Nunca trae la clave.
+export interface UsuarioComunaDto {
+  id: number;
+  nombre: string;
+  correo: string;
+  rol: RolDeComuna;
+  estado: EstadoUsuario;
+  creadoEn: string;
+}
+
+// Solo personal: los vecinos se registran solos.
+export type RolDePersonal = Exclude<RolDeComuna, 'VECINO'>;
+
+export interface CrearUsuarioRequest {
+  nombre: string;
+  correo: string;
+  rol: RolDePersonal;
+}
+
+// El usuario se crea aunque el correo falle: `invitacionEnviada` dice si salió la invitación.
+export interface UsuarioCreadoDto {
+  usuario: UsuarioComunaDto;
+  invitacionEnviada: boolean;
+}
+
+// Cambio parcial: se manda solo lo que cambia. El correo solo se corrige mientras está PENDIENTE.
+export interface ActualizarUsuarioRequest {
+  rol?: RolDeComuna;
+  activo?: boolean;
+  correo?: string;
+}
+
+export const NOMBRES_ROL: Record<RolDeComuna, string> = {
+  VECINO: 'Vecino',
+  AGENTE: 'Agente',
+  ADMINISTRATIVO: 'Personal administrativo',
+  ADMIN_COMUNA: 'Administrador',
+};
+
+export const NOMBRES_ESTADO: Record<EstadoUsuario, string> = {
+  ACTIVO: 'Activo',
+  INACTIVO: 'Inactivo',
+  PENDIENTE: 'Pendiente',
+};

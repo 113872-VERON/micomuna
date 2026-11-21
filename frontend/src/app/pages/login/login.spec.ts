@@ -85,6 +85,37 @@ describe('Login', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/inicio');
   });
 
+  it('elAdministradorDeLaComunaVaASuPanelDeUsuarios', () => {
+    const f = crear();
+    escribir(f, 'correo', 'sergio@correo.com');
+    escribir(f, 'clave', 'miclave123');
+    enviar(f);
+
+    http.expectOne(URL_LOGIN).flush({
+      token: 'tk',
+      usuario: { id: 1, nombre: 'Sergio', correo: 'sergio@correo.com', rol: 'ADMIN_COMUNA', comunaSlug: 'salsipuedes-cordoba' },
+    });
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/panel/usuarios');
+  });
+
+  it('elPersonalQueNoEsAdministradorSigueYendoAInicio', () => {
+    for (const rol of ['ADMINISTRATIVO', 'AGENTE'] as const) {
+      const f = crear();
+      escribir(f, 'correo', 'marta@correo.com');
+      escribir(f, 'clave', 'miclave123');
+      enviar(f);
+
+      http.expectOne(URL_LOGIN).flush({
+        token: 'tk',
+        usuario: { id: 2, nombre: 'Marta', correo: 'marta@correo.com', rol, comunaSlug: 'salsipuedes-cordoba' },
+      });
+
+      expect(router.navigateByUrl).toHaveBeenLastCalledWith('/inicio');
+      f.destroy();
+    }
+  });
+
   it('mostrarElErrorDeCredencialesIncorrectas', () => {
     const f = crear();
     escribir(f, 'correo', 'rosa@correo.com');
