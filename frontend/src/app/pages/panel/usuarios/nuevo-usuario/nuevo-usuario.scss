@@ -1,8 +1,9 @@
 :host { display: block; }
 
 .nuevo { max-width: 760px; background: #fff; border: 2px solid var(--p); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
-h2:focus { outline: none; }
-h2:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 4px; }
+.titulo { display: flex; align-items: center; gap: 4px; }
+h1:focus { outline: none; }
+h1:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 4px; }
 
 .form { display: flex; flex-direction: column; gap: 14px; }
 .par { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

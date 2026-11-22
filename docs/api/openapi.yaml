@@ -391,9 +391,10 @@ paths:
       tags:
       - Administración
       summary: Cambiar una comuna
-      description: "Cambio parcial de nombre, color, departamento y activa. El enlace\
-        \ no se puede cambiar. Desactivarla impide el ingreso de sus usuarios y su\
-        \ consulta pública."
+      description: "Cambio parcial de nombre, color, departamento, teléfono, WhatsApp\
+        \ y activa. El enlace y la provincia no se pueden cambiar. Desactivarla impide\
+        \ el ingreso de sus usuarios y su consulta pública. Cualquier cambio actualiza\
+        \ actualizadaEn (también subir el logo o el límite)."
       operationId: actualizar
       parameters:
       - name: id
@@ -409,6 +410,19 @@ paths:
               $ref: "#/components/schemas/ActualizarComunaRequest"
         required: true
       responses:
+        "200":
+          description: Comuna actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComunaAdminDto"
+        "400":
+          description: "Datos inválidos (VALIDACION, con el motivo de cada campo en\
+            \ errores), por ejemplo un teléfono con letras o un nombre vacío"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
         "404":
           description: La comuna no existe
           content:
@@ -1288,6 +1302,12 @@ components:
           type: string
           maxLength: 80
           minLength: 0
+        telefono:
+          type: string
+          description: "Opcional. Número argentino con código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456). Se aceptan espacios, guiones, paréntesis y un + inicial, que el servidor quita; después tiene que quedar 54 seguido de 10 u 11 dígitos."
+        whatsapp:
+          type: string
+          description: "Opcional. Número argentino con código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456). Se aceptan espacios, guiones, paréntesis y un + inicial, que el servidor quita; después tiene que quedar 54 seguido de 10 u 11 dígitos."
         adminCorreo:
           type: string
           format: email
@@ -1305,6 +1325,17 @@ components:
     ComunaAdminDto:
       type: object
       properties:
+        telefono:
+          type: string
+        whatsapp:
+          type: string
+        creadaEn:
+          type: string
+          format: date-time
+        actualizadaEn:
+          type: string
+          format: date-time
+          description: Última modificación de la comuna (datos, logo, límite o estado)
         id:
           type: integer
           format: int64
@@ -1342,6 +1373,12 @@ components:
     ActualizarComunaRequest:
       type: object
       properties:
+        telefono:
+          type: string
+          description: "Opcional. Número argentino con código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456). Se aceptan espacios, guiones, paréntesis y un + inicial, que el servidor quita; después tiene que quedar 54 seguido de 10 u 11 dígitos. Un texto vacío lo borra; si no viene, no se toca."
+        whatsapp:
+          type: string
+          description: "Opcional. Número argentino con código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456). Se aceptan espacios, guiones, paréntesis y un + inicial, que el servidor quita; después tiene que quedar 54 seguido de 10 u 11 dígitos. Un texto vacío lo borra; si no viene, no se toca."
         nombre:
           type: string
           maxLength: 100

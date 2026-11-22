@@ -21,6 +21,7 @@ input[type='text'], input[type='email'], input[type='tel'], select {
 }
 input:focus-visible, select:focus-visible { outline: none; border-color: var(--p); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p) 30%, white); }
 [aria-invalid='true'] { border-color: var(--error) !important; background: var(--error-fondo) !important; }
+input[readonly] { background: #f5f7fa; color: var(--sub); }
 .ayuda-c { margin: 6px 0 0; font-size: 15px; color: var(--sub); }
 
 .msg-error { display: flex; gap: 8px; margin: 6px 0 0; color: var(--error); font-size: 16px; font-weight: 500; }

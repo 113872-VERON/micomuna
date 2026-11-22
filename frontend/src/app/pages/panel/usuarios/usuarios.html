@@ -1,16 +1,10 @@
 <div class="enc">
   <h1>Usuarios</h1>
-  @if (!creando()) {
-    <button type="button" id="boton-nuevo-usuario" class="btn pri" (click)="abrirAlta()">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-      Nuevo usuario
-    </button>
-  }
+  <a id="boton-nuevo-usuario" class="btn pri" [routerLink]="['/', slug(), 'panel', 'usuarios', 'nuevo']">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+    Nuevo usuario
+  </a>
 </div>
-
-@if (creando()) {
-  <app-nuevo-usuario (creado)="agregar($event)" (actualizado)="reemplazar($event)" (cerrar)="cerrarAlta()" />
-}
 
 @if (cargando()) {
   <p class="estado-vacio" aria-live="polite">Cargando los usuarios…</p>
@@ -56,11 +50,20 @@
       }
     </div>
   } @else {
+    <!-- Solo en pantallas chicas (tarjetas): ahí la cabecera de la tabla está oculta y estas ayudas ocupan su lugar. -->
+    <div class="ayudas-movil" data-ayudas-movil>
+      <button type="button" class="btn sec chico" [appAyuda]="textoEstados" aria-label="Qué significa cada estado">
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>Estados
+      </button>
+      <button type="button" class="btn sec chico" [appAyuda]="textoAcciones" aria-label="Reglas para desactivar usuarios">
+        <span class="material-symbols-outlined" aria-hidden="true">info</span>Reglas
+      </button>
+    </div>
     <div class="tarjeta">
       <table>
         <caption class="solo-lector">Usuarios de la comuna</caption>
         <thead>
-          <tr><th scope="col">Nombre</th><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col">Estado</th><th scope="col">Acciones</th></tr>
+          <tr><th scope="col">Nombre</th><th scope="col">Correo</th><th scope="col">Rol</th><th scope="col"><span class="th-con-ayuda">Estado <button type="button" class="icono" [appAyuda]="textoEstados" aria-label="Qué significa cada estado"><span class="material-symbols-outlined" aria-hidden="true">info</span></button></span></th><th scope="col"><span class="th-con-ayuda">Acciones <button type="button" class="icono" [appAyuda]="textoAcciones" aria-label="Reglas para desactivar usuarios"><span class="material-symbols-outlined" aria-hidden="true">info</span></button></span></th></tr>
         </thead>
         <tbody>
           @for (u of filtrados(); track u.id) {
@@ -71,8 +74,10 @@
                 <label class="solo-lector" [for]="'rol-' + u.id">Rol de {{ u.nombre }}</label>
                 <select
                   [id]="'rol-' + u.id"
-                  [disabled]="esPropio(u) || ocupado() === u.id"
-                  [attr.aria-describedby]="esPropio(u) ? 'nota-propia' : null"
+                  [disabled]="!esPropio(u) && ocupado() === u.id"
+                  [attr.aria-disabled]="esPropio(u) ? 'true' : null"
+                  [appAyuda]="esPropio(u) ? motivoPropio : ''"
+                  [appAyudaActiva]="esPropio(u)"
                   (change)="elegirRol(u, $event)"
                 >
                   @for (r of roles; track r.clave) {
@@ -99,15 +104,13 @@
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v4.5l3 2" /></svg>
                       {{ nombreEstado(u.estado) }}
                     </span>
-                    <small>Todavía no eligió su contraseña.</small>
                   }
                 }
               </td>
               <td class="c-acciones">
                 <div class="acciones">
                   @if (esPropio(u)) {
-                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" disabled aria-describedby="nota-propia" [attr.aria-label]="'Desactivar a ' + u.nombre">Desactivar</button>
-                    <small class="nota-propia" id="nota-propia">Es tu usuario: no podés cambiar tu rol ni desactivarte.</small>
+                    <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" aria-disabled="true" [appAyuda]="motivoPropio" [attr.aria-label]="'Desactivar a ' + u.nombre">Desactivar</button>
                   } @else if (u.estado === 'INACTIVO') {
                     <button type="button" [id]="'estado-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" [attr.aria-label]="'Activar a ' + u.nombre" (click)="pedirCambioDeEstado(u, true)">Activar</button>
                   } @else {
@@ -115,7 +118,7 @@
                       <button type="button" class="btn sec chico" [disabled]="hayPedido()" [attr.aria-label]="nombreReenviar(u)" (click)="reenviar(u)">
                         {{ enviandoInvitacion(u) ? 'Enviando…' : 'Reenviar invitación' }}
                       </button>
-                      <button type="button" [id]="'corregir-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" [attr.aria-label]="'Corregir el correo de ' + u.nombre" (click)="abrirCorreccion(u)">Corregir el correo</button>
+                      <button type="button" [id]="'corregir-' + u.id" class="btn sec chico" [disabled]="ocupado() === u.id" [attr.aria-label]="'Modificar el correo de ' + u.nombre" (click)="abrirCorreccion(u)">Modificar el correo</button>
                     }
                     <button type="button" [id]="'estado-' + u.id" class="btn sec chico peligro" [disabled]="ocupado() === u.id" [attr.aria-label]="'Desactivar a ' + u.nombre" (click)="pedirCambioDeEstado(u, false)">Desactivar</button>
                   }
@@ -179,5 +182,4 @@
       </table>
     </div>
   }
-  <p class="nota">Los usuarios no se borran: se desactivan. Nadie puede desactivar su propio usuario ni quitarse su propio rol de administrador, y la comuna siempre tiene que tener al menos un administrador activo.</p>
 }

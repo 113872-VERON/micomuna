@@ -1,11 +1,12 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, Injector, OnInit, afterNextRender, computed, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, afterNextRender, computed, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../auth/auth.service';
 import { mensajeDeError } from '../../../auth/errores';
 import { EstadoUsuario, NOMBRES_ESTADO, NOMBRES_ROL, RolDeComuna, UsuarioComunaDto } from '../../../auth/modelos';
 import { UsuariosService } from '../../../panel/usuarios.service';
+import { AyudaFlotante } from '../../../compartido/ayuda-flotante/ayuda-flotante';
 import { CorregirCorreo } from './corregir-correo/corregir-correo';
-import { NuevoUsuario } from './nuevo-usuario/nuevo-usuario';
 import { DESCRIPCIONES_ROL } from './roles';
 
 // Lo que se está por confirmar en una fila: un rol nuevo, o activar/desactivar.
@@ -35,12 +36,18 @@ export function conPuntoFinal(texto: string): string {
 
 @Component({
   selector: 'app-usuarios',
-  imports: [NuevoUsuario, CorregirCorreo],
+  imports: [RouterLink, CorregirCorreo, AyudaFlotante],
   templateUrl: './usuarios.html',
   styleUrl: './usuarios.scss',
 })
 export class Usuarios implements OnInit {
   private readonly servicio = inject(UsuariosService);
+  // Viene de la ruta (/:slug/panel/usuarios).
+  readonly slug = input.required<string>();
+  protected readonly textoEstados =
+    'Activo: ya eligió su contraseña y puede ingresar.\nPendiente: todavía no eligió su contraseña; podés reenviarle la invitación.\nInactivo: está desactivado y no puede ingresar hasta que lo actives.';
+  protected readonly motivoPropio = 'Es tu usuario: no podés cambiar tu rol ni desactivarte.';
+  protected readonly textoAcciones = `${this.motivoPropio}\nLos usuarios no se borran: se desactivan.\nLa comuna siempre tiene que tener al menos un administrador activo.`;
   private readonly auth = inject(AuthService);
   private readonly documento = inject(DOCUMENT);
   private readonly injector = inject(Injector);
@@ -63,7 +70,6 @@ export class Usuarios implements OnInit {
   });
   protected readonly hayFiltros = computed(() => this.filtroRol() !== '' || this.busqueda().trim() !== '');
 
-  protected readonly creando = signal(false);
   protected readonly confirmacion = signal<Confirmacion | null>(null);
   protected readonly corrigiendo = signal<number | null>(null);
   protected readonly errorCorreccion = signal<string | null>(null);
@@ -146,25 +152,6 @@ export class Usuarios implements OnInit {
     this.enfocar('buscar-usuario');
   }
 
-  // ---- Alta ----
-
-  protected abrirAlta(): void {
-    this.aviso.set(null);
-    this.confirmacion.set(null);
-    this.corrigiendo.set(null);
-    this.creando.set(true);
-  }
-
-  protected cerrarAlta(): void {
-    this.creando.set(false);
-    this.enfocar('boton-nuevo-usuario');
-  }
-
-  // El alta va primera en la lista para que se vea enseguida; al recargar vuelve al orden del servidor.
-  protected agregar(usuario: UsuarioComunaDto): void {
-    this.usuarios.update((lista) => [usuario, ...lista.filter((u) => u.id !== usuario.id)]);
-  }
-
   protected reemplazar(usuario: UsuarioComunaDto): void {
     this.usuarios.update((lista) => lista.map((u) => (u.id === usuario.id ? usuario : u)));
   }
@@ -172,7 +159,13 @@ export class Usuarios implements OnInit {
   // ---- Rol y estado (con confirmación) ----
 
   protected elegirRol(u: UsuarioComunaDto, evento: Event): void {
-    const rol = (evento.target as HTMLSelectElement).value as RolDeComuna;
+    const selector = evento.target as HTMLSelectElement;
+    // El selector de la fila propia solo parece deshabilitado (para poder mostrar el motivo): el cambio se frena acá.
+    if (this.esPropio(u)) {
+      selector.value = u.rol;
+      return;
+    }
+    const rol = selector.value as RolDeComuna;
     this.aviso.set(null);
     this.corrigiendo.set(null);
     this.confirmacion.set(rol === u.rol ? null : { tipo: 'rol', usuario: u, rol });
@@ -287,7 +280,7 @@ export class Usuarios implements OnInit {
         this.corrigiendo.set(null);
         this.reemplazar(usuario);
         const texto = invitacionEnviada
-          ? `Corregimos el correo y enviamos la invitación a ${usuario.correo}.`
+          ? `Modificamos el correo y enviamos la invitación a ${usuario.correo}.`
           : `Guardamos el correo nuevo (${usuario.correo}), pero la invitación no salió. ${conPuntoFinal(mensajeDeError(errorEnvio))} Probá con "Reenviar invitación".`;
         this.aviso.set({ usuarioId: u.id, tipo: invitacionEnviada ? 'ok' : 'error', texto });
       },

@@ -91,14 +91,14 @@ describe('NuevaComuna', () => {
     expect(texto).toContain('Escribí el correo del administrador');
   });
 
-  it('elWhatsappSoloAceptaNumerosDeDiezAQuinceDigitos', () => {
+  it('elWhatsappSoloAceptaDe8a15Digitos', () => {
     const f = crear();
     completarLoMinimo(f);
     escribir(f, 'whatsapp', '351-123');
     enviar(f);
 
     http.expectNone(URL);
-    expect(el(f).textContent).toContain('Solo números, con el código de país');
+    expect(el(f).textContent).toContain('Escribí el número con el código de país 54');
   });
 
   it('empiezaConElColorCeleste', () => {
@@ -130,14 +130,14 @@ describe('NuevaComuna', () => {
     const f = crear();
     completarLoMinimo(f);
     escribir(f, 'departamento', 'Colón');
-    escribir(f, 'telefono', '(0351) 000-0000');
+    escribir(f, 'telefono', '+54 351 000-0000');
     escribir(f, 'whatsapp', '5493510000000');
     (el(f).querySelector('input[name="color"][value="BOSQUE"]') as HTMLInputElement).click();
     f.detectChanges();
     enviar(f);
 
     const pedido = http.expectOne(URL);
-    expect(pedido.request.body).toMatchObject({ departamento: 'Colón', telefono: '(0351) 000-0000', whatsapp: '5493510000000', color: 'BOSQUE' });
+    expect(pedido.request.body).toMatchObject({ departamento: 'Colón', telefono: '543510000000', whatsapp: '5493510000000', color: 'BOSQUE' });
     pedido.flush(creada(true), { status: 201, statusText: 'Created' });
   });
 
@@ -352,5 +352,185 @@ describe('NuevaComuna', () => {
     enviar(f);
 
     http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+  });
+
+  describe('teléfono y WhatsApp', () => {
+    it('laAyudaDelContactoDaElEjemploConCodigoDePais', () => {
+      expect(el(crear()).textContent).toContain('Con el código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456)');
+    });
+
+    it('unTelefonoOWhatsappInvalidoNoSeEnviaYMuestraElMensaje', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      escribir(f, 'telefono', '12345');
+      escribir(f, 'whatsapp', 'abc');
+      enviar(f);
+
+      http.expectNone(URL);
+      const mensajes = Array.from(el(f).querySelectorAll('.msg-error')).map((m) => m.textContent?.trim());
+      expect(mensajes.filter((m) => m === 'Escribí el número con el código de país 54, sin el 0 ni el 15 (por ejemplo 5493543123456).').length).toBe(2);
+    });
+
+    it('seAceptanEspaciosGuionesYMasPeroTieneQueSerArgentinoConCodigoDePais', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      escribir(f, 'telefono', '+54 9 3543-123456');
+      escribir(f, 'whatsapp', '(0351) 000-0000');
+      enviar(f);
+      http.expectNone(URL);
+      expect(el(f).querySelectorAll('.msg-error').length).toBe(1);
+
+      escribir(f, 'whatsapp', '5493543123456789');
+      enviar(f);
+      http.expectNone(URL);
+
+      escribir(f, 'whatsapp', '5493543654321');
+      enviar(f);
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+    });
+
+    it('mandaSoloLosDigitos', () => {
+      const f = crear();
+      completarLoMinimo(f);
+      escribir(f, 'telefono', '+54 9 3543-123456');
+      escribir(f, 'whatsapp', '5493543654321');
+      enviar(f);
+
+      const pedido = http.expectOne(URL);
+      expect(pedido.request.body).toMatchObject({ telefono: '5493543123456', whatsapp: '5493543654321' });
+      pedido.flush(creada(true), { status: 201, statusText: 'Created' });
+    });
+  });
+
+  describe('límite', () => {
+    const FIGURA = { type: 'Polygon', coordinates: [[[-64.31, -31.13], [-64.29, -31.13], [-64.29, -31.11], [-64.31, -31.11], [-64.31, -31.13]]] };
+    const geojson = () => new File([JSON.stringify(FIGURA)], 'limite.geojson', { type: 'application/geo+json' });
+    const logoPng = () => new File([new Uint8Array(10)], 'logo.png', { type: 'image/png' });
+
+    async function elegirLimite(f: ComponentFixture<unknown>, archivo: File) {
+      const input = campo(f, 'limite');
+      Object.defineProperty(input, 'files', { value: [archivo], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      for (let i = 0; i < 5; i++) {
+        await new Promise((listo) => setTimeout(listo, 0));
+      }
+      f.detectChanges();
+    }
+    function elegirLogo(f: ComponentFixture<unknown>, archivo: File) {
+      const input = campo(f, 'logo');
+      Object.defineProperty(input, 'files', { value: [archivo], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      f.detectChanges();
+    }
+
+    it('esOpcionalYOfreceElegirloConAyuda', () => {
+      const f = crear();
+      expect(el(f).textContent).toContain('Límite de la comuna');
+      expect(el(f).textContent).toContain('Archivo GeoJSON de hasta 1 MB');
+      expect(boton(f, 'Elegir límite (GeoJSON)')).toBeDefined();
+      expect(boton(f, 'Quitar límite')).toBeUndefined();
+      completarLoMinimo(f);
+      enviar(f);
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectNone(`${URL}/7/limite`);
+    });
+
+    it('creaLaComunaYDespuesSubeElLimite', async () => {
+      const f = crear();
+      completarLoMinimo(f);
+      await elegirLimite(f, geojson());
+      expect(el(f).textContent).toContain('limite.geojson');
+      expect(boton(f, 'Quitar límite')).toBeDefined();
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      const subida = http.expectOne(`${URL}/7/limite`);
+      expect(subida.request.method).toBe('PUT');
+      expect(subida.request.body).toEqual(FIGURA);
+      subida.flush({ ...creada(true).comuna, tieneLimite: true });
+      f.detectChanges();
+
+      expect(el(f).textContent).toContain('Comuna creada');
+      expect(el(f).textContent).not.toContain('el límite no se pudo subir');
+    });
+
+    it('subePrimeroElLogoYDespuesElLimite', async () => {
+      const f = crear();
+      completarLoMinimo(f);
+      elegirLogo(f, logoPng());
+      await elegirLimite(f, geojson());
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectNone(`${URL}/7/limite`);
+      http.expectOne(`${URL}/7/logo`).flush({ ...creada(true).comuna, tieneLogo: true });
+      http.expectOne(`${URL}/7/limite`).flush({ ...creada(true).comuna, tieneLimite: true });
+      f.detectChanges();
+      expect(el(f).textContent).toContain('Comuna creada');
+    });
+
+    it('siElLimiteFallaLaComunaQuedaCreadaYSeAvisaQueSeSubeDesdeLaLista', async () => {
+      const f = crear();
+      completarLoMinimo(f);
+      await elegirLimite(f, geojson());
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectOne(`${URL}/7/limite`).flush(
+        { status: 400, codigo: 'LIMITE_INVALIDO', detail: 'El polígono se corta a sí mismo.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      f.detectChanges();
+
+      const texto = el(f).textContent ?? '';
+      expect(texto).toContain('Comuna creada');
+      expect(texto).toContain('el límite no se pudo subir');
+      expect(texto).toContain('El polígono se corta a sí mismo.');
+      expect(texto).toContain('con el botón "Subir límite (GeoJSON)"');
+      expect(texto).not.toContain('el logo no se pudo subir');
+      expect(el(f).querySelector('form')).toBeNull();
+      http.expectNone(URL);
+    });
+
+    it('siFallanElLogoYElLimiteAvisaDeLosDos', async () => {
+      const f = crear();
+      completarLoMinimo(f);
+      elegirLogo(f, logoPng());
+      await elegirLimite(f, geojson());
+      enviar(f);
+
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectOne(`${URL}/7/logo`).flush({}, { status: 400, statusText: 'Bad Request' });
+      http.expectOne(`${URL}/7/limite`).flush({}, { status: 400, statusText: 'Bad Request' });
+      f.detectChanges();
+
+      expect(el(f).textContent).toContain('el logo no se pudo subir');
+      expect(el(f).textContent).toContain('el límite no se pudo subir');
+    });
+
+    it('unArchivoQueNoEsJsonSeRechazaEnElNavegador', async () => {
+      const f = crear();
+      await elegirLimite(f, new File(['<kml></kml>'], 'limite.kml'));
+
+      expect(el(f).textContent).toContain('no es un GeoJSON');
+      expect(boton(f, 'Quitar límite')).toBeUndefined();
+      completarLoMinimo(f);
+      enviar(f);
+      http.expectOne(URL).flush(creada(true), { status: 201, statusText: 'Created' });
+      http.expectNone(`${URL}/7/limite`);
+    });
+
+    it('unArchivoDeMasDe1MBSeRechazaYQuitarloLoDescarta', async () => {
+      const f = crear();
+      await elegirLimite(f, new File([new Uint8Array(1024 * 1024 + 1)], 'grande.geojson'));
+      expect(el(f).textContent).toContain('pesa más de 1 MB');
+
+      await elegirLimite(f, geojson());
+      expect(el(f).textContent).not.toContain('pesa más de 1 MB');
+      boton(f, 'Quitar límite')!.click();
+      f.detectChanges();
+      expect(boton(f, 'Quitar límite')).toBeUndefined();
+      expect(el(f).textContent).not.toContain('limite.geojson');
+    });
   });
 });

@@ -1,0 +1,96 @@
+<div class="enc">
+  <h1>Modificar comuna</h1>
+  <a class="btn sec" routerLink="/admin/comunas">Cancelar</a>
+</div>
+
+@if (cargando()) {
+  <p class="ayuda-c" aria-live="polite">Cargando la comuna…</p>
+} @else if (errorCarga()) {
+  <div role="alert" class="bloque">
+    <p class="msg-error caja-error">No pudimos cargar la comuna.</p>
+    <button type="button" class="btn sec" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (noEncontrada()) {
+  <div role="alert" class="bloque">
+    <p class="msg-error caja-error">No encontramos esa comuna. Volvé a la lista y elegila de nuevo.</p>
+  </div>
+} @else if (comuna(); as original) {
+  <form class="dos-columnas" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+    <div class="col">
+      <fieldset class="bloque">
+        <legend>Datos de la comuna</legend>
+        <div>
+          <label for="nombre">Nombre</label>
+          <input id="nombre" type="text" formControlName="nombre" autocomplete="off" [attr.aria-invalid]="c.nombre.touched && c.nombre.invalid" />
+          @if (c.nombre.touched && c.nombre.invalid) { <p class="msg-error" role="alert">Escribí el nombre de la comuna (hasta 100 caracteres).</p> }
+        </div>
+        <div class="par">
+          <div>
+            <label for="provincia">Provincia</label>
+            <input id="provincia" type="text" [value]="provincia()" readonly aria-describedby="nota-fija" />
+          </div>
+          <div>
+            <label for="departamento">Departamento <small>(opcional)</small></label>
+            <input id="departamento" type="text" formControlName="departamento" autocomplete="off" />
+            @if (c.departamento.invalid) { <p class="msg-error" role="alert">Puede tener hasta 80 caracteres.</p> }
+          </div>
+        </div>
+        <div>
+          <label for="slug">Enlace para los vecinos</label>
+          <input id="slug" type="text" [value]="original.slug" readonly aria-describedby="nota-fija" />
+          <p class="ayuda-c" id="nota-fija">El enlace y la provincia no se pueden cambiar: los vecinos ya los usan para ingresar.</p>
+        </div>
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Contacto para los vecinos <small>(opcional)</small></legend>
+        <div class="par">
+          <div>
+            <label for="telefono">Teléfono</label>
+            <input id="telefono" type="tel" formControlName="telefono" autocomplete="off" inputmode="tel" [attr.aria-invalid]="c.telefono.invalid" />
+            @if (c.telefono.invalid) { <p class="msg-error" role="alert">{{ mensajeTelefono }}</p> }
+          </div>
+          <div>
+            <label for="whatsapp">WhatsApp</label>
+            <input id="whatsapp" type="tel" formControlName="whatsapp" autocomplete="off" inputmode="tel" [attr.aria-invalid]="c.whatsapp.invalid" />
+            @if (c.whatsapp.invalid) { <p class="msg-error" role="alert">{{ mensajeTelefono }}</p> }
+          </div>
+        </div>
+        <p class="ayuda-c">{{ ayudaTelefono }} Si lo dejás vacío, se borra.</p>
+      </fieldset>
+    </div>
+
+    <div class="col">
+      <fieldset class="bloque">
+        <legend>Color</legend>
+        <div class="paleta">
+          @for (col of colores; track col.clave) {
+            <label class="muestra">
+              <input type="radio" name="color" [value]="col.clave" [attr.value]="col.clave" formControlName="color" />
+              <i [style.background]="col.hex"></i>
+              {{ col.nombre }}
+            </label>
+          }
+        </div>
+      </fieldset>
+
+      <div class="bloque">
+        <h2>Así lo van a ver los vecinos</h2>
+        <div class="vista-previa" [style.--p]="colorVistaPrevia()">
+          <app-cabecera-comuna [comuna]="vistaPrevia()" />
+        </div>
+      </div>
+
+      @if (error(); as mensaje) {
+        <p class="msg-error caja-error" role="alert">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+          {{ mensaje }}
+        </p>
+      }
+
+      <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+        {{ enviando() ? 'Guardando…' : 'Guardar cambios' }}
+      </button>
+    </div>
+  </form>
+}

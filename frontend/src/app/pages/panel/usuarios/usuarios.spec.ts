@@ -49,6 +49,7 @@ describe('Usuarios', () => {
 
   function crear(lista: UsuarioComunaDto[] = LISTA): ComponentFixture<Usuarios> {
     const f = TestBed.createComponent(Usuarios);
+    f.componentRef.setInput('slug', 'salsipuedes-cordoba');
     f.detectChanges();
     http.expectOne('/api/usuarios').flush(lista);
     f.detectChanges();
@@ -109,12 +110,13 @@ describe('Usuarios', () => {
       expect(() => boton(fila(f, 3), 'Desactivar')).not.toThrow();
       expect(() => boton(fila(f, 5), 'Activar')).not.toThrow();
       expect(() => boton(fila(f, 4), 'Reenviar invitación')).not.toThrow();
-      expect(() => boton(fila(f, 4), 'Corregir el correo')).not.toThrow();
+      expect(() => boton(fila(f, 4), 'Modificar el correo')).not.toThrow();
       expect(() => boton(fila(f, 3), 'Reenviar invitación')).toThrow();
     });
 
     it('siNoCargaLoExplicaYPermiteReintentar', () => {
       const f = TestBed.createComponent(Usuarios);
+      f.componentRef.setInput('slug', 'salsipuedes-cordoba');
       f.detectChanges();
       http.expectOne('/api/usuarios').flush({}, { status: 500, statusText: 'Error' });
       f.detectChanges();
@@ -308,7 +310,7 @@ describe('Usuarios', () => {
       tocar(f, el(f), 'Sí, desactivar');
       const pendiente = http.expectOne('/api/usuarios/2');
 
-      tocar(f, fila(f, 4), 'Corregir el correo');
+      tocar(f, fila(f, 4), 'Modificar el correo');
       const guardar = boton(el(f).querySelector('app-corregir-correo') as HTMLElement, 'Guardar y reenviar');
       expect(guardar.disabled).toBe(true);
 
@@ -345,7 +347,7 @@ describe('Usuarios', () => {
       expect(nombre(boton(fila(f, 2), 'Desactivar'))).toBe('Desactivar a Marta Gómez');
       expect(nombre(boton(fila(f, 5), 'Activar'))).toBe('Activar a Raúl Ibarra');
       expect(nombre(boton(fila(f, 4), 'Reenviar invitación'))).toBe('Reenviar invitación a Julieta Romero');
-      expect(nombre(boton(fila(f, 4), 'Corregir el correo'))).toBe('Corregir el correo de Julieta Romero');
+      expect(nombre(boton(fila(f, 4), 'Modificar el correo'))).toBe('Modificar el correo de Julieta Romero');
       expect(nombre(boton(fila(f, 4), 'Desactivar'))).toBe('Desactivar a Julieta Romero');
       expect(nombre(boton(fila(f, 1), 'Desactivar'))).toBe('Desactivar a Sergio Vera');
       expect(el(f).querySelector('label[for="rol-3"]')?.textContent?.trim()).toBe('Rol de Lucía Paz');
@@ -384,25 +386,118 @@ describe('Usuarios', () => {
       expect(texto(f)).not.toMatch(/\blo actives\b|a sí mismo/);
     });
 
-    it('laNotaDeLaTablaEsNeutra', () => {
+    it('yaNoHayNotaDebajoDeLaTabla', () => {
       const f = crear();
-      expect(texto(f)).toContain('Nadie puede desactivar su propio usuario ni quitarse su propio rol de administrador');
-      expect(texto(f)).not.toContain('a sí mismo');
+      expect(texto(f)).not.toContain('Los usuarios no se borran');
+      expect(texto(f)).not.toContain('Nadie puede desactivar su propio usuario');
     });
   });
 
   describe('fila propia', () => {
-    it('elRolYElEstadoDelPropioAdministradorEstanDeshabilitadosConUnaExplicacion', () => {
+    const motivo = 'Es tu usuario: no podés cambiar tu rol ni desactivarte.';
+    const globito = (id: string) => document.getElementById(id ?? '');
+
+    it('elMotivoEsLaAyudaDelBotonYDelSelectorYNoEstaEnLaGrilla', () => {
       const f = crear();
       const propia = fila(f, 1);
+      const desactivar = propia.querySelector('#estado-1') as HTMLButtonElement;
+      const selector = propia.querySelector('#rol-1') as HTMLSelectElement;
 
-      expect((propia.querySelector('#rol-1') as HTMLSelectElement).disabled).toBe(true);
-      expect((propia.querySelector('#estado-1') as HTMLButtonElement).disabled).toBe(true);
       expect(propia.textContent).toContain('(vos)');
-      expect(propia.textContent).toContain('Es tu usuario: no podés cambiar tu rol ni desactivarte.');
-      expect(propia.querySelector('#rol-1')?.getAttribute('aria-describedby')).toBe('nota-propia');
-      // Los demás no quedan bloqueados.
-      expect((el(f).querySelector('#rol-2') as HTMLSelectElement).disabled).toBe(false);
+      expect(propia.textContent).not.toContain('Es tu usuario');
+      // Se ven apagados pero reciben foco y mouse (por eso no están "disabled").
+      expect(desactivar.getAttribute('aria-disabled')).toBe('true');
+      expect(desactivar.disabled).toBe(false);
+      expect(selector.getAttribute('aria-disabled')).toBe('true');
+      for (const control of [desactivar, selector]) {
+        const ayuda = globito(control.getAttribute('aria-describedby')!)!;
+        expect(ayuda.textContent).toBe(motivo);
+        control.dispatchEvent(new Event('mouseenter'));
+        expect(ayuda.style.visibility).toBe('visible');
+        control.dispatchEvent(new Event('mouseleave'));
+        expect(ayuda.style.visibility).toBe('hidden');
+      }
+      // Los demás no tienen ayuda ni quedan bloqueados.
+      const otro = el(f).querySelector('#rol-2') as HTMLSelectElement;
+      expect(otro.disabled).toBe(false);
+      expect(otro.getAttribute('aria-disabled')).toBeNull();
+      expect(otro.getAttribute('aria-describedby')).toBeNull();
+    });
+
+    it('nadaSePuedeCambiarEnLaFilaPropia', () => {
+      const f = crear();
+      const propia = fila(f, 1);
+      (propia.querySelector('#estado-1') as HTMLButtonElement).click();
+      f.detectChanges();
+      expect(el(f).querySelector('tr.confirmar')).toBeNull();
+
+      const selector = propia.querySelector('#rol-1') as HTMLSelectElement;
+      selector.value = 'AGENTE';
+      selector.dispatchEvent(new Event('change'));
+      f.detectChanges();
+      expect(el(f).querySelector('tr.confirmar')).toBeNull();
+      expect(selector.value).toBe('ADMIN_COMUNA');
+      http.expectNone((r) => r.method === 'PATCH');
+    });
+  });
+
+  describe('botones de información de la tabla', () => {
+    it('enLaVistaDeTarjetasLosDosBotonesTienenTextoVisibleYNombreAccesible', () => {
+      const f = crear();
+      const fila = el(f).querySelector('[data-ayudas-movil]') as HTMLElement;
+      const botones = Array.from(fila.querySelectorAll('button'));
+
+      expect(botones.map((b) => b.textContent?.replace('info', '').trim())).toEqual(['Estados', 'Reglas']);
+      expect(botones.map((b) => b.getAttribute('aria-label'))).toEqual(['Qué significa cada estado', 'Reglas para desactivar usuarios']);
+      const ayudas = botones.map((b) => document.getElementById(b.getAttribute('aria-describedby')!)?.textContent);
+      expect(ayudas[0]).toContain('Pendiente: todavía no eligió su contraseña');
+      expect(ayudas[1]).toContain('La comuna siempre tiene que tener al menos un administrador activo.');
+      botones[0].dispatchEvent(new Event('focus'));
+      expect(document.getElementById(botones[0].getAttribute('aria-describedby')!)?.style.visibility).toBe('visible');
+    });
+
+    const globitoDe = (f: ComponentFixture<unknown>, nombre: string) => {
+      const boton = el(f).querySelector(`th button[aria-label="${nombre}"]`)!;
+      expect(boton).not.toBeNull();
+      return { boton, ayuda: document.getElementById(boton.getAttribute('aria-describedby')!)! };
+    };
+
+    it('estadoExplicaCadaEstadoYLaFilaYaNoRepiteLaFraseDeLaContrasena', () => {
+      const f = crear();
+      const { boton, ayuda } = globitoDe(f, 'Qué significa cada estado');
+
+      expect(ayuda.textContent).toBe(
+        'Activo: ya eligió su contraseña y puede ingresar.\n' +
+          'Pendiente: todavía no eligió su contraseña; podés reenviarle la invitación.\n' +
+          'Inactivo: está desactivado y no puede ingresar hasta que lo actives.',
+      );
+      boton.dispatchEvent(new Event('focus'));
+      expect(ayuda.style.visibility).toBe('visible');
+      expect(fila(f, 4).textContent).not.toContain('Todavía no eligió su contraseña.');
+      expect(el(f).querySelector('tbody')?.textContent).not.toContain('Todavía no eligió');
+    });
+
+    it('accionesExplicaLasReglasParaDesactivar', () => {
+      const f = crear();
+      const { ayuda } = globitoDe(f, 'Reglas para desactivar usuarios');
+
+      expect(ayuda.textContent).toBe(
+        'Es tu usuario: no podés cambiar tu rol ni desactivarte.\n' +
+          'Los usuarios no se borran: se desactivan.\n' +
+          'La comuna siempre tiene que tener al menos un administrador activo.',
+      );
+    });
+  });
+
+  describe('nuevo usuario desde la lista', () => {
+    it('elBotonNuevoUsuarioLlevaALaPantallaDeAlta', () => {
+      const f = crear();
+      const enlace = el(f).querySelector('#boton-nuevo-usuario') as HTMLAnchorElement;
+
+      expect(enlace.textContent?.trim()).toBe('Nuevo usuario');
+      expect(enlace.getAttribute('href')).toBe('/salsipuedes-cordoba/panel/usuarios/nuevo');
+      expect(el(f).querySelector('app-nuevo-usuario')).toBeNull();
+      expect(el(f).querySelector('form')).toBeNull();
     });
   });
 
@@ -434,7 +529,7 @@ describe('Usuarios', () => {
 
     it('corregirElCorreoLoGuardaYDespuesReenviaLaInvitacion', () => {
       const f = crear();
-      tocar(f, fila(f, 4), 'Corregir el correo');
+      tocar(f, fila(f, 4), 'Modificar el correo');
 
       const campo = el(f).querySelector('#correo-corregido-4') as HTMLInputElement;
       expect(campo.value).toBe('julieta.romero@salsipuedes.gob.ar');
@@ -450,12 +545,12 @@ describe('Usuarios', () => {
 
       expect(fila(f, 4).textContent).toContain('julieta.romero@gmail.com');
       expect(el(f).querySelector('#correo-corregido-4')).toBeNull();
-      expect(texto(f)).toContain('Corregimos el correo y enviamos la invitación a julieta.romero@gmail.com');
+      expect(texto(f)).toContain('Modificamos el correo y enviamos la invitación a julieta.romero@gmail.com');
     });
 
     it('siElCorreoSeCorrigioPeroLaInvitacionNoSalioArmaBienLasOraciones', () => {
       const f = crear();
-      tocar(f, fila(f, 4), 'Corregir el correo');
+      tocar(f, fila(f, 4), 'Modificar el correo');
       escribir(f, '#correo-corregido-4', 'julieta.romero@gmail.com');
       enviar(f, el(f).querySelector('#correo-corregido-4')!.closest('form')!);
 
@@ -477,7 +572,7 @@ describe('Usuarios', () => {
 
     it('siElCorreoYaLoUsaOtraPersonaElFormularioSigueAbiertoConElMotivo', () => {
       const f = crear();
-      tocar(f, fila(f, 4), 'Corregir el correo');
+      tocar(f, fila(f, 4), 'Modificar el correo');
       escribir(f, '#correo-corregido-4', 'lucia.paz@salsipuedes.gob.ar');
       enviar(f, el(f).querySelector('#correo-corregido-4')!.closest('form')!);
 
@@ -495,135 +590,12 @@ describe('Usuarios', () => {
 
     it('elMismoCorreoNoSeMandaDeNuevo', () => {
       const f = crear();
-      tocar(f, fila(f, 4), 'Corregir el correo');
+      tocar(f, fila(f, 4), 'Modificar el correo');
       enviar(f, el(f).querySelector('#correo-corregido-4')!.closest('form')!);
 
       http.expectNone('/api/usuarios/4');
-      expect(texto(f)).toContain('Es el mismo correo de antes');
+      expect(texto(f)).toContain('Es el mismo correo de antes. Si está bien escrito, usá "Reenviar invitación".');
     });
   });
 
-  describe('nuevo usuario', () => {
-    function abrirAlta(f: ComponentFixture<Usuarios>) {
-      tocar(f, el(f), 'Nuevo usuario');
-      return el(f).querySelector('app-nuevo-usuario form') as HTMLFormElement;
-    }
-    function completar(f: ComponentFixture<Usuarios>, rol = 'AGENTE') {
-      escribir(f, '#nuevo-nombre', '  Bartolomé Fitzgerald ');
-      escribir(f, '#nuevo-correo', 'Bartolome.Fitzgerald@Salsipuedes.gob.ar');
-      const radio = el(f).querySelector(`input[type="radio"][value="${rol}"]`) as HTMLInputElement;
-      radio.checked = true;
-      radio.dispatchEvent(new Event('change'));
-      f.detectChanges();
-    }
-    const nuevo: UsuarioComunaDto = {
-      id: 7, nombre: 'Bartolomé Fitzgerald', correo: 'bartolome.fitzgerald@salsipuedes.gob.ar', rol: 'AGENTE', estado: 'PENDIENTE', creadoEn,
-    };
-
-    it('soloOfreceRolesDelPersonalYNoEnviaSiFaltanDatos', () => {
-      const f = crear();
-      const form = abrirAlta(f);
-
-      const roles = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="radio"]')).map((r) => r.value);
-      expect(roles).toEqual(['ADMINISTRATIVO', 'AGENTE', 'ADMIN_COMUNA']);
-      expect(form.textContent).toContain('Personal administrativo');
-      expect(form.textContent).not.toContain('Vecino');
-
-      enviar(f, form);
-      http.expectNone((r) => r.method === 'POST');
-      expect(texto(f)).toContain('Escribí el nombre y apellido.');
-      expect(texto(f)).toContain('Escribí el correo.');
-      expect(texto(f)).toContain('Elegí qué va a hacer.');
-    });
-
-    it('conInvitacionEnviadaLoAvisaYElUsuarioApareceEnLaLista', () => {
-      const f = crear();
-      const form = abrirAlta(f);
-      completar(f);
-      enviar(f, form);
-
-      const pedido = http.expectOne((r) => r.method === 'POST' && r.url === '/api/usuarios');
-      expect(pedido.request.body).toEqual({ nombre: 'Bartolomé Fitzgerald', correo: 'bartolome.fitzgerald@salsipuedes.gob.ar', rol: 'AGENTE' });
-      pedido.flush({ usuario: nuevo, invitacionEnviada: true }, { status: 201, statusText: 'Created' });
-      f.detectChanges();
-
-      expect(el(f).querySelector('app-nuevo-usuario [role="status"]')?.textContent).toContain(
-        'Invitación enviada a bartolome.fitzgerald@salsipuedes.gob.ar',
-      );
-      expect(filas(f)).toContain(7);
-      expect(fila(f, 7).textContent).toContain('Pendiente');
-
-      tocar(f, el(f).querySelector('app-nuevo-usuario')!, 'Listo');
-      expect(el(f).querySelector('app-nuevo-usuario')).toBeNull();
-      expect(() => boton(el(f), 'Nuevo usuario')).not.toThrow();
-    });
-
-    it('siElCorreoNoSalioLoAvisaYPermiteReenviar', () => {
-      const f = crear();
-      const form = abrirAlta(f);
-      completar(f, 'ADMINISTRATIVO');
-      enviar(f, form);
-
-      http.expectOne((r) => r.method === 'POST' && r.url === '/api/usuarios').flush(
-        { usuario: { ...nuevo, rol: 'ADMINISTRATIVO' }, invitacionEnviada: false },
-        { status: 201, statusText: 'Created' },
-      );
-      f.detectChanges();
-
-      const alta = el(f).querySelector('app-nuevo-usuario') as HTMLElement;
-      expect(alta.textContent).toContain('Creamos el usuario, pero el correo no salió');
-      expect(alta.textContent).toContain('bartolome.fitzgerald@salsipuedes.gob.ar');
-      expect(filas(f)).toContain(7);
-
-      tocar(f, alta, 'Reintentar el envío');
-      http.expectOne('/api/usuarios/7/reenviar-invitacion').flush(null, { status: 204, statusText: 'No Content' });
-      f.detectChanges();
-
-      expect(alta.textContent).toContain('Invitación enviada a bartolome.fitzgerald@salsipuedes.gob.ar');
-    });
-
-    it('siElCorreoNoSalioSePuedeCorregirDesdeElAviso', () => {
-      const f = crear();
-      const form = abrirAlta(f);
-      completar(f);
-      enviar(f, form);
-      http.expectOne((r) => r.method === 'POST' && r.url === '/api/usuarios').flush(
-        { usuario: nuevo, invitacionEnviada: false },
-        { status: 201, statusText: 'Created' },
-      );
-      f.detectChanges();
-
-      const alta = el(f).querySelector('app-nuevo-usuario') as HTMLElement;
-      tocar(f, alta, 'Corregir el correo');
-      escribir(f, '#nuevo-correo-corregido', 'bfitzgerald@salsipuedes.gob.ar');
-      enviar(f, alta.querySelector('app-corregir-correo form') as HTMLFormElement);
-
-      const cambio = http.expectOne('/api/usuarios/7');
-      expect(cambio.request.body).toEqual({ correo: 'bfitzgerald@salsipuedes.gob.ar' });
-      cambio.flush({ ...nuevo, correo: 'bfitzgerald@salsipuedes.gob.ar' });
-      http.expectOne('/api/usuarios/7/reenviar-invitacion').flush(null, { status: 204, statusText: 'No Content' });
-      f.detectChanges();
-
-      expect(alta.textContent).toContain('Invitación enviada a bfitzgerald@salsipuedes.gob.ar');
-      expect(fila(f, 7).textContent).toContain('bfitzgerald@salsipuedes.gob.ar');
-    });
-
-    it('unCorreoRepetidoSeMuestraEnElFormulario', () => {
-      const f = crear();
-      const form = abrirAlta(f);
-      completar(f);
-      enviar(f, form);
-
-      http.expectOne((r) => r.method === 'POST' && r.url === '/api/usuarios').flush(
-        { detail: 'Ya hay un usuario con ese correo en la comuna.', codigo: 'CONFLICTO' },
-        { status: 409, statusText: 'Conflict' },
-      );
-      f.detectChanges();
-
-      const alta = el(f).querySelector('app-nuevo-usuario') as HTMLElement;
-      expect(alta.querySelector('[role="alert"]')?.textContent).toContain('Ya hay un usuario con ese correo en la comuna.');
-      expect(alta.querySelector('form')).not.toBeNull();
-      expect(filas(f)).not.toContain(7);
-    });
-  });
 });

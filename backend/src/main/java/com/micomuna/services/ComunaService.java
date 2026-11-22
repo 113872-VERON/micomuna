@@ -86,6 +86,8 @@ public class ComunaService {
 		comuna.setSlug(slug);
 		comuna.setColor(pedido.color() != null ? pedido.color() : ColorComuna.CELESTE);
 		comuna.setDepartamento(pedido.departamento());
+		comuna.setTelefono(pedido.telefono());
+		comuna.setWhatsapp(pedido.whatsapp());
 		comuna.setActiva(true);
 
 		Usuario admin = new Usuario();
@@ -124,6 +126,13 @@ public class ComunaService {
 		if (pedido.departamento() != null) {
 			comuna.setDepartamento(pedido.departamento().isEmpty() ? null : pedido.departamento());
 		}
+		if (pedido.telefono() != null) {
+			comuna.setTelefono(pedido.telefono().isEmpty() ? null : pedido.telefono());
+		}
+		if (pedido.whatsapp() != null) {
+			comuna.setWhatsapp(pedido.whatsapp().isEmpty() ? null : pedido.whatsapp());
+		}
+		// Si no cambió nada de verdad, Hibernate no manda el update y actualizadaEn queda como estaba.
 		return ComunaAdminDto.desde(comunas.saveAndFlush(comuna));
 	}
 
@@ -145,6 +154,7 @@ public class ComunaService {
 		if (logos.guardar(id, imagen, tipo) == 0) {
 			throw noEncontrada();
 		}
+		comunas.tocar(id, Instant.now());
 		return ComunaAdminDto.desde(comunas.findById(id).orElseThrow(ComunaService::noEncontrada));
 	}
 
@@ -170,9 +180,11 @@ public class ComunaService {
 			throw limiteMuyGrande();
 		}
 		String figura = LimiteGeoJson.normalizar(contenido);
-		if (limites.guardar(id, figura, Instant.now()) == 0) {
+		Instant ahora = Instant.now();
+		if (limites.guardar(id, figura, ahora) == 0) {
 			throw noEncontrada();
 		}
+		comunas.tocar(id, ahora);
 		limiteDeComuna.invalidar(id);
 		return ComunaAdminDto.desde(comunas.findById(id).orElseThrow(ComunaService::noEncontrada));
 	}

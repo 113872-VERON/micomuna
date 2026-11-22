@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { AvisoPanelService } from '../admin/aviso-panel.service';
 import { AuthRespuesta, UsuarioDto } from './modelos';
 
 const CLAVE_TOKEN = 'micomuna.token';
@@ -6,6 +7,7 @@ const CLAVE_USUARIO = 'micomuna.usuario';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private readonly avisosDelPanel = inject(AvisoPanelService);
   private tokenActual: string | null = null;
 
   readonly usuario = signal<UsuarioDto | null>(null);
@@ -35,6 +37,8 @@ export class AuthService {
   }
 
   cerrarSesion(): void {
+    // Un aviso pendiente es de la sesión que se cierra: no tiene que aparecer en otra.
+    this.avisosDelPanel.consumir();
     this.tokenActual = null;
     this.usuario.set(null);
     this.borrar(CLAVE_TOKEN);

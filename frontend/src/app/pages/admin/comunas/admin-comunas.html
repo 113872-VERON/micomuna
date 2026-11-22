@@ -6,6 +6,14 @@
   </a>
 </div>
 
+@if (aviso(); as texto) {
+  <p class="aviso-ok" role="status">
+    <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+    <span class="texto">{{ texto }}</span>
+    <button type="button" class="cerrar" aria-label="Cerrar el aviso" (click)="aviso.set(null)"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+  </p>
+}
+
 @if (errorAccion(); as mensaje) {
   <p class="msg-error caja-error" role="alert">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
@@ -29,7 +37,7 @@
   <div class="tarjeta">
     <table>
       <thead>
-        <tr><th>Comuna</th><th>Enlace</th><th>Color</th><th>Estado</th><th>Logo</th><th>Límite</th><th>Acciones</th></tr>
+        <tr><th>Comuna</th><th>Enlace</th><th>Color</th><th>Estado</th><th><span class="th-con-ayuda">Logo <button type="button" class="icono" appAyuda="Logo de la comuna: cuadrado, PNG o JPG, hasta 512 KB." aria-label="Información sobre el logo"><span class="material-symbols-outlined" aria-hidden="true">info</span></button></span></th><th>Límite</th><th>Acciones</th></tr>
       </thead>
       <tbody>
         @for (c of comunas(); track c.id) {
@@ -55,34 +63,53 @@
                 @if (mostrarMiniatura(c)) {
                   <div class="miniatura" [attr.data-logo-miniatura]="c.id"><img [src]="urlLogo(c)" [alt]="'Logo actual de ' + c.nombre" (error)="logoRoto(c.id)" /></div>
                 }
-                <button type="button" class="btn sec chico" [attr.data-logo-boton]="c.id" aria-describedby="ayuda-logo" [disabled]="subiendoLogo() === c.id" (click)="archivo.click()">
+                <button type="button" class="btn sec chico" [attr.data-logo-boton]="c.id" [disabled]="subiendoLogo() === c.id" (click)="archivo.click()">
                   {{ subiendoLogo() === c.id ? 'Subiendo…' : c.tieneLogo ? 'Cambiar logo' : 'Subir logo' }}
                 </button>
                 <input #archivo type="file" accept="image/png,image/jpeg" hidden tabindex="-1" [attr.data-logo-entrada]="c.id" [attr.aria-label]="'Logo de ' + c.nombre" (change)="elegirLogo(c, $event)" />
               </div>
-              @if (logoOcultoPorInactiva(c)) {
-                <small class="logo-nota" [attr.data-logo-nota]="c.id">Logo cargado (se ve cuando la comuna está activa)</small>
-              }
             </td>
             <td>
-              @if (c.tieneLimite) {
-                <small class="limite-estado" [attr.data-limite-estado]="c.id">Límite cargado{{ fechaLimite(c) ? ' el ' + fechaLimite(c) : '' }}</small>
-              } @else {
-                <small class="limite-estado sin" [attr.data-limite-estado]="c.id">Sin límite: los vecinos pueden reportar desde cualquier lugar.</small>
-              }
               <button type="button" class="btn sec chico" [attr.data-limite-boton]="c.id" [disabled]="subiendoLimite() === c.id" (click)="limite.click()">
                 {{ subiendoLimite() === c.id ? 'Subiendo…' : c.tieneLimite ? 'Cambiar límite' : 'Subir límite (GeoJSON)' }}
               </button>
               <input #limite type="file" accept=".geojson,.json,application/geo+json,application/json" hidden tabindex="-1" [attr.data-limite-entrada]="c.id" [attr.aria-label]="'Límite de ' + c.nombre + ' (GeoJSON)'" (change)="elegirLimite(c, $event)" />
             </td>
             <td>
-              @if (c.activa) {
-                <button type="button" class="btn sec chico peligro" [disabled]="cambiando() === c.id" (click)="pedirConfirmacion(c.id)">Desactivar</button>
-              } @else {
-                <button type="button" class="btn sec chico" [disabled]="cambiando() === c.id" (click)="cambiarEstado(c, true)">Activar</button>
-              }
+              <div class="iconos">
+                <a class="icono" [routerLink]="['/admin/comunas', c.id, 'editar']" appAyuda="Modificar comuna" [appAyudaDescribe]="false" [attr.aria-label]="'Modificar ' + c.nombre" [attr.data-modificar]="c.id">
+                  <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                </a>
+                <button type="button" class="icono" appAyuda="Ver información" [appAyudaDescribe]="false" [attr.aria-label]="'Información de ' + c.nombre" [attr.aria-expanded]="infoAbierta() === c.id" [attr.aria-controls]="'info-' + c.id" [attr.data-info]="c.id" (click)="alternarInfo(c.id)">
+                  <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                </button>
+                @if (c.activa) {
+                  <button type="button" class="icono peligro" appAyuda="Desactivar comuna" [appAyudaDescribe]="false" [attr.aria-label]="'Desactivar ' + c.nombre" [attr.data-estado]="c.id" [disabled]="cambiando() === c.id" (click)="pedirConfirmacion(c.id)">
+                    <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+                  </button>
+                } @else {
+                  <button type="button" class="icono" appAyuda="Activar comuna" [appAyudaDescribe]="false" [attr.aria-label]="'Activar ' + c.nombre" [attr.data-estado]="c.id" [disabled]="cambiando() === c.id" (click)="cambiarEstado(c, true)">
+                    <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+                  </button>
+                }
+              </div>
             </td>
           </tr>
+          @if (infoAbierta() === c.id) {
+            <tr class="info" (keydown.escape)="cerrarInfo(c.id)">
+              <td colspan="7">
+                <section [id]="'info-' + c.id" [attr.aria-label]="'Información de ' + c.nombre">
+                  <dl>
+                    <div><dt>Creada el</dt><dd data-info-creada>{{ fecha(c.creadaEn) || 'Sin dato' }}</dd></div>
+                    <div><dt>Última modificación</dt><dd data-info-modificada>{{ fecha(c.actualizadaEn) || 'Sin dato' }}</dd></div>
+                    <div><dt>Logo</dt><dd data-info-logo>{{ textoLogo(c) }}</dd></div>
+                    <div><dt>Límite</dt><dd data-info-limite>{{ textoLimite(c) }}</dd></div>
+                  </dl>
+                  <button type="button" class="btn sec chico" [attr.data-info-cerrar]="c.id" (click)="cerrarInfo(c.id)">Cerrar</button>
+                </section>
+              </td>
+            </tr>
+          }
           @if (confirmando() === c.id) {
             <tr class="confirmar">
               <td colspan="7">
@@ -101,6 +128,4 @@
       </tbody>
     </table>
   </div>
-  <p class="nota" id="ayuda-logo">Logo de la comuna: cuadrado, PNG o JPG, hasta 512 KB.</p>
-  <p class="nota">Las comunas no se borran: se desactivan. Una comuna inactiva no deja ingresar a nadie.</p>
 }

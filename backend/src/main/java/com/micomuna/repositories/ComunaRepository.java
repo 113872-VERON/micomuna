@@ -27,10 +27,17 @@ public interface ComunaRepository extends JpaRepository<Comuna, Long> {
 	@Query("""
 			select new com.micomuna.dtos.ComunaAdminDto(c.id, c.nombre, c.provincia, c.slug, c.activa, c.color,
 				c.departamento, case when c.logoTipo is null then false else true end,
-				case when c.limiteCargadoEn is null then false else true end, c.limiteCargadoEn)
+				case when c.limiteCargadoEn is null then false else true end, c.limiteCargadoEn,
+					c.telefono, c.whatsapp, c.creadaEn, c.actualizadaEn)
 			from Comuna c order by c.nombre, c.id
 			""")
 	List<ComunaAdminDto> listarParaAdmin();
+
+	// Marca la comuna como modificada. Lo usan el logo y el límite, que se guardan con updates directos sobre otras
+	// entidades y no pasan por el @PreUpdate de Comuna. Corre en la misma transacción que ese update.
+	@Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update Comuna c set c.actualizadaEn = :ahora where c.id = :id")
+	int tocar(@Param("id") Long id, @Param("ahora") java.time.Instant ahora);
 
 	// Bloquea la fila de la comuna hasta que termine la transacción (SELECT ... FOR UPDATE). Sirve para que dos
 	// cambios simultáneos sobre los administradores de una misma comuna se hagan de a uno.

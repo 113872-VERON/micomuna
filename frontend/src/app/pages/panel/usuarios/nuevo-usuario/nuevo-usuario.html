@@ -1,17 +1,17 @@
 <section class="nuevo" aria-labelledby="titulo-nuevo-usuario">
   @if (resultado(); as r) {
     @if (r.invitacionEnviada) {
-      <h2 id="titulo-nuevo-usuario" tabindex="-1">Invitación enviada</h2>
+      <h1 id="titulo-nuevo-usuario" tabindex="-1">Invitación enviada</h1>
       <div class="aviso ok" role="status">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
         <span><b>Invitación enviada a {{ r.usuario.correo }}.</b> El enlace del correo sirve una sola vez y vence en 72 horas.</span>
       </div>
-      <p class="ayuda-c">Hasta que elija su contraseña, {{ r.usuario.nombre }} aparece como <b>Pendiente</b> en la lista. Si no le llega, usá "Reenviar invitación".</p>
+      <p class="ayuda-c">Hasta que elija su contraseña, {{ r.usuario.nombre }} aparece como <b>Pendiente</b> en la lista. Si no le llega, usá "Reenviar invitación" en la lista.</p>
       <div class="acciones">
-        <button type="button" class="btn pri" (click)="cerrar.emit()">Listo</button>
+        <a class="btn pri" [routerLink]="['/', slug(), 'panel', 'usuarios']">Volver a la lista</a>
       </div>
     } @else {
-      <h2 id="titulo-nuevo-usuario" tabindex="-1">Creamos el usuario, pero el correo no salió</h2>
+      <h1 id="titulo-nuevo-usuario" tabindex="-1">Creamos el usuario, pero el correo no salió</h1>
       <div class="aviso alerta" role="alert">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
         <span>{{ r.usuario.nombre }} quedó en la lista como <b>Pendiente</b>, pero no pudimos enviar el correo a <b>{{ r.usuario.correo }}</b>. Revisá que la dirección esté bien escrita y probá de nuevo.</span>
@@ -23,6 +23,7 @@
         <app-corregir-correo
           [correo]="r.usuario.correo"
           idCampo="nuevo-correo-corregido"
+          botonReenviar="Reintentar el envío"
           [enviando]="reenviando()"
           [error]="errorCorreccion()"
           (guardar)="corregirCorreo($event)"
@@ -30,16 +31,19 @@
         />
       } @else {
         <div class="acciones">
-          <button type="button" class="btn sec" [disabled]="reenviando()" (click)="abrirCorreccion()">Corregir el correo</button>
+          <button type="button" class="btn sec" [disabled]="reenviando()" (click)="abrirCorreccion()">Modificar el correo</button>
           <button type="button" class="btn pri" [disabled]="reenviando()" [attr.aria-busy]="reenviando()" (click)="reintentarEnvio()">
             {{ reenviando() ? 'Enviando…' : 'Reintentar el envío' }}
           </button>
         </div>
       }
-      <button type="button" class="btn texto chico" (click)="cerrar.emit()">Cerrar y reenviar más tarde</button>
+      <a class="btn texto chico" [routerLink]="['/', slug(), 'panel', 'usuarios']">Volver a la lista</a>
     }
   } @else {
-    <h2 id="titulo-nuevo-usuario" tabindex="-1">Nuevo usuario</h2>
+    <div class="titulo">
+      <h1 id="titulo-nuevo-usuario" tabindex="-1">Nuevo usuario</h1>
+      <button type="button" class="icono" [appAyuda]="textoInfo" aria-label="Información sobre el alta de usuarios"><span class="material-symbols-outlined" aria-hidden="true">info</span></button>
+    </div>
     <form class="form" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
       <div class="par">
         <div>
@@ -73,19 +77,13 @@
           <p class="msg-error" id="error-nuevo-rol" role="alert">Elegí qué va a hacer.</p>
         }
       </fieldset>
-      <p class="ayuda-c">Los vecinos no se dan de alta acá: se registran solos con el enlace de la comuna.</p>
-
-      <div class="aviso ok">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
-        <span>Le mandamos un correo con un enlace para que elija su propia contraseña. Vos no vas a ver ninguna clave.</span>
-      </div>
 
       @if (error(); as mensaje) {
         <p class="msg-error caja-error" role="alert">{{ mensaje }}</p>
       }
 
       <div class="acciones fin">
-        <button type="button" class="btn sec" [disabled]="enviando()" (click)="cerrar.emit()">Cancelar</button>
+        <a class="btn sec" [routerLink]="['/', slug(), 'panel', 'usuarios']">Cancelar</a>
         <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
           {{ enviando() ? 'Creando…' : 'Crear y enviar invitación' }}
         </button>

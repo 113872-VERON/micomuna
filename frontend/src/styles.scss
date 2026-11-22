@@ -264,3 +264,16 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .panel .btn { transition: none; }
 }
+
+// Botones de solo ícono: 44 px de lado, con el nombre accesible y el texto de ayuda puestos en el HTML.
+.iconos { display: flex; gap: 8px; }
+.icono {
+  width: 44px; height: 44px; padding: 0; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--p); border-radius: 12px; background: #fff; color: var(--p); cursor: pointer; text-decoration: none;
+  touch-action: manipulation; transition: transform 160ms ease;
+  .material-symbols-outlined { font-size: 24px; line-height: 1; }
+  &.peligro { color: var(--error); border-color: var(--error); }
+  &:active:not(:disabled) { transform: scale(0.97); }
+  &:disabled { opacity: 0.6; cursor: default; }
+  &:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 2px; }
+}
