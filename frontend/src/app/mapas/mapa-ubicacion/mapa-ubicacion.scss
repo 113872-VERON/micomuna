@@ -1,0 +1,52 @@
+:host { display: block; }
+
+.mapa {
+  position: relative;
+  overflow: hidden;
+  border: 3px solid #cbd2d9;
+  border-radius: 20px;
+  background: #dce8d6;
+}
+
+.lienzo { width: 100%; }
+
+// Leaflet pone sus capas y controles hasta z-index 1000: el pin y el cartel van por encima.
+// Botones de zoom de 44 px para el dedo.
+:host ::ng-deep .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 22px; }
+:host ::ng-deep .leaflet-control-attribution { font-size: 12px; color: #1f2933; }
+
+// El pin no recibe toques: el dedo siempre mueve el mapa.
+.pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -100%);
+  color: var(--p);
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.3));
+  pointer-events: none;
+  z-index: 1100;
+  line-height: 0;
+  svg { width: 48px; height: 58px; }
+}
+
+// Pista para el vecino: abajo, lejos del pin; no recibe toques y se va cuando mueve el mapa.
+.chip {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 30px;
+  z-index: 1100;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 17px;
+  font-weight: 500;
+  color: #1f2933;
+  pointer-events: none;
+}
+
+.fijo .pin svg { width: 30px; height: 36px; }

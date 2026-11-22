@@ -77,7 +77,7 @@ class OpenApiTests {
 				.andExpect(jsonPath(alta + ".responses['503'].description").value(org.hamcrest.Matchers.containsString("OCUPADO")))
 				.andExpect(jsonPath(alta + ".description").value(org.hamcrest.Matchers.containsString("2560 px")))
 				.andExpect(jsonPath("$.components.schemas.CrearReclamoForm.required")
-						.value(org.hamcrest.Matchers.containsInAnyOrder("tipo", "descripcion")))
+						.value(org.hamcrest.Matchers.containsInAnyOrder("tipo", "descripcion", "latitud", "longitud")))
 				.andExpect(jsonPath("$.components.schemas.CrearReclamoForm.properties.fotos.maxItems").value(3))
 				.andExpect(jsonPath("$.paths['/api/tipos-reclamo'].get.operationId").value("listarTiposReclamo"))
 				.andExpect(jsonPath("$.paths['/api/tipos-reclamo'].get.responses['403']").exists());

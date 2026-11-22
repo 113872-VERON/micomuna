@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ComunasAdminService } from '../../../admin/comunas-admin.service';
+import { leerLimite } from '../../../admin/limite';
 import { validarLogo } from '../../../admin/logo';
 import { mensajeDeError } from '../../../auth/errores';
 import { ColorComuna, ComunaAdminDto } from '../../../auth/modelos';
@@ -117,6 +118,42 @@ export class AdminComunas implements OnInit {
       error: (e: unknown) => {
         this.errorAccion.set(mensajeDeError(e));
         this.subiendoLogo.set(null);
+      },
+    });
+  }
+
+  protected readonly subiendoLimite = signal<number | null>(null);
+
+  protected fechaLimite(c: ComunaAdminDto): string {
+    const fecha = c.limiteCargadoEn ? new Date(c.limiteCargadoEn) : null;
+    return fecha && !Number.isNaN(fecha.getTime())
+      ? new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }).format(fecha)
+      : '';
+  }
+
+  protected async elegirLimite(comuna: ComunaAdminDto, evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo || this.subiendoLimite() !== null) {
+      return;
+    }
+    this.errorAccion.set(null);
+    this.subiendoLimite.set(comuna.id);
+    const lectura = await leerLimite(archivo);
+    if (lectura.error !== undefined) {
+      this.errorAccion.set(lectura.error);
+      this.subiendoLimite.set(null);
+      return;
+    }
+    this.servicio.cambiarLimite(comuna.id, lectura.geojson).subscribe({
+      next: (actualizada) => {
+        this.comunas.update((lista) => lista.map((c) => (c.id === actualizada.id ? actualizada : c)));
+        this.subiendoLimite.set(null);
+      },
+      error: (e: unknown) => {
+        this.errorAccion.set(mensajeDeError(e));
+        this.subiendoLimite.set(null);
       },
     });
   }

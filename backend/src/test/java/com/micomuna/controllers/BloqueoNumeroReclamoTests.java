@@ -106,6 +106,8 @@ class BloqueoNumeroReclamoTests {
 				.param("tipo", "LUZ")
 				.param("descripcion", "El farol de la esquina está apagado")
 				.param("referencia", "Esquina de la plaza")
+				.param("latitud", "-31.42")
+				.param("longitud", "-64.18")
 				.header("Authorization", "Bearer " + jwt.generar(vecino)));
 	}
 

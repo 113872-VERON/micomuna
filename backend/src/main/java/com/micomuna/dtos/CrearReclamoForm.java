@@ -14,7 +14,7 @@ import jakarta.validation.constraints.Size;
 
 // Formulario multipart del alta de un reclamo (campos planos más las fotos).
 // A propósito no tiene comuna ni vecino: salen siempre del token. Si el pedido los trae, se ignoran.
-// Que haya alguna ubicación (coordenadas o referencia), que el tipo exista y que las fotos sean válidas lo revisa
+// Que haya ubicación (latitud y longitud), que el tipo exista, que el punto esté dentro de la comuna y que las fotos sean válidas lo revisa
 // ReclamoService, con sus propios códigos de error.
 @CoordenadasJuntas
 public record CrearReclamoForm(
@@ -25,16 +25,19 @@ public record CrearReclamoForm(
 		@Schema(requiredMode = Schema.RequiredMode.REQUIRED, minLength = 1, maxLength = 500)
 		@NotBlank(message = "Contanos qué problema hay") @Size(max = 500, message = "La descripción puede tener hasta 500 caracteres. Acortala un poco") String descripcion,
 
-		@Schema(description = "Va junto con longitud. Se guardan 6 decimales.", format = "double", minimum = "-90", maximum = "90")
+		@Schema(description = "Va junto con longitud. Se guardan 6 decimales.", requiredMode = Schema.RequiredMode.REQUIRED, format = "double", minimum = "-90", maximum = "90")
 		@DecimalMin(value = "-90", message = CoordenadasJuntasValidator.UBICACION_NO_LEIDA)
 		@DecimalMax(value = "90", message = CoordenadasJuntasValidator.UBICACION_NO_LEIDA) Double latitud,
 
-		@Schema(description = "Va junto con latitud. Se guardan 6 decimales.", format = "double", minimum = "-180", maximum = "180")
+		@Schema(description = "Va junto con latitud. Se guardan 6 decimales.", requiredMode = Schema.RequiredMode.REQUIRED, format = "double", minimum = "-180", maximum = "180")
 		@DecimalMin(value = "-180", message = CoordenadasJuntasValidator.UBICACION_NO_LEIDA)
 		@DecimalMax(value = "180", message = CoordenadasJuntasValidator.UBICACION_NO_LEIDA) Double longitud,
 
-		@Schema(description = "Cómo encontrar el lugar, por ejemplo \"frente a la panadería\"", maxLength = 200)
+		@Schema(description = "Opcional. Cómo encontrar el lugar, por ejemplo \"frente a la panadería\"", maxLength = 200)
 		@Size(max = 200, message = "La referencia puede tener hasta 200 caracteres. Acortala un poco") String referencia,
+
+		@Schema(description = "Opcional. Dirección aproximada del punto, la que devolvió /api/ubicacion/direccion. Es solo informativa: el servidor no la usa para validar nada.", maxLength = 300)
+		@Size(max = 300, message = "La dirección puede tener hasta 300 caracteres") String direccion,
 
 		@ArraySchema(maxItems = 3, schema = @Schema(type = "string", format = "binary")) List<MultipartFile> fotos) {
 
@@ -43,6 +46,7 @@ public record CrearReclamoForm(
 		tipo = tipo == null ? null : tipo.strip();
 		descripcion = descripcion == null ? null : descripcion.strip();
 		referencia = referencia == null || referencia.isBlank() ? null : referencia.strip();
+		direccion = direccion == null || direccion.isBlank() ? null : direccion.strip();
 		fotos = fotos == null ? List.of() : fotos.stream().filter(Objects::nonNull).toList();
 	}
 

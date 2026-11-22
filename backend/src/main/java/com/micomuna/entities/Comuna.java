@@ -59,6 +59,16 @@ public class Comuna {
 		return logoTipo != null;
 	}
 
+	// Igual que el logo: la figura del límite (CLOB) no se carga con la comuna, vive en ComunaLimite.
+	// Acá solo se lee la fecha de carga para saber si hay límite (en la base, texto y fecha van juntos o ninguno).
+	@Column(name = "limite_cargado_en", insertable = false, updatable = false)
+	@Setter(AccessLevel.NONE)
+	private Instant limiteCargadoEn;
+
+	public boolean tieneLimite() {
+		return limiteCargadoEn != null;
+	}
+
 	@Column(name = "creada_en", nullable = false)
 	private Instant creadaEn;
 

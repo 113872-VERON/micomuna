@@ -30,6 +30,9 @@ export interface AuthRespuesta {
 export interface ComunaAdminDto extends ComunaDto {
   id: number;
   activa: boolean;
+  // Sin límite, los vecinos pueden reportar desde cualquier lugar.
+  tieneLimite?: boolean;
+  limiteCargadoEn?: string | null;
 }
 
 export interface NuevaComunaRequest {

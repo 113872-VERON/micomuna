@@ -4,7 +4,10 @@ import { AbstractControl, NonNullableFormBuilder, ValidationErrors, Validators }
 import { ActivatedRoute, Router } from '@angular/router';
 import { startWith } from 'rxjs';
 import { mensajeDeError } from '../../auth/errores';
+import { puntoDentroDelLimite } from '../../mapas/geo';
+import { MapasService } from '../../mapas/mapas.service';
 import { ACHICAR_FOTO } from '../../reclamos/achicar-foto';
+import { DireccionService } from '../../reclamos/direccion.service';
 import { mensajeDelEnvio } from '../../reclamos/errores-reclamo';
 import {
   CodigoTipo,
@@ -42,6 +45,8 @@ export class BorradorReclamo {
   private readonly servicio = inject(ReclamosService);
   private readonly achicar = inject(ACHICAR_FOTO);
   private readonly gps = inject(UbicacionService);
+  private readonly mapas = inject(MapasService);
+  private readonly direcciones = inject(DireccionService);
   private readonly router = inject(Router);
   private readonly ruta = inject(ActivatedRoute);
 
@@ -73,10 +78,29 @@ export class BorradorReclamo {
   readonly avisoFotos = signal<string | null>(null);
   readonly lugaresLibres = computed(() => MAX_FOTOS - this.fotos().length - this.preparando());
 
+  // El punto del reclamo: lo marca el mapa o lo toma el GPS. El servidor lo exige (latitud y longitud).
   readonly ubicacion = signal<Coordenadas | null>(null);
+  readonly origenUbicacion = signal<'gps' | 'mapa'>('gps');
   readonly buscandoUbicacion = signal(false);
   readonly errorUbicacion = signal<string | null>(null);
-  readonly tieneLugar = computed(() => this.ubicacion() !== null || this.referencia() !== '');
+
+  // El nombre de la comuna, para el mensaje de "fuera de la comuna" (lo escribe la pantalla).
+  readonly comunaNombre = signal('');
+  readonly estadoMapa = this.mapas.estado;
+  // Límite de la comuna (GeoJSON) o null si no tiene o no se pudo leer; el servidor comprueba igual.
+  readonly limite = signal<unknown>(null);
+  readonly limiteListo = signal(false);
+  private pidiendoLimite = false;
+  // Dirección aproximada del punto (la calcula el backend); es solo informativa y puede faltar.
+  readonly direccion = signal<string | null>(null);
+  private claveDireccion = '';
+
+  // Solo para avisar: la comprobación real la hace el servidor al enviar.
+  readonly fueraDeComuna = computed(() => {
+    const punto = this.ubicacion();
+    return punto !== null && this.limite() !== null && !puntoDentroDelLimite(punto, this.limite());
+  });
+  readonly tieneLugar = computed(() => this.ubicacion() !== null && !this.fueraDeComuna());
 
   readonly enviando = signal(false);
   readonly errorEnvio = signal<string | null>(null);
@@ -188,6 +212,45 @@ export class BorradorReclamo {
     this.avisoFotos.set(null);
   }
 
+  // Vuelve a intentar mostrar el mapa y pide el límite de la comuna. Sin mapa, el paso sigue con el GPS.
+  cargarMapa(): void {
+    this.mapas.reintentar();
+    if (this.limiteListo() || this.pidiendoLimite) {
+      return;
+    }
+    this.pidiendoLimite = true;
+    this.servicio.limiteDeMiComuna().subscribe({
+      next: (figura) => {
+        this.limite.set(figura ?? null);
+        this.limiteListo.set(true);
+      },
+      // Sin límite legible no se avisa nada; el servidor decide igual.
+      error: () => this.limiteListo.set(true),
+    });
+  }
+
+  // Punto nuevo (del mapa al detenerse o del GPS). La dirección se pide una vez por punto.
+  fijarUbicacion(punto: Coordenadas, origen: 'gps' | 'mapa'): void {
+    this.ubicacion.set(punto);
+    this.origenUbicacion.set(origen);
+    this.buscarDireccion(punto);
+  }
+
+  private buscarDireccion(punto: Coordenadas): void {
+    const clave = `${punto.latitud.toFixed(5)},${punto.longitud.toFixed(5)}`;
+    if (clave === this.claveDireccion) {
+      return;
+    }
+    this.direccion.set(null);
+    this.claveDireccion = clave;
+    void this.direcciones.de(punto).then((texto) => {
+      // Si mientras tanto el punto cambió o se quitó, esta respuesta ya no vale.
+      if (!this.cerrado && this.claveDireccion === clave) {
+        this.direccion.set(texto);
+      }
+    });
+  }
+
   async usarMiUbicacion(): Promise<void> {
     if (this.buscandoUbicacion()) {
       return;
@@ -196,12 +259,13 @@ export class BorradorReclamo {
     this.errorUbicacion.set(null);
     try {
       const coordenadas = await this.gps.obtener();
-      this.ubicacion.set(coordenadas);
+      this.fijarUbicacion(coordenadas, 'gps');
     } catch (e) {
+      const conMapa = this.mapas.estado() === 'listo';
       this.errorUbicacion.set(
         e instanceof SinUbicacion && e.motivo === 'permiso'
-          ? 'No pudimos ver dónde estás porque el teléfono no dio permiso. Escribí la dirección acá abajo, o permití la ubicación y probá de nuevo.'
-          : 'No pudimos ver dónde estás. Escribí la dirección acá abajo o probá de nuevo.',
+          ? `No pudimos ver dónde estás porque el teléfono no dio permiso. ${conMapa ? 'Mové el mapa hasta el lugar y tocá «Es acá», o permití' : 'Permití'} la ubicación y probá de nuevo.`
+          : `No pudimos ver dónde estás. ${conMapa ? 'Mové el mapa hasta el lugar y tocá «Es acá», o probá' : 'Probá'} de nuevo.`,
       );
     } finally {
       this.buscandoUbicacion.set(false);
@@ -210,17 +274,19 @@ export class BorradorReclamo {
 
   quitarUbicacion(): void {
     this.ubicacion.set(null);
+    this.direccion.set(null);
+    this.claveDireccion = '';
   }
 
   enviar(): void {
     const { tipo, descripcion, referencia } = this.form.getRawValue();
-    if (this.enviando() || !tipo) {
+    if (this.enviando() || !tipo || !this.ubicacion()) {
       return;
     }
     this.enviando.set(true);
     this.errorEnvio.set(null);
     this.servicio
-      .crear({ tipo, descripcion, referencia, ubicacion: this.ubicacion(), fotos: this.fotos().map((f) => f.archivo) })
+      .crear({ tipo, descripcion, referencia, direccion: this.direccion(), ubicacion: this.ubicacion(), fotos: this.fotos().map((f) => f.archivo) })
       .subscribe({
         next: (creado) => {
           this.enviando.set(false);
@@ -244,6 +310,8 @@ export class BorradorReclamo {
     this.fotoIlegible.set(false);
     this.avisoFotos.set(null);
     this.ubicacion.set(null);
+    this.direccion.set(null);
+    this.claveDireccion = '';
     this.errorUbicacion.set(null);
     this.errorEnvio.set(null);
     this.creado.set(null);

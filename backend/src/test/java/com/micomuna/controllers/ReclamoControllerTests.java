@@ -280,14 +280,10 @@ class ReclamoControllerTests {
 	}
 
 	@Test
-	void reportaConUnaReferenciaEscritaSinGps() throws Exception {
-		JsonNode creado = reportarBien(con(validos(), "latitud", null, "longitud", null,
-				"referencia", "  Frente a la panadería  "));
-
-		Reclamo guardado = reclamo(creado);
-		assertThat(guardado.getLatitud()).isNull();
-		assertThat(guardado.getLongitud()).isNull();
-		assertThat(guardado.getReferencia()).isEqualTo("Frente a la panadería");
+	void unaReferenciaSolaNoAlcanzaSinCoordenadas() throws Exception {
+		// Desde MC-16 la ubicación es el punto del mapa; la referencia escrita es opcional y no la reemplaza.
+		esperarRechazo(con(validos(), "latitud", null, "longitud", null, "referencia", "Frente a la panadería"),
+				"UBICACION_REQUERIDA");
 	}
 
 	@Test
@@ -495,7 +491,7 @@ class ReclamoControllerTests {
 		reportar(tokenVecinoA, con(validos(), "longitud", null, "referencia", "Frente a la plaza"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.codigo").value("VALIDACION"))
-				.andExpect(jsonPath("$.errores.longitud").value(containsString("Tocá «Usar mi ubicación» de nuevo")));
+				.andExpect(jsonPath("$.errores.longitud").value(containsString("tocá «Usar mi ubicación» de nuevo")));
 		esperarCampoInvalido(con(validos(), "latitud", null), "latitud");
 	}
 
@@ -526,9 +522,10 @@ class ReclamoControllerTests {
 	// ---- Rechazos: reglas del reclamo
 
 	@Test
-	void sinGpsNiReferenciaDa400UbicacionRequerida() throws Exception {
+	void sinLatitudNiLongitudDa400UbicacionRequerida() throws Exception {
 		esperarRechazo(con(validos(), "latitud", null, "longitud", null), "UBICACION_REQUERIDA");
 		esperarRechazo(con(validos(), "latitud", null, "longitud", null, "referencia", "    "), "UBICACION_REQUERIDA");
+		esperarRechazo(con(validos(), "latitud", null, "longitud", null, "referencia", "Frente a la plaza"), "UBICACION_REQUERIDA");
 	}
 
 	@Test
@@ -689,7 +686,7 @@ class ReclamoControllerTests {
 	@Test
 	void losMensajesDeUbicacionYDeFotosDicenQueHacerSinPalabrasTecnicas() throws Exception {
 		reportar(tokenVecinoA, con(validos(), "latitud", null, "longitud", null))
-				.andExpect(jsonPath("$.detail").value("Tocá «Usar mi ubicación» o escribí la dirección o una referencia del lugar."));
+				.andExpect(jsonPath("$.detail").value("Marcá en el mapa dónde está el problema o tocá «Usar mi ubicación»."));
 		String detalle = json.readTree(reportar(tokenVecinoA, validos(), foto(ImagenesDePrueba.gif(8, 8)))
 				.andExpect(status().isBadRequest())
 				.andReturn().getResponse().getContentAsString()).get("detail").asText();

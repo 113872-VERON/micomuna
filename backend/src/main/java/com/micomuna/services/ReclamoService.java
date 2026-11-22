@@ -58,7 +58,7 @@ public class ReclamoService {
 	// Tiempo máximo de la transacción del alta (incluye los hasta 3 segundos de espera del bloqueo de la comuna).
 	static final int SEGUNDOS_MAXIMOS_TRANSACCION = 10;
 
-	static final String UBICACION_REQUERIDA = "Tocá «Usar mi ubicación» o escribí la dirección o una referencia del lugar.";
+	static final String UBICACION_REQUERIDA = "Marcá en el mapa dónde está el problema o tocá «Usar mi ubicación».";
 	static final String TIPO_INVALIDO = "Elegí uno de los tipos de problema de la lista.";
 	static final String DEMASIADOS_RECLAMOS = "Ya mandaste muchos reclamos en la última hora. Probá de nuevo más tarde.";
 	static final String NUMERO_OCUPADO = "Hay muchos reclamos entrando en este momento. Probá de nuevo en unos segundos.";
@@ -75,13 +75,15 @@ public class ReclamoService {
 	private final ComunaRepository comunas;
 	private final UsuarioRepository usuarios;
 	private final ComunaActual comunaActual;
+	private final LimiteDeComuna limiteDeComuna;
 	private final TurnosDeFotos turnos;
 	// Propia de este servicio (no el TransactionTemplate compartido): lleva el tiempo máximo del alta.
 	private final TransactionTemplate transaccion;
 
 	public ReclamoService(TipoReclamoRepository tipos, ReclamoRepository reclamos, ReclamoFotoRepository fotos,
 			ReclamoEstadoRepository historial, ComunaRepository comunas, UsuarioRepository usuarios,
-			ComunaActual comunaActual, TurnosDeFotos turnos, PlatformTransactionManager transacciones) {
+			ComunaActual comunaActual, LimiteDeComuna limiteDeComuna, TurnosDeFotos turnos,
+			PlatformTransactionManager transacciones) {
 		this.tipos = tipos;
 		this.reclamos = reclamos;
 		this.fotos = fotos;
@@ -89,6 +91,7 @@ public class ReclamoService {
 		this.comunas = comunas;
 		this.usuarios = usuarios;
 		this.comunaActual = comunaActual;
+		this.limiteDeComuna = limiteDeComuna;
 		this.turnos = turnos;
 		this.transaccion = new TransactionTemplate(transacciones);
 		this.transaccion.setTimeout(SEGUNDOS_MAXIMOS_TRANSACCION);
@@ -106,11 +109,14 @@ public class ReclamoService {
 		Long comunaId = comunaActual.id();
 		// Antes de procesar las fotos: a quien ya llegó al límite no se le gasta memoria ni procesador.
 		verificarLimiteDelVecino(comunaId, vecino.id());
-		if (!form.tieneCoordenadas() && form.referencia() == null) {
+		if (!form.tieneCoordenadas()) {
 			throw new PeticionInvalidaException("UBICACION_REQUERIDA", UBICACION_REQUERIDA);
 		}
 		TipoReclamo tipo = tipos.findByCodigo(form.tipo())
 				.orElseThrow(() -> new PeticionInvalidaException("TIPO_INVALIDO", TIPO_INVALIDO));
+		// Antes de las fotos y fuera de la transacción que bloquea el contador de la comuna: es una cuenta en memoria,
+		// pero a quien está fuera de su comuna no hay que gastarle ni una foto ni el turno del número.
+		verificarDentroDeLaComuna(comunaId, form.latitud(), form.longitud());
 		List<ImagenUtil.Imagen> limpias = prepararFotos(form.fotos());
 
 		try {
@@ -121,6 +127,18 @@ public class ReclamoService {
 			// La fila de la comuna estaba tomada por otra alta más de 3 segundos, o la transacción pasó los 10 segundos.
 			// Mensaje propio del alta: el 409 de los otros bloqueos (MC-14) sigue con el suyo.
 			throw new ConflictoException(NUMERO_OCUPADO);
+		}
+	}
+
+	// Si la comuna tiene límite cargado, el punto tiene que estar adentro (el borde cuenta como adentro).
+	// Sin límite no se restringe nada. Se usa el mismo punto que se va a guardar (6 decimales).
+	private void verificarDentroDeLaComuna(Long comunaId, double latitud, double longitud) {
+		LimiteDeComuna.Resultado resultado = limiteDeComuna.ubicar(comunaId, redondear(latitud).doubleValue(),
+				redondear(longitud).doubleValue());
+		if (resultado == LimiteDeComuna.Resultado.FUERA) {
+			String nombre = comunas.findById(comunaId).map(Comuna::getNombre).orElse("tu comuna");
+			throw new PeticionInvalidaException("FUERA_DE_COMUNA",
+					"Ese lugar está fuera de " + nombre + ". Solo podés reportar problemas de tu comuna.");
 		}
 	}
 
@@ -151,10 +169,9 @@ public class ReclamoService {
 		reclamo.setDescripcion(form.descripcion());
 		reclamo.setEstado(EstadoReclamo.RECIBIDO);
 		reclamo.setReferencia(form.referencia());
-		if (form.tieneCoordenadas()) {
-			reclamo.setLatitud(redondear(form.latitud()));
-			reclamo.setLongitud(redondear(form.longitud()));
-		}
+		reclamo.setDireccion(form.direccion());
+		reclamo.setLatitud(redondear(form.latitud()));
+		reclamo.setLongitud(redondear(form.longitud()));
 		reclamos.save(reclamo);
 
 		historial.save(new ReclamoEstado(reclamo, null, EstadoReclamo.RECIBIDO, autor));

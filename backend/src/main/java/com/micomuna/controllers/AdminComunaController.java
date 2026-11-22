@@ -26,9 +26,13 @@ import com.micomuna.services.ComunaService;
 import com.micomuna.services.InvitacionService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -74,7 +78,27 @@ public class AdminComunaController {
 		return comunaService.cambiarLogo(id, archivo.getBytes());
 	}
 
-	@Operation(summary = "Listar todas las comunas", description = "Incluye las inactivas. No trae la imagen del logo.")
+	@Operation(operationId = "cambiarLimite", summary = "Cargar o reemplazar el límite geográfico de una comuna", description = "Solo el superadmin. El cuerpo es el contenido del archivo GeoJSON. Se acepta un Polygon o un MultiPolygon, solo o dentro de un Feature o de un FeatureCollection con una sola figura. Las coordenadas van en grados (longitud, latitud), como manda GeoJSON. Hasta 1 MB. Se guarda solo la figura, sin las propiedades del archivo.",
+			requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(
+					mediaType = MediaType.APPLICATION_JSON_VALUE,
+					schema = @Schema(type = "object", description = "GeoJSON (Polygon, MultiPolygon, Feature o FeatureCollection)"))))
+	@ApiResponse(responseCode = "200", description = "Límite guardado")
+	@ApiResponse(responseCode = "400", description = "El archivo no es un GeoJSON válido, no tiene un polígono, tiene más de una figura, coordenadas fuera de rango o un polígono que se corta a sí mismo (LIMITE_INVALIDO), o pesa más de 1 MB")
+	@ApiResponse(responseCode = "403", description = "Solo el superadmin")
+	@ApiResponse(responseCode = "404", description = "La comuna no existe")
+	@PutMapping(path = "/{id}/limite", consumes = MediaType.APPLICATION_JSON_VALUE)
+	public ComunaAdminDto cambiarLimite(@PathVariable Long id, @Parameter(hidden = true) HttpServletRequest pedido)
+			throws IOException {
+		// El tope de 1 MB se aplica antes de leer: si el pedido avisa que pesa más, se rechaza sin leer nada; si no avisa
+		// el tamaño (envío por partes), se lee como mucho 1 MB + 1 byte y se corta ahí.
+		if (pedido.getContentLengthLong() > ComunaService.LIMITE_MAXIMO_BYTES) {
+			throw ComunaService.limiteMuyGrande();
+		}
+		byte[] contenido = pedido.getInputStream().readNBytes(ComunaService.LIMITE_MAXIMO_BYTES + 1);
+		return comunaService.cambiarLimite(id, contenido);
+	}
+
+	@Operation(summary = "Listar todas las comunas", description = "Incluye las inactivas. No trae la imagen del logo ni la figura del límite.")
 	@GetMapping
 	public List<ComunaAdminDto> listar() {
 		return comunaService.listar();

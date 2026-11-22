@@ -1,6 +1,8 @@
 package com.micomuna.services;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -19,9 +21,11 @@ import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.ConflictoException;
 import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
+import com.micomuna.repositories.ComunaLimiteRepository;
 import com.micomuna.repositories.ComunaLogoRepository;
 import com.micomuna.repositories.ComunaRepository;
 import com.micomuna.repositories.UsuarioRepository;
+import com.micomuna.security.ComunaActual;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,9 +38,13 @@ public class ComunaService {
 
 	public static final int LOGO_MAXIMO_BYTES = 512 * 1024;
 	public static final int LOGO_LADO_MAXIMO_PX = 2000;
+	public static final int LIMITE_MAXIMO_BYTES = 1024 * 1024;
 
 	private final ComunaRepository comunas;
 	private final ComunaLogoRepository logos;
+	private final ComunaLimiteRepository limites;
+	private final LimiteDeComuna limiteDeComuna;
+	private final ComunaActual comunaActual;
 	private final UsuarioRepository usuarios;
 	private final InvitacionService invitaciones;
 	private final TransactionTemplate transaccion;
@@ -148,6 +156,37 @@ public class ComunaService {
 		return logos.findById(comuna.getId())
 				.filter(logo -> logo.getLogo() != null)
 				.orElseThrow(ComunaService::noEncontrada);
+	}
+
+	// Carga o reemplaza el límite geográfico (MC-16). Se valida el contenido de verdad (LimiteGeoJson) y se guarda solo
+	// la figura normalizada, sin las propiedades del archivo. La comuna se busca primero: un id que no existe es 404
+	// aunque el archivo sea malo. Después se descarta la figura que el servidor tenía en memoria.
+	@Transactional
+	public ComunaAdminDto cambiarLimite(Long id, byte[] contenido) {
+		if (!comunas.existsById(id)) {
+			throw noEncontrada();
+		}
+		if (contenido == null || contenido.length > LIMITE_MAXIMO_BYTES) {
+			throw limiteMuyGrande();
+		}
+		String figura = LimiteGeoJson.normalizar(contenido);
+		if (limites.guardar(id, figura, Instant.now()) == 0) {
+			throw noEncontrada();
+		}
+		limiteDeComuna.invalidar(id);
+		return ComunaAdminDto.desde(comunas.findById(id).orElseThrow(ComunaService::noEncontrada));
+	}
+
+	// El límite de la comuna del usuario con sesión (la comuna sale del token). Vacío si no tiene límite cargado.
+	@Transactional(readOnly = true)
+	public Optional<String> limiteDeMiComuna() {
+		return limites.findById(comunaActual.id())
+				.map(com.micomuna.entities.ComunaLimite::getLimite)
+				.filter(figura -> !figura.isBlank());
+	}
+
+	public static PeticionInvalidaException limiteMuyGrande() {
+		return new PeticionInvalidaException(LimiteGeoJson.CODIGO, "El archivo pesa más de 1 MB. Simplificá el límite y volvé a subirlo.");
 	}
 
 	private static PeticionInvalidaException logoInvalido() {

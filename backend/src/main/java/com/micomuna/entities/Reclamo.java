@@ -69,6 +69,9 @@ public class Reclamo {
 
 	private String referencia;
 
+	// Dirección aproximada que calcula el navegador a partir del punto. Solo informativa.
+	private String direccion;
+
 	@Column(name = "creado_en", nullable = false, updatable = false)
 	private Instant creadoEn;
 

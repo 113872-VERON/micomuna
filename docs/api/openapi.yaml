@@ -644,8 +644,10 @@ paths:
       description: "Solo el vecino. Crea el reclamo en la comuna del token (nunca\
         \ de lo que manda el cliente) con estado RECIBIDO y el número de seguimiento\
         \ que le toca en esa comuna (correlativo, cada comuna empieza en 1). Formulario\
-        \ multipart. La ubicación es obligatoria de una de dos formas: latitud y longitud\
-        \ juntas (GPS del celular) o una referencia escrita; pueden ir las dos. Hasta\
+        \ multipart. Latitud y longitud son obligatorias (el punto del mapa o del GPS);\
+        \ la referencia escrita y la dirección aproximada son opcionales. Si la comuna\
+        \ tiene un límite cargado, el punto tiene que estar adentro (un punto sobre\
+        \ el borde cuenta como adentro); si no tiene límite, no hay restricción. Hasta\
         \ 3 fotos opcionales en el campo \"fotos\": cada una tiene que ser un JPG o\
         \ PNG real (se decide por el contenido, no por lo que declara el cliente),\
         \ de hasta 2 MB y hasta 2560 px de lado. El servidor vuelve a armar cada foto\
@@ -670,8 +672,9 @@ paths:
                 $ref: "#/components/schemas/ReclamoCreadoDto"
         "400":
           description: "Datos inválidos (VALIDACION, con el motivo de cada campo en\
-            \ errores), tipo de problema inexistente (TIPO_INVALIDO), falta la ubicación\
-            \ (UBICACION_REQUERIDA), más de 3 fotos o una foto que no es un JPG o PNG\
+            \ errores), tipo de problema inexistente (TIPO_INVALIDO), faltan latitud\
+            \ y longitud (UBICACION_REQUERIDA), el punto está fuera de la comuna (FUERA_DE_COMUNA),\
+            \ más de 3 fotos o una foto que no es un JPG o PNG\
             \ real, pesa más de 2 MB, supera los 2560 px, ocuparía demasiada memoria\
             \ al abrirla o pesaría más de 3 MB una vez limpia (FOTO_INVALIDA), o el pedido\
             \ supera el tope de subida del servidor (ARCHIVO_MUY_GRANDE)"
@@ -704,6 +707,157 @@ paths:
         "503":
           description: "El servidor está procesando muchas fotos a la vez (OCUPADO).\
             \ Probá de nuevo en unos segundos."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/admin/comunas/{id}/limite:
+    put:
+      tags:
+      - Administración
+      summary: Cargar o reemplazar el límite geográfico de una comuna
+      description: "Solo el superadmin. El cuerpo es el contenido del archivo GeoJSON.\
+        \ Se acepta un Polygon o un MultiPolygon, solo o dentro de un Feature o de\
+        \ un FeatureCollection con una sola figura. Las coordenadas van en grados (longitud,\
+        \ latitud), como manda GeoJSON. Hasta 1 MB. Se guarda solo la figura, sin las\
+        \ propiedades del archivo."
+      operationId: cambiarLimite
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: GeoJSON (Polygon, MultiPolygon, Feature o FeatureCollection)
+      responses:
+        "200":
+          description: Límite guardado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComunaAdminDto"
+        "400":
+          description: "El archivo no es un GeoJSON válido, no tiene un polígono, tiene\
+            \ más de una figura, coordenadas fuera de rango o un polígono que se corta\
+            \ a sí mismo (LIMITE_INVALIDO), o pesa más de 1 MB"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: La comuna no existe (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/mi-comuna/limite:
+    get:
+      tags:
+      - Reclamos
+      summary: Límite geográfico de mi comuna
+      description: "Para cualquier usuario de una comuna (no el superadmin). La comuna\
+        \ sale del token. Devuelve la figura GeoJSON (Polygon o MultiPolygon) para\
+        \ dibujarla en el mapa, o 204 si la comuna no tiene límite cargado."
+      operationId: limiteDeMiComuna
+      responses:
+        "200":
+          description: La figura GeoJSON del límite
+          content:
+            application/json:
+              schema:
+                type: object
+        "204":
+          description: La comuna no tiene límite cargado
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/ubicacion/direccion:
+    get:
+      tags:
+      - Reclamos
+      summary: Dirección aproximada de un punto
+      description: "Para cualquier usuario de una comuna (no el superadmin). El backend\
+        \ la pide a Nominatim (OpenStreetMap), respetando su política de uso: como\
+        \ mucho un pedido por segundo, identificándose con el nombre de la app y guardando\
+        \ las direcciones ya pedidas. El celular del vecino no se conecta con el servicio\
+        \ externo. Es solo informativa: si el servicio no responde o no encuentra nada,\
+        \ responde 204 y el reclamo sigue sin dirección. Servicio público para uso moderado:\
+        \ alcanza para desarrollo y demostración; en producción conviene un proveedor\
+        \ contratado o un servidor propio."
+      operationId: direccionDeUnPunto
+      parameters:
+      - name: latitud
+        in: query
+        required: true
+        schema:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+      - name: longitud
+        in: query
+        required: true
+        schema:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+      responses:
+        "200":
+          description: Dirección encontrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DireccionDto"
+        "204":
+          description: "No hay dirección para ese punto, o el servicio externo no respondió\
+            \ a tiempo"
+        "400":
+          description: Latitud o longitud faltantes o fuera de rango (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "429":
+          description: "Se pidieron demasiadas direcciones seguidas (DEMASIADOS_PEDIDOS):\
+            \ más de 10 por minuto del mismo usuario (las que ya estaban guardadas no\
+            \ cuentan), o no hay turno libre hacia Nominatim en ese momento (como mucho\
+            \ un pedido por segundo en total; no se hace esperar). El frontend lo trata\
+            \ como \"sin dirección\"."
           content:
             application/problem+json:
               schema:
@@ -781,6 +935,13 @@ paths:
                 $ref: "#/components/schemas/Problema"
 components:
   schemas:
+    DireccionDto:
+      type: object
+      properties:
+        direccion:
+          type: string
+          maxLength: 300
+          description: "Dirección aproximada, por ejemplo \"Av. San Martín 120, Agua de Oro\""
     TipoReclamoDto:
       type: object
       properties:
@@ -804,6 +965,8 @@ components:
       required:
       - tipo
       - descripcion
+      - latitud
+      - longitud
       properties:
         tipo:
           type: string
@@ -834,7 +997,13 @@ components:
         referencia:
           type: string
           maxLength: 200
-          description: "Cómo encontrar el lugar, por ejemplo \"frente a la panadería\""
+          description: "Opcional. Cómo encontrar el lugar, por ejemplo \"frente a\
+            \ la panadería\""
+        direccion:
+          type: string
+          maxLength: 300
+          description: "Opcional. Dirección aproximada del punto, la que devolvió /api/ubicacion/direccion.\
+            \ Es solo informativa: el servidor no la usa para validar nada."
         fotos:
           type: array
           maxItems: 3
@@ -1153,6 +1322,14 @@ components:
           type: string
         tieneLogo:
           type: boolean
+        tieneLimite:
+          type: boolean
+          description: "Si la comuna tiene cargado su límite geográfico. Sin límite,\
+            \ los vecinos pueden reportar desde cualquier lugar."
+        limiteCargadoEn:
+          type: string
+          format: date-time
+          description: Cuándo se cargó el límite (vacío si no tiene)
     ComunaCreadaDto:
       type: object
       properties:
