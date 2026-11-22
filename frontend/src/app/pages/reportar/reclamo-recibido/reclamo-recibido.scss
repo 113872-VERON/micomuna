@@ -1,0 +1,43 @@
+:host { padding-top: 32px; }
+
+.sello-grande {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--p);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ticket {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  background: #fff;
+  border: 2px solid #c9d1d9;
+  border-radius: 20px;
+}
+
+.n { margin: 0; font-size: 20px; color: var(--sub); }
+.n b { display: block; color: var(--tinta); font-size: 34px; line-height: 1.1; overflow-wrap: anywhere; }
+
+// Mismo chip que el estado "Recibido" de la guía: ícono, palabra y color.
+.estado {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 12px 4px 8px;
+  border-radius: 999px;
+  background: #e4e7eb;
+  color: #323f4b;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.proximos { margin: 0; font-size: 18px; color: var(--sub); }
+
+.otro { width: 100%; border: 0; background: transparent; font: inherit; font-size: 19px; font-weight: 700; cursor: pointer; touch-action: manipulation; }

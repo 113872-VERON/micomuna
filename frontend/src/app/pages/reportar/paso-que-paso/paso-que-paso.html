@@ -1,0 +1,69 @@
+<form class="formulario" [formGroup]="b.form" (ngSubmit)="siguiente()" novalidate>
+  <h1 tabindex="-1">¿Qué pasó?</h1>
+
+  <fieldset class="grupo">
+    <legend class="sub">Tocá el tipo de problema.</legend>
+    @if (b.cargandoTipos()) {
+      <p class="cargando" role="status">Cargando los tipos de problema…</p>
+    } @else if (b.errorTipos(); as mensaje) {
+      <div class="msg-error caja-error" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span>No pudimos cargar los tipos de problema. {{ mensaje }}</span>
+      </div>
+      <button type="button" class="btn sec" (click)="b.cargarTipos()">Probar de nuevo</button>
+    } @else if (b.tipos().length === 0) {
+      <div class="msg-error caja-error" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span>Ahora no hay tipos de problema para elegir. Probá de nuevo en unos minutos.</span>
+      </div>
+      <button type="button" class="btn sec" (click)="b.cargarTipos()">Probar de nuevo</button>
+    } @else {
+      <div class="tipos" [class.error]="tipo.touched && tipo.invalid">
+        @for (t of b.tipos(); track t.codigo) {
+          <label class="tipo" [class.sel]="tipo.value === t.codigo">
+            <input
+              type="radio"
+              formControlName="tipo"
+              name="tipo"
+              [value]="t.codigo"
+              [attr.aria-describedby]="tipo.touched && tipo.invalid ? 'error-tipo' : null"
+            />
+            <span class="ic"><app-icono-tipo [codigo]="t.codigo" /></span>
+            <span class="nombre">{{ t.nombre }}</span>
+          </label>
+        }
+      </div>
+      @if (tipo.touched && tipo.invalid) {
+        <p class="msg-error" id="error-tipo" role="alert">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+          Elegí qué tipo de problema es.
+        </p>
+      }
+    }
+  </fieldset>
+
+  <div>
+    <label for="descripcion">Contanos qué pasa</label>
+    <textarea
+      id="descripcion"
+      class="area"
+      formControlName="descripcion"
+      rows="4"
+      [attr.maxlength]="maximo"
+      autocapitalize="sentences"
+      [class.error]="descripcion.touched && descripcion.invalid"
+      [attr.aria-invalid]="descripcion.touched && descripcion.invalid"
+      [attr.aria-describedby]="descripcion.touched && descripcion.invalid ? 'error-descripcion cuenta-descripcion' : 'cuenta-descripcion'"
+    ></textarea>
+    @if (descripcion.touched && descripcion.invalid) {
+      <p class="msg-error" id="error-descripcion" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        {{ descripcion.hasError('maxlength') ? 'La descripción puede tener hasta 500 letras. Acortala un poco.' : 'Contanos qué pasa, así la comuna puede ayudarte.' }}
+      </p>
+    }
+    <p class="cuenta" id="cuenta-descripcion">{{ b.largoDescripcion() }} de {{ maximo }}</p>
+  </div>
+
+  <div class="espacio"></div>
+  <button type="submit" class="btn pri">Siguiente</button>
+</form>

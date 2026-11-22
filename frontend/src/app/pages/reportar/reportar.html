@@ -1,0 +1,30 @@
+<div class="marco">
+  @if (numeroDePaso(); as paso) {
+    <div class="barra">
+      <button type="button" class="volver" (click)="volver()">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+        Volver
+      </button>
+      <p class="paso">Paso {{ paso }} de {{ total }}</p>
+    </div>
+    <div class="progreso" aria-hidden="true">
+      @for (n of segmentos; track n) {
+        <i [class.on]="n <= paso"></i>
+      }
+    </div>
+  }
+
+  <main class="hoja">
+    @switch (b.paso()) {
+      @case (1) { <app-paso-que-paso /> }
+      @case (2) { <app-paso-fotos /> }
+      @case (3) { <app-paso-donde /> }
+      @case (4) { <app-paso-revisar /> }
+      @case ('listo') { <app-reclamo-recibido /> }
+    }
+  </main>
+</div>
+
+@if (preguntando(); as responder) {
+  <app-aviso-salir [enviando]="b.enviando()" (seguir)="responder(false)" (salir)="responder(true)" />
+}

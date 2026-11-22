@@ -1,0 +1,66 @@
+<h1 tabindex="-1">{{ titulo() }}</h1>
+<p class="sub">{{ bajada() }}</p>
+
+@if (hayFotos()) {
+  <ul class="fotos" aria-label="Fotos elegidas">
+    @for (foto of b.fotos(); track foto.id; let i = $index) {
+      <li class="foto">
+        <img [src]="foto.url" [alt]="'Foto ' + (i + 1) + ' de tu reclamo'" />
+        <button type="button" class="quitar" [attr.aria-label]="'Quitar la foto ' + (i + 1)" (click)="quitar(foto.id)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          Quitar
+        </button>
+      </li>
+    }
+  </ul>
+}
+
+<!-- Siempre presente: así el lector de pantalla anuncia los cambios. -->
+<div class="estado" role="status">
+  @if (b.preparando() > 0) {
+    <p>Preparando la foto…</p>
+  } @else if (hayFotos()) {
+    <p>{{ b.fotos().length }} de {{ maximo }} fotos{{ puedeAgregar() ? '' : ': ya no entran más.' }}</p>
+  }
+  @if (b.avisoFotos(); as aviso) {
+    <p>{{ aviso }}</p>
+  }
+</div>
+
+@if (b.fotoIlegible()) {
+  <div class="foto-error" role="alert">
+    <b>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="currentColor" /><path d="M12 7v6" stroke="#fff" stroke-width="2" stroke-linecap="round" /><circle cx="12" cy="16.5" r="1.2" fill="#fff" /></svg>
+      No pudimos usar esa foto
+    </b>
+    <span>Puede que el archivo no sea una foto o que esté dañado. Sacá otra o elegí una distinta.</span>
+  </div>
+}
+
+<input #camara class="oculto" type="file" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true" (change)="elegir($event)" />
+<input #galeria class="oculto" type="file" accept="image/*" multiple tabindex="-1" aria-hidden="true" (change)="elegir($event)" />
+
+@if (puedeAgregar()) {
+  <button type="button" class="btn agregar" [class.pri]="!hayFotos()" [class.grande]="!hayFotos()" [class.sec]="hayFotos()" (click)="camara.click()">
+    <svg [attr.width]="hayFotos() ? 28 : 36" [attr.height]="hayFotos() ? 28 : 36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l1.5-2.5h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z" /><circle cx="12" cy="13" r="3.6" /></svg>
+    {{ hayFotos() ? 'Sacar otra foto' : 'Sacar una foto' }}
+  </button>
+  <button type="button" class="btn sec" (click)="galeria.click()">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 8" /></svg>
+    Elegir una foto del teléfono
+  </button>
+}
+
+@if (b.tipoElegido(); as tipo) {
+  <div class="ayuda consejo">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M12 11v6M12 7.5v.5" /></svg>
+    <span><b>Consejo para la foto:</b> {{ tipo.consejoFoto }}</span>
+  </div>
+}
+
+<div class="espacio"></div>
+@if (hayFotos()) {
+  <button type="button" class="btn pri" [disabled]="b.preparando() > 0" (click)="b.ir(3)">Siguiente</button>
+} @else {
+  <button type="button" class="link sin-foto" [disabled]="b.preparando() > 0" (click)="b.ir(3)">Seguir sin foto</button>
+}

@@ -1,0 +1,98 @@
+.formulario { flex: 1; }
+
+.grupo { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.grupo legend { padding: 0; margin-bottom: 12px; }
+.cargando { margin: 0; color: var(--sub); }
+
+.tipos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.tipo {
+  position: relative;
+  min-height: 104px;
+  margin: 0;
+  box-sizing: border-box;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  border: 3px solid #c9d1d9;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+
+  &:active { transform: scale(0.97); }
+  // El círculo del radio no se ve: la tarjeta entera es la opción y muestra el foco del teclado.
+  input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+  &:has(input:focus-visible) { outline: 4px solid #1d4ed8; outline-offset: 2px; }
+  .nombre { overflow-wrap: anywhere; padding-right: 30px; }
+}
+
+.ic {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--ayuda);
+  color: var(--p);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Elegido: borde doble, fondo teñido y una tilde (no solo el color).
+.tipo.sel {
+  border-color: var(--p);
+  background: var(--ayuda);
+  box-shadow: 0 0 0 3px var(--p) inset;
+  .ic { background: #fff; }
+  &::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--p) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 12.5l4 4 8-8.5'/%3E%3C/svg%3E") center / 20px no-repeat;
+  }
+}
+
+.tipos.error .tipo { border-color: var(--error); background: var(--error-fondo); }
+
+.area {
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 2px solid var(--borde);
+  border-radius: 16px;
+  background: #fff;
+  color: var(--tinta);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1.35;
+  resize: vertical;
+
+  &:focus { outline: none; border-color: var(--p); box-shadow: 0 0 0 4px color-mix(in srgb, var(--p) 30%, white); }
+  &.error { border: 3px solid var(--error); background: var(--error-fondo); }
+}
+
+.cuenta { margin: 4px 0 0; text-align: right; font-size: 16px; color: var(--sub); }
+
+@media (max-width: 340px) {
+  .tipos { grid-template-columns: 1fr; }
+  .tipo { min-height: 72px; flex-direction: row; align-items: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tipo { transition: none; }
+}
