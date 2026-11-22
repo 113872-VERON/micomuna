@@ -4,14 +4,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { limpiarCorreo } from '../../../../auth/mensajes-de-formulario';
 
-// Formulario de una línea para corregir el correo de alguien que todavía no eligió su contraseña.
+// Formulario de una línea para modificar el correo de alguien que todavía no eligió su contraseña.
 // No llama al servidor: avisa el correo nuevo y quien lo usa hace el cambio y el reenvío.
 @Component({
   selector: 'app-corregir-correo',
   imports: [ReactiveFormsModule],
   template: `
     <form class="corregir" [formGroup]="form" (ngSubmit)="enviar()" novalidate>
-      <label [for]="idCampo()">Correo corregido</label>
+      <label [for]="idCampo()">Correo nuevo</label>
       <input
         [id]="idCampo()"
         type="email"
@@ -52,6 +52,8 @@ export class CorregirCorreo implements OnInit {
   // Otro pedido de la pantalla está en curso: no se puede guardar todavía (sin decir "Guardando…").
   readonly deshabilitado = input(false);
   readonly error = input<string | null>(null);
+  // Cómo se llama, en la pantalla donde está, el botón que vuelve a mandar la invitación.
+  readonly botonReenviar = input('Reenviar invitación');
 
   readonly guardar = output<string>();
   readonly cancelar = output<void>();
@@ -89,7 +91,7 @@ export class CorregirCorreo implements OnInit {
     if (control.invalid) {
       return 'Revisá el correo: tiene que ser como ejemplo@correo.com.';
     }
-    return 'Es el mismo correo de antes. Si está bien escrito, usá "Reenviar invitación".';
+    return 'Es el mismo correo de antes. Si está bien escrito, usá "' + this.botonReenviar() + '".';
   }
 
   protected enviar(): void {

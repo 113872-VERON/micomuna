@@ -1,27 +1,30 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, Injector, afterNextRender, inject, output, signal } from '@angular/core';
+import { Component, Injector, afterNextRender, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { mensajeDeError } from '../../../../auth/errores';
 import { limpiarCorreo } from '../../../../auth/mensajes-de-formulario';
-import { NOMBRES_ROL, RolDePersonal, UsuarioComunaDto, UsuarioCreadoDto } from '../../../../auth/modelos';
+import { NOMBRES_ROL, RolDePersonal, UsuarioCreadoDto } from '../../../../auth/modelos';
+import { AyudaFlotante } from '../../../../compartido/ayuda-flotante/ayuda-flotante';
 import { UsuariosService } from '../../../../panel/usuarios.service';
 import { CorregirCorreo } from '../corregir-correo/corregir-correo';
 import { DESCRIPCIONES_ROL } from '../roles';
 
-// Alta de una persona del personal. Los vecinos no se dan de alta acá: se registran solos.
+// Pantalla de alta de una persona del personal (/:slug/panel/usuarios/nuevo). Los vecinos no se dan de alta acá: se registran solos.
+// El usuario nuevo aparece en la lista porque la lista se carga de nuevo al entrar.
 @Component({
   selector: 'app-nuevo-usuario',
-  imports: [ReactiveFormsModule, CorregirCorreo],
+  imports: [ReactiveFormsModule, RouterLink, CorregirCorreo, AyudaFlotante],
   templateUrl: './nuevo-usuario.html',
   styleUrl: './nuevo-usuario.scss',
 })
 export class NuevoUsuario {
   private readonly servicio = inject(UsuariosService);
 
-  // El usuario ya existe en el servidor (aunque el correo no haya salido): la lista lo tiene que mostrar.
-  readonly creado = output<UsuarioComunaDto>();
-  readonly actualizado = output<UsuarioComunaDto>();
-  readonly cerrar = output<void>();
+  // Viene de la ruta (/:slug/panel/usuarios/nuevo).
+  readonly slug = input.required<string>();
+  protected readonly textoInfo =
+    'Le mandamos un correo con un enlace para que elija su propia contraseña.\nLos vecinos no se dan de alta acá: se registran solos con el enlace de la comuna.';
 
   protected readonly roles = (['ADMINISTRATIVO', 'AGENTE', 'ADMIN_COMUNA'] as const).map((clave) => ({
     clave,
@@ -80,7 +83,6 @@ export class NuevoUsuario {
       next: (resultado) => {
         this.enviando.set(false);
         this.resultado.set(resultado);
-        this.creado.emit(resultado.usuario);
         this.enfocarTitulo();
       },
       error: (e: unknown) => {
@@ -126,7 +128,6 @@ export class NuevoUsuario {
       next: ({ usuario, invitacionEnviada, errorEnvio }) => {
         this.reenviando.set(false);
         this.corrigiendo.set(false);
-        this.actualizado.emit(usuario);
         this.resultado.set({ usuario, invitacionEnviada });
         this.errorEnvio.set(invitacionEnviada ? null : mensajeDeError(errorEnvio));
         this.enfocarTitulo();

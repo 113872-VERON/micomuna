@@ -47,7 +47,7 @@ import { TemaComunaService } from '../../../tema/tema-comuna.service';
     .quien b { display: block; font-size: 17px; overflow-wrap: anywhere; }
     .quien small { font-size: 15px; }
     .salir { flex: none; min-height: 44px; padding: 0 16px; border: 2px solid #fff; border-radius: 12px; background: transparent; color: #fff; font: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation; }
-    .cont { flex: 1; width: 100%; max-width: 1240px; box-sizing: border-box; margin: 0 auto; padding: 24px 28px 32px; display: flex; flex-direction: column; gap: 16px; }
+    .cont { flex: 1; width: 100%; max-width: 1680px; box-sizing: border-box; margin: 0 auto; padding: 24px 28px 32px; display: flex; flex-direction: column; gap: 16px; }
     @media (max-width: 640px) {
       .top { padding: 12px 16px; }
       .marca { flex: 1 1 100%; }
