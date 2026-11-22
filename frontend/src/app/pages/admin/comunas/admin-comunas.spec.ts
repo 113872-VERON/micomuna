@@ -2,6 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { AvisoPanelService } from '../../../admin/aviso-panel.service';
 import { ComunaAdminDto } from '../../../auth/modelos';
 import { AdminComunas } from './admin-comunas';
 
@@ -12,6 +13,7 @@ const salsipuedes: ComunaAdminDto = {
 const neuquen: ComunaAdminDto = {
   id: 2, nombre: 'Salsipuedes', slug: 'salsipuedes-neuquen', provincia: 'Neuquén', departamento: null, color: 'OCRE', activa: false, tieneLogo: true,
 };
+
 
 describe('AdminComunas', () => {
   let http: HttpTestingController;
@@ -34,6 +36,7 @@ describe('AdminComunas', () => {
     return fixture;
   }
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
+  const estado = (f: ComponentFixture<unknown>, id: number) => el(f).querySelector<HTMLButtonElement>(`[data-estado="${id}"]`)!;
   const boton = (f: ComponentFixture<unknown>, texto: string) =>
     Array.from(el(f).querySelectorAll('button')).find((b) => b.textContent?.includes(texto));
 
@@ -60,7 +63,7 @@ describe('AdminComunas', () => {
   it('desactivarPideConfirmacionYLlamaAlBackend', () => {
     const f = crear();
 
-    boton(f, 'Desactivar')!.click();
+    estado(f, 1).click();
     f.detectChanges();
     http.expectNone(`${URL}/1`);
     expect(el(f).textContent).toContain('Nadie de esta comuna podrá ingresar');
@@ -77,7 +80,7 @@ describe('AdminComunas', () => {
 
   it('cancelarLaConfirmacionNoCambiaNada', () => {
     const f = crear();
-    boton(f, 'Desactivar')!.click();
+    estado(f, 1).click();
     f.detectChanges();
     boton(f, 'Cancelar')!.click();
     f.detectChanges();
@@ -88,7 +91,7 @@ describe('AdminComunas', () => {
 
   it('activarUnaComunaInactivaLlamaAlBackendSinPreguntar', () => {
     const f = crear();
-    boton(f, 'Activar')!.click();
+    estado(f, 2).click();
 
     const pedido = http.expectOne(`${URL}/2`);
     expect(pedido.request.body).toEqual({ activa: true });
@@ -100,7 +103,7 @@ describe('AdminComunas', () => {
 
   it('siFallaElCambioDeEstadoSeAvisa', () => {
     const f = crear();
-    boton(f, 'Activar')!.click();
+    estado(f, 2).click();
     http.expectOne(`${URL}/2`).error(new ProgressEvent('error'));
     f.detectChanges();
 
@@ -132,19 +135,24 @@ describe('AdminComunas', () => {
     it('lasEntradasAceptanSoloPngYJpegYLaAyudaDiceLosRequisitos', () => {
       const f = crear();
       expect(entrada(f, 1).getAttribute('accept')).toBe('image/png,image/jpeg');
-      expect(el(f).textContent).toContain('cuadrado, PNG o JPG, hasta 512 KB');
+      expect(document.body.querySelector('[role="tooltip"]')?.textContent).toContain('cuadrado, PNG o JPG, hasta 512 KB');
     });
 
     const miniatura = (f: ComponentFixture<unknown>, id: number) =>
       el(f).querySelector<HTMLImageElement>(`[data-logo-miniatura="${id}"] img`);
-    const nota = (f: ComponentFixture<unknown>, id: number) => el(f).querySelector(`[data-logo-nota="${id}"]`);
+    // El dato del logo vive en el panel de información de la comuna (ya no hay nota en la columna Logo).
+    const logoInfo = (f: ComponentFixture<unknown>, id: number) => {
+      el(f).querySelector<HTMLButtonElement>(`[data-info="${id}"]`)!.click();
+      f.detectChanges();
+      return el(f).querySelector('[data-info-logo]')?.textContent?.trim();
+    };
     const activaConLogo: ComunaAdminDto = { ...salsipuedes, tieneLogo: true };
 
     function cambiarEstado(f: ComponentFixture<unknown>, comuna: ComunaAdminDto, activa: boolean): void {
       if (activa) {
-        boton(f, 'Activar')!.click();
+        estado(f, comuna.id).click();
       } else {
-        boton(f, 'Desactivar')!.click();
+        estado(f, comuna.id).click();
         f.detectChanges();
         boton(f, 'Sí, desactivar')!.click();
       }
@@ -156,20 +164,23 @@ describe('AdminComunas', () => {
       const f = crear([activaConLogo]);
       expect(miniatura(f, 1)?.getAttribute('src')).toBe('/api/comunas/salsipuedes-cordoba/logo');
       expect(miniatura(f, 1)?.getAttribute('alt')).toBe('Logo actual de Salsipuedes');
-      expect(nota(f, 1)).toBeNull();
+      expect(logoInfo(f, 1)).toBe('Cargado');
+      expect(el(f).querySelector('[data-logo-nota]')).toBeNull();
     });
 
     it('sinLogoNoHayMiniaturaNiNota', () => {
       const f = crear([salsipuedes]);
       expect(miniatura(f, 1)).toBeNull();
-      expect(nota(f, 1)).toBeNull();
+      expect(logoInfo(f, 1)).toBe('Sin logo');
     });
 
     it('unaComunaInactivaConLogoNoPideLaMiniaturaYAvisaQueElLogoEstaCargado', () => {
       const f = crear([neuquen]);
       // El endpoint público responde 404 para comunas inactivas: no tiene que haber ningún <img>.
       expect(el(f).querySelector('img')).toBeNull();
-      expect(nota(f, 2)?.textContent).toContain('Logo cargado (se ve cuando la comuna está activa)');
+      expect(el(f).querySelector('[data-logo-nota]')).toBeNull();
+      expect(el(f).querySelector('td')!.parentElement!.textContent).not.toContain('se ve cuando la comuna está activa');
+      expect(logoInfo(f, 2)).toBe('Cargado; se ve cuando la comuna está activa');
       expect(botonLogo(f, 2).textContent).toContain('Cambiar logo');
     });
 
@@ -178,7 +189,7 @@ describe('AdminComunas', () => {
       cambiarEstado(f, neuquen, true);
 
       expect(miniatura(f, 2)?.getAttribute('src')).toBe('/api/comunas/salsipuedes-neuquen/logo');
-      expect(nota(f, 2)).toBeNull();
+      expect(logoInfo(f, 2)).toBe('Cargado');
     });
 
     it('alDesactivarUnaComunaConLogoSeQuitaLaMiniaturaYApareceLaNota', () => {
@@ -186,7 +197,7 @@ describe('AdminComunas', () => {
       cambiarEstado(f, activaConLogo, false);
 
       expect(miniatura(f, 1)).toBeNull();
-      expect(nota(f, 1)).not.toBeNull();
+      expect(logoInfo(f, 1)).toBe('Cargado; se ve cuando la comuna está activa');
     });
 
     it('unaMiniaturaQueFalloSeRecuperaAlDesactivarYReactivarLaComuna', () => {
@@ -298,8 +309,11 @@ describe('AdminComunas', () => {
   describe('límite de la comuna', () => {
     const botonLimite = (f: ComponentFixture<unknown>, id: number) =>
       el(f).querySelector<HTMLButtonElement>(`[data-limite-boton="${id}"]`)!;
-    const estadoLimite = (f: ComponentFixture<unknown>, id: number) =>
-      el(f).querySelector(`[data-limite-estado="${id}"]`)?.textContent?.trim();
+    const infoLimite = (f: ComponentFixture<unknown>, id: number) => {
+      el(f).querySelector<HTMLButtonElement>(`[data-info="${id}"]`)!.click();
+      f.detectChanges();
+      return el(f).querySelector('[data-info-limite]')?.textContent?.trim();
+    };
     const FIGURA = { type: 'Polygon', coordinates: [[[-64.31, -31.13], [-64.29, -31.13], [-64.29, -31.11], [-64.31, -31.11], [-64.31, -31.13]]] };
     const conLimite: ComunaAdminDto = { ...salsipuedes, tieneLimite: true, limiteCargadoEn: '2026-11-20T15:30:00Z' };
 
@@ -319,14 +333,14 @@ describe('AdminComunas', () => {
     it('sinLimiteAvisaQueLosVecinosPuedenReportarDesdeCualquierLugar', () => {
       const f = crear();
 
-      expect(estadoLimite(f, 1)).toBe('Sin límite: los vecinos pueden reportar desde cualquier lugar.');
+      expect(infoLimite(f, 1)).toBe('Sin límite: los vecinos pueden reportar desde cualquier lugar.');
       expect(botonLimite(f, 1).textContent).toContain('Subir límite (GeoJSON)');
     });
 
     it('conLimiteMuestraLaFechaYOfreceCambiarlo', () => {
       const f = crear([conLimite]);
 
-      expect(estadoLimite(f, 1)).toMatch(/^Límite cargado el 20 de noviembre de 2026$/);
+      expect(infoLimite(f, 1)).toBe('Cargado el 20 de noviembre de 2026');
       expect(botonLimite(f, 1).textContent).toContain('Cambiar límite');
     });
 
@@ -349,7 +363,7 @@ describe('AdminComunas', () => {
       pedido.flush(conLimite);
       f.detectChanges();
 
-      expect(estadoLimite(f, 1)).toContain('Límite cargado el 20 de noviembre de 2026');
+      expect(infoLimite(f, 1)).toContain('Cargado el 20 de noviembre de 2026');
       expect(botonLimite(f, 1).textContent).toContain('Cambiar límite');
       expect(botonLimite(f, 1).disabled).toBe(false);
       expect(input.value).toBe('');
@@ -372,7 +386,7 @@ describe('AdminComunas', () => {
 
       http.expectNone(`${URL}/1/limite`);
       expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('no es un GeoJSON');
-      expect(estadoLimite(f, 1)).toContain('Sin límite');
+      expect(infoLimite(f, 1)).toContain('Sin límite');
     });
 
     it('muestraElMensajeDelServidorSiElLimiteNoSirve', async () => {
@@ -386,7 +400,7 @@ describe('AdminComunas', () => {
       f.detectChanges();
 
       expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('El polígono se corta a sí mismo.');
-      expect(estadoLimite(f, 1)).toContain('Sin límite');
+      expect(infoLimite(f, 1)).toContain('Sin límite');
       expect(botonLimite(f, 1).disabled).toBe(false);
     });
 
@@ -400,6 +414,119 @@ describe('AdminComunas', () => {
       f.detectChanges();
 
       expect(el(f).querySelector('[role="alert"]')).toBeNull();
+    });
+  });
+
+  describe('ayudas y acciones (MC-76)', () => {
+    const completa: ComunaAdminDto = {
+      ...salsipuedes,
+      tieneLimite: true,
+      creadaEn: '2026-11-01T15:00:00Z',
+      actualizadaEn: '2026-11-21T15:00:00Z',
+      limiteCargadoEn: '2026-11-20T15:00:00Z',
+    };
+    const globito = (texto: string) =>
+      Array.from(document.body.querySelectorAll<HTMLElement>('[role="tooltip"]')).find((g) => g.textContent === texto);
+
+    it('laNotaDelLogoEstaEnElBotonDeInformacionYNoAbajoDeLaTabla', () => {
+      const f = crear();
+      const info = el(f).querySelector<HTMLButtonElement>('th button')!;
+
+      expect(info.getAttribute('aria-label')).toBe('Información sobre el logo');
+      const nota = globito('Logo de la comuna: cuadrado, PNG o JPG, hasta 512 KB.')!;
+      expect(nota).toBeDefined();
+      expect(info.getAttribute('aria-describedby')).toBe(nota.id);
+      expect(el(f).textContent).not.toContain('cuadrado, PNG o JPG');
+
+      info.dispatchEvent(new Event('mouseenter'));
+      expect(nota.style.visibility).toBe('visible');
+      info.dispatchEvent(new Event('mouseleave'));
+      expect(nota.style.visibility).toBe('hidden');
+      info.focus();
+      info.dispatchEvent(new Event('focus'));
+      expect(nota.style.visibility).toBe('visible');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      expect(nota.style.visibility).toBe('hidden');
+    });
+
+    it('laColumnaLimiteMuestraSoloElBotonSinElTextoDeLaFecha', () => {
+      const f = crear([completa, neuquen]);
+      const texto = el(f).textContent ?? '';
+
+      expect(texto).not.toContain('Límite cargado el');
+      expect(texto).not.toContain('Sin límite');
+      expect(el(f).querySelector('[data-limite-boton="1"]')?.textContent).toContain('Cambiar límite');
+    });
+
+    it('yaNoMuestraLaNotaDeQueLasComunasSeDesactivan', () => {
+      expect(el(crear()).textContent).not.toContain('Las comunas no se borran');
+    });
+
+    it('cadaFilaTieneTresBotonesDeIconoConNombreAccesibleYAyuda', () => {
+      const f = crear();
+      const nombres = (id: number) =>
+        [`[data-modificar="${id}"]`, `[data-info="${id}"]`, `[data-estado="${id}"]`].map((s) => el(f).querySelector(s)?.getAttribute('aria-label'));
+
+      expect(nombres(1)).toEqual(['Modificar Salsipuedes', 'Información de Salsipuedes', 'Desactivar Salsipuedes']);
+      expect(nombres(2)).toEqual(['Modificar Salsipuedes', 'Información de Salsipuedes', 'Activar Salsipuedes']);
+      for (const s of ['[data-modificar="1"]', '[data-info="1"]', '[data-estado="1"]']) {
+        expect(el(f).querySelector(s)?.classList.contains('icono')).toBe(true);
+      }
+      expect(globito('Modificar comuna')).toBeDefined();
+      expect(globito('Ver información')).toBeDefined();
+      expect(globito('Desactivar comuna')).toBeDefined();
+      expect(globito('Activar comuna')).toBeDefined();
+    });
+
+    it('modificarLlevaALaPantallaDeEditar', () => {
+      const f = crear();
+      expect(el(f).querySelector('[data-modificar="1"]')?.getAttribute('href')).toBe('/admin/comunas/1/editar');
+      expect(el(f).querySelector('[data-modificar="2"]')?.getAttribute('href')).toBe('/admin/comunas/2/editar');
+    });
+
+    it('laInformacionMuestraLasTresFechasEnFormatoArgentinoYCierraConEscape', () => {
+      const f = crear([completa]);
+      const botonInfo = el(f).querySelector<HTMLButtonElement>('[data-info="1"]')!;
+      expect(botonInfo.getAttribute('aria-expanded')).toBe('false');
+
+      botonInfo.click();
+      f.detectChanges();
+
+      expect(botonInfo.getAttribute('aria-expanded')).toBe('true');
+      expect(el(f).querySelector('[data-info-creada]')?.textContent).toBe('1 de noviembre de 2026');
+      expect(el(f).querySelector('[data-info-modificada]')?.textContent).toBe('21 de noviembre de 2026');
+      expect(el(f).querySelector('[data-info-limite]')?.textContent).toBe('Cargado el 20 de noviembre de 2026');
+      expect(el(f).querySelector('[aria-label="Información de Salsipuedes"]')).not.toBeNull();
+
+      el(f).querySelector('[data-info-limite]')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      f.detectChanges();
+
+      expect(el(f).querySelector('[data-info-creada]')).toBeNull();
+      expect(botonInfo.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('laInformacionSeCierraConElBotonCerrarYSinLimiteDiceQueSePuedeReportarDesdeCualquierLugar', () => {
+      const f = crear([salsipuedes]);
+      el(f).querySelector<HTMLButtonElement>('[data-info="1"]')!.click();
+      f.detectChanges();
+
+      expect(el(f).querySelector('[data-info-limite]')?.textContent).toBe('Sin límite: los vecinos pueden reportar desde cualquier lugar.');
+      expect(el(f).querySelector('[data-info-creada]')?.textContent).toBe('Sin dato');
+      el(f).querySelector<HTMLButtonElement>('[data-info-cerrar="1"]')!.click();
+      f.detectChanges();
+      expect(el(f).querySelector('[data-info-limite]')).toBeNull();
+    });
+
+    it('mostrarUnAvisoPendienteDeLaPantallaAnterior', () => {
+      TestBed.inject(AvisoPanelService).mostrar('Guardamos los cambios de Salsipuedes');
+      const f = crear();
+
+      expect(el(f).querySelector('[role="status"]')?.textContent).toContain('Guardamos los cambios de Salsipuedes');
+      el(f).querySelector<HTMLButtonElement>('[aria-label="Cerrar el aviso"]')!.click();
+      f.detectChanges();
+      expect(el(f).querySelector('[role="status"]')).toBeNull();
+      // Se muestra una sola vez.
+      expect(TestBed.inject(AvisoPanelService).consumir()).toBeNull();
     });
   });
 });

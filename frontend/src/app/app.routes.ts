@@ -22,6 +22,7 @@ export const routes: Routes = [
         children: [
           { path: 'comunas', loadComponent: () => import('./pages/admin/comunas/admin-comunas').then((m) => m.AdminComunas) },
           { path: 'comunas/nueva', loadComponent: () => import('./pages/admin/nueva-comuna/nueva-comuna').then((m) => m.NuevaComuna) },
+          { path: 'comunas/:id/editar', loadComponent: () => import('./pages/admin/editar-comuna/editar-comuna').then((m) => m.EditarComuna) },
           { path: '', pathMatch: 'full', redirectTo: 'comunas' },
         ],
       },
@@ -42,6 +43,7 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/panel/panel-layout/panel-layout').then((m) => m.PanelLayout),
         children: [
           { path: 'usuarios', loadComponent: () => import('./pages/panel/usuarios/usuarios').then((m) => m.Usuarios) },
+          { path: 'usuarios/nuevo', loadComponent: () => import('./pages/panel/usuarios/nuevo-usuario/nuevo-usuario').then((m) => m.NuevoUsuario) },
           { path: '', pathMatch: 'full', redirectTo: 'usuarios' },
         ],
       },

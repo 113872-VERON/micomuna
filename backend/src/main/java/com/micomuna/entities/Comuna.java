@@ -13,6 +13,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -72,10 +73,28 @@ public class Comuna {
 	@Column(name = "creada_en", nullable = false)
 	private Instant creadaEn;
 
+	// Teléfono y WhatsApp de contacto: opcionales, solo dígitos con código de país (CHECK en la base).
+	private String telefono;
+
+	private String whatsapp;
+
+	// Última modificación. Se actualiza sola cuando Hibernate guarda un cambio real de la comuna (@PreUpdate no corre
+	// si no hay nada que guardar). El logo y el límite se guardan con updates aparte: ComunaRepository.tocar.
+	@Column(name = "actualizada_en", nullable = false)
+	private Instant actualizadaEn;
+
 	@PrePersist
 	void alCrear() {
 		if (creadaEn == null) {
 			creadaEn = Instant.now();
 		}
+		if (actualizadaEn == null) {
+			actualizadaEn = creadaEn;
+		}
+	}
+
+	@PreUpdate
+	void alActualizar() {
+		actualizadaEn = Instant.now();
 	}
 }

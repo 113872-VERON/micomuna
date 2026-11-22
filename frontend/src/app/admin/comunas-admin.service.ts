@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { ComunaAdminDto, ComunaCreadaDto, NuevaComunaRequest } from '../auth/modelos';
+import { ActualizarComunaRequest, ComunaAdminDto, ComunaCreadaDto, NuevaComunaRequest } from '../auth/modelos';
 
 const BASE = '/api/admin/comunas';
 
@@ -16,6 +16,10 @@ export class ComunasAdminService {
 
   crear(pedido: NuevaComunaRequest): Observable<ComunaCreadaDto> {
     return this.http.post<ComunaCreadaDto>(BASE, pedido);
+  }
+
+  actualizar(id: number, cambios: ActualizarComunaRequest): Observable<ComunaAdminDto> {
+    return this.http.patch<ComunaAdminDto>(`${BASE}/${id}`, cambios);
   }
 
   cambiarEstado(id: number, activa: boolean): Observable<ComunaAdminDto> {

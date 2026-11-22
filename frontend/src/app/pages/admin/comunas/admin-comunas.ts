@@ -1,21 +1,28 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, Injector, OnInit, afterNextRender, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AvisoPanelService } from '../../../admin/aviso-panel.service';
 import { ComunasAdminService } from '../../../admin/comunas-admin.service';
 import { leerLimite } from '../../../admin/limite';
 import { validarLogo } from '../../../admin/logo';
 import { mensajeDeError } from '../../../auth/errores';
 import { ColorComuna, ComunaAdminDto } from '../../../auth/modelos';
+import { AyudaFlotante } from '../../../compartido/ayuda-flotante/ayuda-flotante';
 import { COLORES_COMUNA, NOMBRES_COLOR } from '../../../tema/tema-comuna.service';
-
 
 @Component({
   selector: 'app-admin-comunas',
-  imports: [RouterLink],
+  imports: [RouterLink, AyudaFlotante],
   templateUrl: './admin-comunas.html',
   styleUrl: './admin-comunas.scss',
 })
 export class AdminComunas implements OnInit {
   private readonly servicio = inject(ComunasAdminService);
+  private readonly injector = inject(Injector);
+
+  // Aviso de la pantalla anterior (por ejemplo, "Guardamos los cambios de X"), que se muestra una sola vez.
+  protected readonly aviso = signal<string | null>(inject(AvisoPanelService).consumir());
+  // La comuna cuya información está abierta (creada, modificada, límite).
+  protected readonly infoAbierta = signal<number | null>(null);
 
   protected readonly comunas = signal<ComunaAdminDto[]>([]);
   protected readonly cargando = signal(true);
@@ -124,11 +131,43 @@ export class AdminComunas implements OnInit {
 
   protected readonly subiendoLimite = signal<number | null>(null);
 
-  protected fechaLimite(c: ComunaAdminDto): string {
-    const fecha = c.limiteCargadoEn ? new Date(c.limiteCargadoEn) : null;
+  // Fechas en formato argentino ("20 de noviembre de 2026"). Vacío si falta o no se entiende.
+  protected fecha(valor?: string | null): string {
+    const fecha = valor ? new Date(valor) : null;
     return fecha && !Number.isNaN(fecha.getTime())
       ? new Intl.DateTimeFormat('es-AR', { day: 'numeric', month: 'long', year: 'numeric' }).format(fecha)
       : '';
+  }
+
+  protected textoLogo(c: ComunaAdminDto): string {
+    if (!c.tieneLogo) {
+      return 'Sin logo';
+    }
+    return c.activa ? 'Cargado' : 'Cargado; se ve cuando la comuna está activa';
+  }
+
+  protected textoLimite(c: ComunaAdminDto): string {
+    if (!c.tieneLimite) {
+      return 'Sin límite: los vecinos pueden reportar desde cualquier lugar.';
+    }
+    const fecha = this.fecha(c.limiteCargadoEn);
+    return fecha ? `Cargado el ${fecha}` : 'Cargado';
+  }
+
+  // Abre o cierra la información de una comuna. Al abrir, el foco pasa al botón "Cerrar" del panel.
+  protected alternarInfo(id: number): void {
+    if (this.infoAbierta() === id) {
+      this.cerrarInfo(id);
+      return;
+    }
+    this.infoAbierta.set(id);
+    afterNextRender(() => document.querySelector<HTMLElement>(`[data-info-cerrar="${id}"]`)?.focus(), { injector: this.injector });
+  }
+
+  // Cierra (con el botón o con Escape) y devuelve el foco al botón que lo abrió.
+  protected cerrarInfo(id: number): void {
+    this.infoAbierta.set(null);
+    afterNextRender(() => document.querySelector<HTMLElement>(`[data-info="${id}"]`)?.focus(), { injector: this.injector });
   }
 
   protected async elegirLimite(comuna: ComunaAdminDto, evento: Event): Promise<void> {

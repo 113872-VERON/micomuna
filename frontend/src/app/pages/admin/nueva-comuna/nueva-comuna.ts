@@ -4,8 +4,10 @@ import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angula
 import { RouterLink } from '@angular/router';
 import { merge, startWith } from 'rxjs';
 import { ComunasAdminService } from '../../../admin/comunas-admin.service';
+import { leerLimite } from '../../../admin/limite';
 import { validarLogo } from '../../../admin/logo';
 import { sugerirSlug } from '../../../admin/slug';
+import { AYUDA_TELEFONO, MENSAJE_TELEFONO, soloDigitos, validarTelefono } from '../../../admin/telefono';
 import { mensajeDeError } from '../../../auth/errores';
 import { limpiarCorreo, mensajeCorreo } from '../../../auth/mensajes-de-formulario';
 import { ColorComuna, ComunaCreadaDto, ComunaDto, NuevaComunaRequest, PROVINCIAS } from '../../../auth/modelos';
@@ -22,6 +24,8 @@ export class NuevaComuna {
   private readonly servicio = inject(ComunasAdminService);
 
   protected readonly provincias = PROVINCIAS;
+  protected readonly mensajeTelefono = MENSAJE_TELEFONO;
+  protected readonly ayudaTelefono = AYUDA_TELEFONO;
   protected readonly colores = (Object.keys(COLORES_COMUNA) as ColorComuna[]).map((clave) => ({
     clave,
     nombre: NOMBRES_COLOR[clave],
@@ -33,8 +37,8 @@ export class NuevaComuna {
     provincia: ['', Validators.required],
     departamento: ['', Validators.maxLength(80)],
     slug: ['', Validators.pattern(/^[a-z0-9]+(-[a-z0-9]+)*$/)],
-    telefono: ['', Validators.pattern(/^[0-9 +\-()]{0,30}$/)],
-    whatsapp: ['', Validators.pattern(/^(\d{10,15})?$/)],
+    telefono: ['', validarTelefono],
+    whatsapp: ['', validarTelefono],
     color: ['CELESTE'],
     adminNombre: ['', [Validators.required, Validators.maxLength(100)]],
     adminCorreo: ['', [Validators.required, Validators.email]],
@@ -53,6 +57,12 @@ export class NuevaComuna {
   protected readonly logoUrl = signal<string | null>(null);
   protected readonly errorLogo = signal<string | null>(null);
   protected readonly logoFallido = signal(false);
+
+  // Límite opcional (GeoJSON): se lee y revisa al elegirlo y se sube cuando la comuna ya está creada.
+  protected readonly limiteArchivo = signal<{ nombre: string; geojson: object } | null>(null);
+  protected readonly errorLimite = signal<string | null>(null);
+  protected readonly limiteFallido = signal(false);
+  protected readonly limiteMotivo = signal<string | null>(null);
 
   // Mientras nadie toque el enlace, se arma solo con el nombre y la provincia.
   private enlaceEditadoAMano = false;
@@ -123,6 +133,30 @@ export class NuevaComuna {
     this.logoUrl.set(URL.createObjectURL(archivo));
   }
 
+  protected async elegirLimite(evento: Event): Promise<void> {
+    const input = evento.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo || this.enviando()) {
+      return;
+    }
+    const lectura = await leerLimite(archivo);
+    if (lectura.error !== undefined) {
+      this.errorLimite.set(lectura.error);
+      return;
+    }
+    this.errorLimite.set(null);
+    this.limiteArchivo.set({ nombre: archivo.name, geojson: lectura.geojson });
+  }
+
+  protected quitarLimite(): void {
+    if (this.enviando()) {
+      return;
+    }
+    this.errorLimite.set(null);
+    this.limiteArchivo.set(null);
+  }
+
   protected quitarLogo(): void {
     if (this.enviando()) {
       return;
@@ -149,16 +183,7 @@ export class NuevaComuna {
     this.error.set(null);
     this.servicio.crear(this.armarPedido()).subscribe({
       next: (resultado) => {
-        const logo = this.logoArchivo();
-        if (!logo) {
-          this.terminarAlta(resultado, false);
-          return;
-        }
-        // La comuna ya existe: si el logo falla no se vuelve a crear, se sube después desde la lista.
-        this.servicio.subirLogo(resultado.comuna.id, logo).subscribe({
-          next: () => this.terminarAlta(resultado, false),
-          error: () => this.terminarAlta(resultado, true),
-        });
+        this.subirComplementos(resultado);
       },
       error: (e: unknown) => {
         this.enviando.set(false);
@@ -167,9 +192,37 @@ export class NuevaComuna {
     });
   }
 
-  private terminarAlta(resultado: ComunaCreadaDto, logoFallo: boolean): void {
+  // La comuna ya existe: primero se sube el logo (si hay) y después el límite (si hay). Si algo falla no se vuelve
+  // a crear la comuna: se avisa cuál falló y se puede subir desde la lista.
+  private subirComplementos(resultado: ComunaCreadaDto): void {
+    const id = resultado.comuna.id;
+    const logo = this.logoArchivo();
+    const limite = this.limiteArchivo();
+    const subirLimite = (logoFallo: boolean) => {
+      if (!limite) {
+        this.terminarAlta(resultado, logoFallo, null);
+        return;
+      }
+      this.servicio.cambiarLimite(id, limite.geojson).subscribe({
+        next: () => this.terminarAlta(resultado, logoFallo, null),
+        error: (e: unknown) => this.terminarAlta(resultado, logoFallo, mensajeDeError(e)),
+      });
+    };
+    if (!logo) {
+      subirLimite(false);
+      return;
+    }
+    this.servicio.subirLogo(id, logo).subscribe({
+      next: () => subirLimite(false),
+      error: () => subirLimite(true),
+    });
+  }
+
+  private terminarAlta(resultado: ComunaCreadaDto, logoFallo: boolean, motivoLimite: string | null): void {
     this.enviando.set(false);
     this.logoFallido.set(logoFallo);
+    this.limiteFallido.set(motivoLimite !== null);
+    this.limiteMotivo.set(motivoLimite);
     this.creada.set(resultado);
     this.invitacionEnviada.set(resultado.invitacionEnviada);
   }
@@ -212,8 +265,15 @@ export class NuevaComuna {
       adminNombre: v.adminNombre.trim(),
       adminCorreo: limpiarCorreo(v.adminCorreo),
     };
-    for (const campo of ['slug', 'departamento', 'telefono', 'whatsapp'] as const) {
+    for (const campo of ['slug', 'departamento'] as const) {
       const valor = v[campo].trim();
+      if (valor) {
+        pedido[campo] = valor;
+      }
+    }
+    // Teléfono y WhatsApp viajan solo con los dígitos (el navegador ya revisó que sean de 8 a 15).
+    for (const campo of ['telefono', 'whatsapp'] as const) {
+      const valor = soloDigitos(v[campo].trim());
       if (valor) {
         pedido[campo] = valor;
       }

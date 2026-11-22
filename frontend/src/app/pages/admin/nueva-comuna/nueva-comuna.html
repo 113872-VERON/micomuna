@@ -19,6 +19,13 @@
       </div>
     }
 
+    @if (limiteFallido()) {
+      <div class="aviso logo-error" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        <span><b>La comuna se creó, pero el límite no se pudo subir.</b> {{ limiteMotivo() }} No hace falta crearla de nuevo: podés subir el límite desde la lista de comunas, con el botón "Subir límite (GeoJSON)".</span>
+      </div>
+    }
+
     @if (invitacionEnviada()) {
       <div class="aviso ok" role="status">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M3 7l9 6 9-6" /></svg>
@@ -85,16 +92,16 @@
         <div class="par">
           <div>
             <label for="telefono">Teléfono</label>
-            <input id="telefono" type="tel" formControlName="telefono" autocomplete="off" />
-            @if (c.telefono.invalid) { <p class="msg-error" role="alert">Solo números, espacios, +, - y paréntesis.</p> }
+            <input id="telefono" type="tel" formControlName="telefono" autocomplete="off" inputmode="tel" [attr.aria-invalid]="c.telefono.invalid" />
+            @if (c.telefono.invalid) { <p class="msg-error" role="alert">{{ mensajeTelefono }}</p> }
           </div>
           <div>
             <label for="whatsapp">WhatsApp</label>
-            <input id="whatsapp" type="tel" formControlName="whatsapp" autocomplete="off" inputmode="numeric" />
-            <p class="ayuda-c">Solo números, con el código de país.</p>
-            @if (c.whatsapp.invalid) { <p class="msg-error" role="alert">Solo números, con el código de país (por ejemplo 5493510000000).</p> }
+            <input id="whatsapp" type="tel" formControlName="whatsapp" autocomplete="off" inputmode="tel" [attr.aria-invalid]="c.whatsapp.invalid" />
+            @if (c.whatsapp.invalid) { <p class="msg-error" role="alert">{{ mensajeTelefono }}</p> }
           </div>
         </div>
+        <p class="ayuda-c">{{ ayudaTelefono }}</p>
       </fieldset>
 
       <fieldset class="bloque">
@@ -143,6 +150,25 @@
         </div>
         <p class="ayuda-c" id="ayuda-logo">Cuadrado, PNG o JPG, hasta 512 KB</p>
         @if (errorLogo(); as mensaje) {
+          <p class="msg-error caja-error" role="alert">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+            {{ mensaje }}
+          </p>
+        }
+      </fieldset>
+
+      <fieldset class="bloque">
+        <legend>Límite de la comuna <small>(opcional)</small></legend>
+        <input #limite id="limite" class="oculto" type="file" accept=".geojson,.json,application/geo+json,application/json" tabindex="-1" aria-describedby="ayuda-limite" (change)="elegirLimite($event)" />
+        <div class="logo-acciones">
+          <button type="button" class="btn sec" [disabled]="enviando()" (click)="limite.click()">{{ limiteArchivo() ? 'Cambiar límite' : 'Elegir límite (GeoJSON)' }}</button>
+          @if (limiteArchivo(); as elegido) {
+            <button type="button" class="btn sec" [disabled]="enviando()" (click)="quitarLimite()">Quitar límite</button>
+            <p class="logo-nombre">Archivo elegido: <b>{{ elegido.nombre }}</b></p>
+          }
+        </div>
+        <p class="ayuda-c" id="ayuda-limite">Archivo GeoJSON de hasta 1 MB. Sin límite, los vecinos pueden reportar desde cualquier lugar.</p>
+        @if (errorLimite(); as mensaje) {
           <p class="msg-error caja-error" role="alert">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
             {{ mensaje }}

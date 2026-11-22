@@ -104,7 +104,9 @@ public class AdminComunaController {
 		return comunaService.listar();
 	}
 
-	@Operation(summary = "Cambiar una comuna", description = "Cambio parcial de nombre, color, departamento y activa. El enlace no se puede cambiar. Desactivarla impide el ingreso de sus usuarios y su consulta pública.")
+	@Operation(summary = "Cambiar una comuna", description = "Cambio parcial de nombre, color, departamento, teléfono, WhatsApp y activa. El enlace y la provincia no se pueden cambiar. Desactivarla impide el ingreso de sus usuarios y su consulta pública. Cualquier cambio actualiza actualizadaEn (también subir el logo o el límite).")
+	@ApiResponse(responseCode = "200", description = "Comuna actualizada")
+	@ApiResponse(responseCode = "400", description = "Datos inválidos (VALIDACION, con el motivo de cada campo en errores), por ejemplo un teléfono con letras o un nombre vacío")
 	@ApiResponse(responseCode = "404", description = "La comuna no existe")
 	@PatchMapping("/{id}")
 	public ComunaAdminDto actualizar(@PathVariable Long id, @Valid @RequestBody ActualizarComunaRequest pedido) {

@@ -33,6 +33,20 @@ export interface ComunaAdminDto extends ComunaDto {
   // Sin límite, los vecinos pueden reportar desde cualquier lugar.
   tieneLimite?: boolean;
   limiteCargadoEn?: string | null;
+  creadaEn?: string | null;
+  // Última modificación: datos, logo, límite o estado.
+  actualizadaEn?: string | null;
+}
+
+// Cambios parciales de una comuna (PATCH): solo viajan los campos que cambiaron.
+// Un teléfono, WhatsApp o departamento vacío ('') lo borra.
+export interface ActualizarComunaRequest {
+  nombre?: string;
+  departamento?: string;
+  color?: string;
+  telefono?: string;
+  whatsapp?: string;
+  activa?: boolean;
 }
 
 export interface NuevaComunaRequest {

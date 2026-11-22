@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { AvisoPanelService } from '../admin/aviso-panel.service';
 import { AuthRespuesta } from './modelos';
 import { AuthService } from './auth.service';
 
@@ -24,6 +25,17 @@ describe('AuthService', () => {
     expect(otro.usuario()).toEqual(respuesta.usuario);
     expect(otro.estaAutenticado()).toBe(true);
     expect(localStorage.getItem('micomuna.token')).toBe('token-de-prueba');
+  });
+
+  it('cerrarSesionBorraElAvisoPendienteDelPanel', () => {
+    const servicio = crearServicio();
+    const avisos = TestBed.inject(AvisoPanelService);
+    servicio.guardarSesion(respuesta);
+    avisos.mostrar('Guardamos los cambios de Salsipuedes');
+
+    servicio.cerrarSesion();
+
+    expect(avisos.consumir()).toBeNull();
   });
 
   it('cerrarSesionBorraElToken', () => {
