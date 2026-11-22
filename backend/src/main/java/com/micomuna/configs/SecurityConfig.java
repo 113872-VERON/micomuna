@@ -58,6 +58,9 @@ public class SecurityConfig {
 						// Igual con la gestión de usuarios de una comuna: además, así un rol sin permiso recibe 403
 						// antes de que se valide el cuerpo (si no, un cuerpo inválido respondería 400).
 						.requestMatchers("/api/usuarios", "/api/usuarios/**").hasRole("ADMIN_COMUNA")
+						// Reportar un problema es solo del vecino. Solo el alta: las otras rutas de reclamos (listados, detalle)
+						// llegan con otras historias y otros roles, cada una con su @PreAuthorize.
+						.requestMatchers(HttpMethod.POST, "/api/reclamos").hasRole("VECINO")
 						.anyRequest().authenticated();
 				})
 				.addFilterBefore(new JwtAuthFilter(jwt, usuarios), UsernamePasswordAuthenticationFilter.class);

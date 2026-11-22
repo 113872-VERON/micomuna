@@ -185,6 +185,9 @@ class LogoComunaTests {
 		byte[] entera = ImagenesDePrueba.png(200, 200);
 
 		esperarLogoInvalido(Arrays.copyOf(entera, entera.length / 2));
+		// Un JPEG cortado no hace fallar al lector de imágenes (rellena con gris lo que falta): igual se rechaza.
+		byte[] jpeg = ImagenesDePrueba.jpeg(200, 200);
+		esperarLogoInvalido(Arrays.copyOf(jpeg, jpeg.length / 2));
 	}
 
 	@Test
