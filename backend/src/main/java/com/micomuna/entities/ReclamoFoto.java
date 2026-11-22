@@ -3,7 +3,11 @@ package com.micomuna.entities;
 import java.time.Instant;
 
 import jakarta.persistence.Column;
+import com.micomuna.enums.OrigenFoto;
+
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,6 +42,11 @@ public class ReclamoFoto {
 	@Column(nullable = false, updatable = false)
 	private int orden;
 
+	// VECINO (al reportar) o TRABAJO (las del agente al resolver). El orden 1 a 3 no se repite dentro de cada origen.
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false, updatable = false)
+	private OrigenFoto origen;
+
 	@Lob
 	@Column(nullable = false, updatable = false)
 	private byte[] imagen;
@@ -48,8 +57,9 @@ public class ReclamoFoto {
 	@Column(name = "creada_en", nullable = false, updatable = false)
 	private Instant creadaEn;
 
-	public ReclamoFoto(Reclamo reclamo, int orden, byte[] imagen, String imagenTipo) {
+	public ReclamoFoto(Reclamo reclamo, OrigenFoto origen, int orden, byte[] imagen, String imagenTipo) {
 		this.reclamo = reclamo;
+		this.origen = origen;
 		this.orden = orden;
 		this.imagen = imagen;
 		this.imagenTipo = imagenTipo;

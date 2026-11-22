@@ -63,6 +63,12 @@ public class ReclamoEstado {
 		this.usuario = usuario;
 	}
 
+	public ReclamoEstado(Reclamo reclamo, EstadoReclamo estadoAnterior, EstadoReclamo estado, Usuario usuario,
+			String observacion) {
+		this(reclamo, estadoAnterior, estado, usuario);
+		this.observacion = observacion;
+	}
+
 	@PrePersist
 	void alCrear() {
 		if (cambiadoEn == null) {

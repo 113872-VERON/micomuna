@@ -152,6 +152,25 @@ class EndpointsDeclaranSuAccesoTests {
 		assertThat(exigeUnRol("true")).isFalse();
 	}
 
+
+	// MC-17: seguir mis reclamos es solo del vecino. Si alguien cambia el rol de uno de estos endpoints (o lo borra),
+	// la prueba falla con el nombre del endpoint.
+	private static final Set<String> SOLO_DEL_VECINO = Set.of(
+			"GET /api/reclamos/mios",
+			"GET /api/reclamos/mios/{numero}",
+			"GET /api/reclamos/mios/{numero}/fotos/{idFoto}");
+
+	@Test
+	void losEndpointsDeMisReclamosSonSoloDelVecino() {
+		Map<String, HandlerMethod> endpoints = endpointsDeLaAplicacion();
+		for (String clave : SOLO_DEL_VECINO) {
+			assertThat(endpoints).as(clave).containsKey(clave);
+			PreAuthorize regla = preAuthorizeVigente(endpoints.get(clave));
+			assertThat(regla).as("@PreAuthorize de " + clave).isNotNull();
+			assertThat(regla.value()).as(clave).isEqualTo("hasRole('VECINO')");
+		}
+	}
+
 	@Test
 	void losControladoresDePruebaSeReconocenPorSuUbicacion() {
 		// Si la detección dejara de andar, los controladores de prueba aparecerían en la revisión (y la harían fallar);

@@ -22,17 +22,16 @@ import com.micomuna.dtos.ReclamoCreadoDto;
 import com.micomuna.dtos.TipoReclamoDto;
 import com.micomuna.entities.Comuna;
 import com.micomuna.entities.Reclamo;
-import com.micomuna.entities.ReclamoEstado;
 import com.micomuna.entities.ReclamoFoto;
 import com.micomuna.entities.TipoReclamo;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.EstadoReclamo;
+import com.micomuna.enums.OrigenFoto;
 import com.micomuna.exceptions.ConflictoException;
 import com.micomuna.exceptions.LimiteSuperadoException;
 import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
 import com.micomuna.repositories.ComunaRepository;
-import com.micomuna.repositories.ReclamoEstadoRepository;
 import com.micomuna.repositories.ReclamoFotoRepository;
 import com.micomuna.repositories.ReclamoRepository;
 import com.micomuna.repositories.TipoReclamoRepository;
@@ -71,7 +70,7 @@ public class ReclamoService {
 	private final TipoReclamoRepository tipos;
 	private final ReclamoRepository reclamos;
 	private final ReclamoFotoRepository fotos;
-	private final ReclamoEstadoRepository historial;
+	private final CambioDeEstadoService cambiosDeEstado;
 	private final ComunaRepository comunas;
 	private final UsuarioRepository usuarios;
 	private final ComunaActual comunaActual;
@@ -81,13 +80,13 @@ public class ReclamoService {
 	private final TransactionTemplate transaccion;
 
 	public ReclamoService(TipoReclamoRepository tipos, ReclamoRepository reclamos, ReclamoFotoRepository fotos,
-			ReclamoEstadoRepository historial, ComunaRepository comunas, UsuarioRepository usuarios,
+			CambioDeEstadoService cambiosDeEstado, ComunaRepository comunas, UsuarioRepository usuarios,
 			ComunaActual comunaActual, LimiteDeComuna limiteDeComuna, TurnosDeFotos turnos,
 			PlatformTransactionManager transacciones) {
 		this.tipos = tipos;
 		this.reclamos = reclamos;
 		this.fotos = fotos;
-		this.historial = historial;
+		this.cambiosDeEstado = cambiosDeEstado;
 		this.comunas = comunas;
 		this.usuarios = usuarios;
 		this.comunaActual = comunaActual;
@@ -174,10 +173,10 @@ public class ReclamoService {
 		reclamo.setLongitud(redondear(form.longitud()));
 		reclamos.save(reclamo);
 
-		historial.save(new ReclamoEstado(reclamo, null, EstadoReclamo.RECIBIDO, autor));
+		cambiosDeEstado.registrarAlta(reclamo, autor);
 		for (int i = 0; i < limpias.size(); i++) {
 			ImagenUtil.Imagen foto = limpias.get(i);
-			fotos.save(new ReclamoFoto(reclamo, i + 1, foto.bytes(), foto.tipo()));
+			fotos.save(new ReclamoFoto(reclamo, OrigenFoto.VECINO, i + 1, foto.bytes(), foto.tipo()));
 		}
 		reclamos.flush();
 		return ReclamoCreadoDto.desde(reclamo, limpias.size());

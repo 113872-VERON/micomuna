@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -97,6 +98,30 @@ public class ApiExceptionHandler {
 			errores.putIfAbsent(error.getField(),
 					error.isBindingFailure() ? "El valor no es válido" : error.getDefaultMessage());
 		}
+		ProblemDetail problema = problema(HttpStatus.BAD_REQUEST, "Datos inválidos", "VALIDACION",
+				"Revisá los datos ingresados");
+		problema.setProperty("errores", errores);
+		return problema;
+	}
+
+	// Un cambio de estado que las reglas no permiten (CambioDeEstadoService). 409: el pedido está bien armado, pero
+	// choca con el estado actual del reclamo.
+	@ExceptionHandler(TransicionInvalidaException.class)
+	ProblemDetail transicionInvalida() {
+		return problema(HttpStatus.CONFLICT, "Conflicto", "TRANSICION_INVALIDA",
+				"El reclamo no puede pasar a ese estado desde el que tiene ahora.");
+	}
+
+	// Parámetros sueltos fuera de rango (por ejemplo, ?tamanio=0 en "mis reclamos"): 400 con el motivo de cada uno,
+	// en el mismo formato que los errores de un cuerpo inválido. Sin esto caería en el 500 de errores inesperados.
+	@ExceptionHandler(HandlerMethodValidationException.class)
+	ProblemDetail parametrosInvalidos(HandlerMethodValidationException e) {
+		Map<String, String> errores = new LinkedHashMap<>();
+		e.getParameterValidationResults().forEach(resultado -> {
+			String nombre = resultado.getMethodParameter().getParameterName();
+			resultado.getResolvableErrors().forEach(
+					error -> errores.putIfAbsent(nombre == null ? "parametro" : nombre, error.getDefaultMessage()));
+		});
 		ProblemDetail problema = problema(HttpStatus.BAD_REQUEST, "Datos inválidos", "VALIDACION",
 				"Revisá los datos ingresados");
 		problema.setProperty("errores", errores);

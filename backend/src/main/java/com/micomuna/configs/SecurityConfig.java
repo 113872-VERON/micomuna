@@ -61,6 +61,8 @@ public class SecurityConfig {
 						// Reportar un problema es solo del vecino. Solo el alta: las otras rutas de reclamos (listados, detalle)
 						// llegan con otras historias y otros roles, cada una con su @PreAuthorize.
 						.requestMatchers(HttpMethod.POST, "/api/reclamos").hasRole("VECINO")
+						// Seguir mis reclamos (MC-17, lista, detalle y fotos) tambien es solo del vecino.
+						.requestMatchers(HttpMethod.GET, "/api/reclamos/mios", "/api/reclamos/mios/**").hasRole("VECINO")
 						// Direccion de un punto: vecinos y personal de una comuna, no el superadmin. Por URL, para que el
 						// superadmin reciba 403 antes de que se validen los parametros.
 						.requestMatchers("/api/ubicacion/**").hasAnyRole("VECINO", "AGENTE", "ADMINISTRATIVO", "ADMIN_COMUNA")

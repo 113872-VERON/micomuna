@@ -727,6 +727,167 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/reclamos/mios:
+    get:
+      tags:
+      - Reclamos
+      summary: Mis reclamos
+      description: "Solo el vecino. Los reclamos que creó el vecino del token, en la\
+        \ comuna del token, del más reciente al más viejo (por fecha de creación).\
+        \ Nunca trae reclamos de otro vecino ni de otra comuna. Paginado."
+      operationId: listarMisReclamos
+      parameters:
+      - name: pagina
+        in: query
+        required: false
+        description: Número de página, empieza en 0.
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          default: 0
+      - name: tamanio
+        in: query
+        required: false
+        description: Reclamos por página.
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 50
+          default: 20
+      responses:
+        "200":
+          description: OK (lista vacía si el vecino todavía no reportó nada)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaMisReclamosDto"
+        "400":
+          description: Página o tamaño fuera de rango (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/reclamos/mios/{numero}:
+    get:
+      tags:
+      - Reclamos
+      summary: Detalle de uno de mis reclamos
+      description: "Solo el vecino. Se busca por el número de seguimiento dentro de\
+        \ la comuna del token, y solo si el reclamo es del vecino del token. Si es\
+        \ de otro vecino, de otra comuna o no existe, responde 404 igual. Trae las\
+        \ fotos (solo sus datos; la imagen se pide aparte), el historial de estados\
+        \ (estado y fecha, sin quién lo cambió ni notas internas), y lo que corresponde\
+        \ al estado: el motivo del descarte y, si es un duplicado, el número del\
+        \ reclamo original; o lo que se hizo, si está resuelto."
+      operationId: detalleDeMiReclamo
+      parameters:
+      - name: numero
+        in: path
+        required: true
+        description: Número de seguimiento del reclamo en la comuna
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MiReclamoDetalleDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "El reclamo no existe, no es tuyo o es de otra comuna (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/reclamos/mios/{numero}/fotos/{idFoto}:
+    get:
+      tags:
+      - Reclamos
+      summary: Una foto de uno de mis reclamos
+      description: "Solo el vecino dueño del reclamo. La foto tiene que pertenecer\
+        \ a ese reclamo; si no, o si el reclamo no es suyo, 404. El tipo de la respuesta\
+        \ es el que guardó el servidor al limpiar la foto (image/jpeg o image/png),\
+        \ nunca el que mandó el cliente, y va con X-Content-Type-Options nosniff."
+      operationId: fotoDeMiReclamo
+      parameters:
+      - name: numero
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+      - name: idFoto
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: La imagen en binario
+          headers:
+            Cache-Control:
+              description: "no-store: el navegador no la guarda, para que en un equipo\
+                \ compartido otra persona no la vea desde la caché. La pantalla la\
+                \ conserva en memoria mientras está abierta."
+              schema:
+                type: string
+            X-Content-Type-Options:
+              description: nosniff
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "La foto o el reclamo no existen, o no son tuyos (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/admin/comunas/{id}/limite:
     put:
       tags:
@@ -931,8 +1092,9 @@ paths:
       tags:
       - Comunas
       summary: Datos públicos de una comuna
-      description: Sirve para armar la cabecera de las pantallas de ingreso. No requiere
-        sesión.
+      description: "Sirve para armar la cabecera de las pantallas de ingreso y la\
+        \ ayuda de contacto (llamar o escribir por WhatsApp) del inicio del vecino.\
+        \ No requiere sesión."
       operationId: buscar
       parameters:
       - name: slug
@@ -941,6 +1103,12 @@ paths:
         schema:
           type: string
       responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComunaDto"
         "404":
           description: La comuna no existe o está inactiva
           content:
@@ -1046,6 +1214,170 @@ components:
         creadoEn:
           type: string
           format: date-time
+    EstadoReclamo:
+      type: string
+      description: "Recibido, asignado, en reparación, resuelto o descartado."
+      enum:
+      - RECIBIDO
+      - ASIGNADO
+      - EN_REPARACION
+      - RESUELTO
+      - DESCARTADO
+    PaginaMisReclamosDto:
+      type: object
+      properties:
+        reclamos:
+          type: array
+          items:
+            $ref: "#/components/schemas/MiReclamoResumenDto"
+        pagina:
+          type: integer
+          format: int32
+        tamanio:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+          description: Cantidad total de reclamos del vecino en la comuna
+    MiReclamoResumenDto:
+      type: object
+      description: Un reclamo del vecino, para la lista de su pantalla de inicio.
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+          description: Código del tipo de problema
+        tipoNombre:
+          type: string
+          description: "Nombre para mostrar, por ejemplo \"Bache o calle rota\""
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        descripcion:
+          type: string
+        direccion:
+          type:
+          - string
+          - "null"
+        creadoEn:
+          type: string
+          format: date-time
+        estadoCambiadoEn:
+          type: string
+          format: date-time
+          description: Fecha del último cambio de estado (al crearlo, la misma que creadoEn)
+        idFotoPrincipal:
+          type:
+          - integer
+          - "null"
+          format: int64
+          description: "La primera foto que subió el vecino, para la miniatura; vacío si no subió ninguna"
+    MiReclamoDetalleDto:
+      type: object
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        descripcion:
+          type: string
+        referencia:
+          type:
+          - string
+          - "null"
+        direccion:
+          type:
+          - string
+          - "null"
+        latitud:
+          type: number
+          format: double
+        longitud:
+          type: number
+          format: double
+        creadoEn:
+          type: string
+          format: date-time
+        fotos:
+          type: array
+          description: "Primero las del vecino y después las del trabajo, cada grupo\
+            \ en su orden. Las del trabajo vienen solo si el estado es RESUELTO"
+          items:
+            $ref: "#/components/schemas/FotoReclamoDto"
+        historial:
+          type: array
+          description: "Los cambios de estado, del más viejo al más nuevo. El primero es siempre RECIBIDO, con la fecha de creación"
+          items:
+            $ref: "#/components/schemas/CambioDeEstadoDto"
+        descarte:
+          oneOf:
+          - $ref: "#/components/schemas/DescarteDto"
+          - type: "null"
+          description: Solo si el estado es DESCARTADO
+        trabajoRealizado:
+          type:
+          - string
+          - "null"
+          description: "Lo que escribió el agente al resolverlo. Solo si el estado es RESUELTO"
+    FotoReclamoDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: "Para pedir la imagen a /api/reclamos/mios/{numero}/fotos/{id}"
+        origen:
+          type: string
+          enum:
+          - VECINO
+          - TRABAJO
+          description: "VECINO: las que subió al reportar. TRABAJO: las que sacó el agente al resolverlo"
+        orden:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 3
+    CambioDeEstadoDto:
+      type: object
+      properties:
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        fecha:
+          type: string
+          format: date-time
+    DescarteDto:
+      type: object
+      properties:
+        motivo:
+          type: string
+          enum:
+          - DUPLICADO
+          - NO_ES_DE_LA_COMUNA
+          - NO_SE_PUEDE_ATENDER
+          - OTRO
+        observacion:
+          type:
+          - string
+          - "null"
+          description: Lo que escribió la comuna al descartarlo
+        numeroOriginal:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: "Solo con motivo DUPLICADO: el número del reclamo que sigue la comuna"
+        estadoOriginal:
+          oneOf:
+          - $ref: "#/components/schemas/EstadoReclamo"
+          - type: "null"
+          description: "Solo con motivo DUPLICADO: el estado actual del reclamo original. No trae ningún otro dato de ese reclamo ni de quién lo hizo"
     UsuarioComunaDto:
       type: object
       description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.
@@ -1415,6 +1747,16 @@ components:
           type: boolean
         color:
           type: string
+        telefono:
+          type:
+          - string
+          - "null"
+          description: "Teléfono de contacto de la comuna, solo dígitos con código 54 (por ejemplo 543543123456). Vacío si no lo cargó"
+        whatsapp:
+          type:
+          - string
+          - "null"
+          description: "WhatsApp de la comuna, solo dígitos con código 54, listo para armar el enlace wa.me. Vacío si no lo cargó"
   securitySchemes:
     bearerAuth:
       type: http
