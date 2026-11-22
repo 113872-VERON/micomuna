@@ -41,3 +41,63 @@ export const MAX_FOTOS = 3;
 export const MAX_DESCRIPCION = 500;
 export const MAX_REFERENCIA = 200;
 export const MAX_DIRECCION = 300;
+
+// ---- Mis reclamos (MC-17), según MiReclamoResumenDto, MiReclamoDetalleDto y compañía ----
+
+export type EstadoReclamo = 'RECIBIDO' | 'ASIGNADO' | 'EN_REPARACION' | 'RESUELTO' | 'DESCARTADO';
+
+export type MotivoDescarte = 'DUPLICADO' | 'NO_ES_DE_LA_COMUNA' | 'NO_SE_PUEDE_ATENDER' | 'OTRO';
+
+export interface MiReclamoResumenDto {
+  numero: number;
+  tipo: string;
+  tipoNombre: string;
+  estado: EstadoReclamo;
+  descripcion: string;
+  direccion: string | null;
+  creadoEn: string;
+  estadoCambiadoEn: string;
+  idFotoPrincipal: number | null;
+}
+
+export interface PaginaMisReclamosDto {
+  reclamos: MiReclamoResumenDto[];
+  pagina: number;
+  tamanio: number;
+  total: number;
+}
+
+export interface FotoReclamoDto {
+  id: number;
+  origen: 'VECINO' | 'TRABAJO';
+  orden: number;
+}
+
+export interface CambioDeEstadoDto {
+  estado: EstadoReclamo;
+  fecha: string;
+}
+
+export interface DescarteDto {
+  motivo: MotivoDescarte;
+  observacion: string | null;
+  numeroOriginal: number | null;
+  estadoOriginal: EstadoReclamo | null;
+}
+
+export interface MiReclamoDetalleDto {
+  numero: number;
+  tipo: string;
+  tipoNombre: string;
+  estado: EstadoReclamo;
+  descripcion: string;
+  referencia: string | null;
+  direccion: string | null;
+  latitud: number;
+  longitud: number;
+  creadoEn: string;
+  fotos: FotoReclamoDto[];
+  historial: CambioDeEstadoDto[];
+  descarte: DescarteDto | null;
+  trabajoRealizado: string | null;
+}

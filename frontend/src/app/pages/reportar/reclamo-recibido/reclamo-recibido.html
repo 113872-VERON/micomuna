@@ -18,5 +18,8 @@
 <p class="proximos">La comuna lo va a revisar y a asignar.</p>
 
 <div class="espacio"></div>
-<a class="btn pri" routerLink="/inicio">Volver al inicio</a>
+@if (b.creado(); as reclamo) {
+  <a class="btn pri" [routerLink]="['/', slug, 'reclamos', reclamo.numero]">Ver mi reclamo</a>
+}
+<a class="btn sec" routerLink="/inicio">Volver al inicio</a>
 <button type="button" class="link otro" (click)="b.reiniciar()">Reportar otro problema</button>

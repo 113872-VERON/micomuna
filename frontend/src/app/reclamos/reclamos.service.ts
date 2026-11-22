@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { MAX_DIRECCION, NuevoReclamo, ReclamoCreadoDto, TipoReclamoDto } from './modelos';
+import { MAX_DIRECCION, MiReclamoDetalleDto, NuevoReclamo, PaginaMisReclamosDto, ReclamoCreadoDto, TipoReclamoDto } from './modelos';
 
 // Arma el formulario multipart con los campos planos del contrato y las fotos en "fotos".
 // La comuna no se manda: el backend la toma del token.
@@ -43,5 +43,19 @@ export class ReclamosService {
   // Sin Content-Type a mano: el navegador lo pone con el separador del multipart.
   crear(reclamo: NuevoReclamo): Observable<ReclamoCreadoDto> {
     return this.http.post<ReclamoCreadoDto>('/api/reclamos', aFormData(reclamo));
+  }
+
+  // Los reclamos del vecino del token, del más nuevo al más viejo.
+  misReclamos(pagina = 0, tamanio = 10): Observable<PaginaMisReclamosDto> {
+    return this.http.get<PaginaMisReclamosDto>('/api/reclamos/mios', { params: { pagina, tamanio } });
+  }
+
+  detalleDeMiReclamo(numero: number): Observable<MiReclamoDetalleDto> {
+    return this.http.get<MiReclamoDetalleDto>(`/api/reclamos/mios/${numero}`);
+  }
+
+  // La imagen pide el token: no puede ir en un <img src>. Se baja como blob y la pantalla arma la URL.
+  fotoDeMiReclamo(numero: number, idFoto: number): Observable<Blob> {
+    return this.http.get(`/api/reclamos/mios/${numero}/fotos/${idFoto}`, { responseType: 'blob' });
   }
 }

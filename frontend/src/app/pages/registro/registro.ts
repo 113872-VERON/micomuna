@@ -66,7 +66,7 @@ export class Registro {
     this.acceso.registrar(this.slug(), nombre.trim(), limpiarCorreo(correo), clave).subscribe({
       next: (respuesta) => {
         this.auth.guardarSesion(respuesta);
-        void this.router.navigateByUrl('/inicio');
+        void this.router.navigateByUrl(`/${encodeURIComponent(respuesta.usuario.comunaSlug ?? this.slug())}/inicio`);
       },
       error: (e: unknown) => {
         this.enviando.set(false);

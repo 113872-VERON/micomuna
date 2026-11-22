@@ -68,7 +68,7 @@ describe('Login', () => {
     expect(el(f).textContent).toContain('ejemplo@correo.com');
   });
 
-  it('loginCorrectoGuardaLaSesionYVaAInicio', () => {
+  it('loginCorrectoGuardaLaSesionYElVecinoVaASuInicio', () => {
     const f = crear();
     escribir(f, 'correo', '  Rosa@Correo.com ');
     escribir(f, 'clave', 'miclave123');
@@ -82,7 +82,7 @@ describe('Login', () => {
     });
 
     expect(TestBed.inject(AuthService).token()).toBe('tk');
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/inicio');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/inicio');
   });
 
   it('elAdministradorDeLaComunaVaASuPanelDeUsuarios', () => {

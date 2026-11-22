@@ -91,7 +91,7 @@ describe('Registro', () => {
     );
 
     expect(TestBed.inject(AuthService).token()).toBe('tk');
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/inicio');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/inicio');
   });
 
   it('registroMuestraElErrorDeCorreoRepetido', () => {
