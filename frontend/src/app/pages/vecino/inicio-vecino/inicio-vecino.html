@@ -1,0 +1,92 @@
+<h1>Hola, {{ auth.usuario()?.nombre }}</h1>
+
+@switch (carga()) {
+  @case ('cargando') {
+    <p class="aviso-carga" role="status">Cargando tus reclamos…</p>
+  }
+  @case ('error') {
+    <div class="caja-error" role="alert">
+      <p>No pudimos cargar tus reclamos. Revisá tu conexión e intentá de nuevo.</p>
+      <button type="button" class="btn sec" (click)="cargar()">Reintentar</button>
+    </div>
+  }
+  @case ('lista') {
+    @if (ultimo(); as u) {
+      <section class="ultimo" aria-labelledby="titulo-ultimo">
+        <h2 id="titulo-ultimo">Tu último reclamo</h2>
+        <div class="cabeza">
+          @if (u.idFotoPrincipal !== null) {
+            <app-foto-reclamo class="miniatura" [numero]="u.numero" [idFoto]="u.idFotoPrincipal" alt="Foto del reclamo n.º {{ u.numero }}" />
+          }
+          <div class="datos">
+            <p class="numero">Reclamo n.º {{ u.numero }}</p>
+            <p class="tipo"><app-icono-tipo [codigo]="u.tipo" [tamano]="22" /> {{ u.tipoNombre }}</p>
+            @if (u.direccion) {
+              <p class="direccion">{{ u.direccion }}</p>
+            }
+            <p class="fecha">Enviado el {{ u.creadoEn | date: 'dd/MM/yyyy HH:mm' }}</p>
+          </div>
+        </div>
+        <app-estado-reclamo
+          [estado]="detalle()?.estado ?? u.estado"
+          [historial]="detalle()?.historial ?? []"
+          [descarte]="detalle()?.descarte ?? null"
+          [trabajoRealizado]="detalle()?.trabajoRealizado ?? null"
+          [telefono]="telefono()"
+          [whatsapp]="whatsapp()"
+        />
+        <a class="btn sec" [routerLink]="['/', slug(), 'reclamos', u.numero]">Ver el detalle</a>
+      </section>
+    } @else {
+      <section class="vacio" aria-labelledby="titulo-vacio">
+        <h2 id="titulo-vacio">Todavía no reportaste nada</h2>
+        <p>Si ves un problema en tu barrio, contanos. Te llevamos el seguimiento hasta que se resuelva.</p>
+      </section>
+    }
+
+    <a class="btn pri reportar" [routerLink]="['/', slug(), 'reportar']">Reportar un problema</a>
+
+    @if (otros().length > 0) {
+      <section aria-labelledby="titulo-otros">
+        <h2 id="titulo-otros">Tus otros reclamos</h2>
+        <ul class="lista">
+          @for (r of otros(); track r.numero) {
+            <li>
+              <a class="tarjeta" [routerLink]="['/', slug(), 'reclamos', r.numero]">
+                <span class="fila">
+                  <b class="n">Reclamo n.º {{ r.numero }}</b>
+                  <app-chip-estado [estado]="r.estado" />
+                </span>
+                <span class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="20" /> {{ r.tipoNombre }}</span>
+                <span class="fecha">{{ r.creadoEn | date: 'dd/MM/yyyy HH:mm' }}</span>
+              </a>
+            </li>
+          }
+        </ul>
+        @if (hayMas()) {
+          <button type="button" class="btn sec mas" [disabled]="cargandoMas()" (click)="verMas()">
+            {{ cargandoMas() ? 'Cargando…' : 'Ver más' }}
+          </button>
+        }
+        @if (errorMas()) {
+          <p class="error-mas" role="alert">No pudimos traer más reclamos. Probá de nuevo.</p>
+        }
+      </section>
+    }
+
+    @if (telefono() || whatsapp()) {
+      <section class="contacto" aria-labelledby="titulo-contacto">
+        <h2 id="titulo-contacto">¿Necesitás ayuda?</h2>
+        <p>Comunicate con la comuna de {{ comuna().nombre }}.</p>
+        <div class="botones">
+          @if (telefono(); as numero) {
+            <a class="btn sec" [href]="'tel:+' + numero">Llamar</a>
+          }
+          @if (whatsapp(); as numero) {
+            <a class="btn sec" [href]="'https://wa.me/' + numero" target="_blank" rel="noopener noreferrer">WhatsApp<span class="oculto"> (se abre en una pestaña nueva)</span></a>
+          }
+        </div>
+      </section>
+    }
+  }
+}

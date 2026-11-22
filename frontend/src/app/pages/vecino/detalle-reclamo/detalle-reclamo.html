@@ -1,0 +1,93 @@
+<a class="volver" [routerLink]="['/', slug(), 'inicio']">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  Volver al inicio
+</a>
+
+@switch (carga()) {
+  @case ('cargando') {
+    <p class="aviso-carga" role="status">Cargando el reclamo…</p>
+  }
+  @case ('noEncontrado') {
+    <section class="vacio">
+      <h1>No encontramos ese reclamo</h1>
+      <p>Puede que el número esté mal escrito o que no sea uno de tus reclamos.</p>
+      <a class="btn pri" [routerLink]="['/', slug(), 'inicio']">Volver al inicio</a>
+    </section>
+  }
+  @case ('error') {
+    <div class="caja-error" role="alert">
+      <p>No pudimos cargar el reclamo. Revisá tu conexión e intentá de nuevo.</p>
+      <button type="button" class="btn sec" (click)="reintentar()">Reintentar</button>
+    </div>
+  }
+  @case ('lista') {
+    @if (reclamo(); as r) {
+      <header class="titulo">
+        <h1>Reclamo n.º {{ r.numero }}</h1>
+        <app-chip-estado [estado]="r.estado" />
+      </header>
+
+      <section class="bloque" aria-labelledby="t-estado">
+        <h2 id="t-estado">Cómo va</h2>
+        <app-estado-reclamo [estado]="r.estado" [historial]="r.historial" [descarte]="r.descarte" [trabajoRealizado]="r.trabajoRealizado" [telefono]="telefono()" [whatsapp]="whatsapp()" />
+      </section>
+
+      <section class="bloque" aria-labelledby="t-datos">
+        <h2 id="t-datos">Qué reportaste</h2>
+        <p class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="24" /> {{ r.tipoNombre }}</p>
+        <p class="texto">{{ r.descripcion }}</p>
+        @if (r.referencia) {
+          <p class="dato"><span class="rotulo">Referencia</span>{{ r.referencia }}</p>
+        }
+        @if (r.direccion) {
+          <p class="dato"><span class="rotulo">Dirección</span>{{ r.direccion }}</p>
+        }
+        <p class="dato"><span class="rotulo">Enviado el</span>{{ r.creadoEn | date: 'dd/MM/yyyy HH:mm' }}</p>
+        @if (vistaMapa(); as vista) {
+          <div class="mapa">
+            <app-mapa-ubicacion [vista]="vista" [interactivo]="false" altura="190px" etiqueta="Mapa con el lugar del reclamo" (falla)="sinMapa.set(true)" />
+          </div>
+        }
+      </section>
+
+      @if (fotosDelVecino().length > 0) {
+        <section class="bloque" aria-labelledby="t-fotos">
+          <h2 id="t-fotos">Tus fotos</h2>
+          <ul class="fotos">
+            @for (f of fotosDelVecino(); track f.id) {
+              <li><app-foto-reclamo class="foto" [numero]="r.numero" [idFoto]="f.id" alt="Foto {{ f.orden }} que enviaste" /></li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (fotosDelTrabajo().length > 0) {
+        <section class="bloque" aria-labelledby="t-trabajo">
+          <h2 id="t-trabajo">Fotos del trabajo</h2>
+          <ul class="fotos">
+            @for (f of fotosDelTrabajo(); track f.id) {
+              <li><app-foto-reclamo class="foto" [numero]="r.numero" [idFoto]="f.id" alt="Foto {{ f.orden }} del trabajo" /></li>
+            }
+          </ul>
+        </section>
+      }
+
+      <section class="bloque" aria-labelledby="t-historial">
+        <h2 id="t-historial">Historial</h2>
+        <ol class="historial">
+          @for (c of historial(); track $index) {
+            <li>
+              <b>{{ c.nombre }}</b>
+              @if (c.volvio) {
+                <span class="volvio">La comuna lo volvió a este estado</span>
+              }
+              <small>{{ c.fecha | date: 'dd/MM/yyyy HH:mm' }}</small>
+            </li>
+          }
+        </ol>
+      </section>
+
+      <a class="btn sec" [routerLink]="['/', slug(), 'inicio']">Volver al inicio</a>
+    }
+  }
+}

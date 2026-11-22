@@ -1,5 +1,5 @@
 import { Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BorradorReclamo } from '../borrador-reclamo';
 
 // "Hoy, 3 de noviembre" o "el 2 de noviembre" (el año solo si no es el actual, como pide la guía).
@@ -22,5 +22,7 @@ export function cuandoSeEnvio(creadoEn: string | undefined, ahora = new Date()):
 })
 export class ReclamoRecibido {
   protected readonly b = inject(BorradorReclamo);
+  // La comuna sale de la dirección (/<slug>/reportar/listo): es la misma de la sesión.
+  protected readonly slug = inject(ActivatedRoute).snapshot.paramMap.get('slug') ?? '';
   protected readonly cuando = computed(() => cuandoSeEnvio(this.b.creado()?.creadoEn));
 }

@@ -60,10 +60,13 @@ export class Login {
     });
   }
 
-  // El administrador de la comuna va a su panel; el resto, por ahora, al inicio.
+  // El administrador de la comuna va a su panel, el vecino a su inicio; el resto, por ahora, a la pantalla provisoria.
   private destinoDespuesDeEntrar(usuario: UsuarioDto): string {
     if (usuario.rol === 'ADMIN_COMUNA') {
       return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/panel/usuarios`;
+    }
+    if (usuario.rol === 'VECINO') {
+      return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/inicio`;
     }
     return '/inicio';
   }

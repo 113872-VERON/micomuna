@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 import com.micomuna.enums.EstadoReclamo;
+import com.micomuna.enums.MotivoDescarte;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -71,6 +72,24 @@ public class Reclamo {
 
 	// Dirección aproximada que calcula el navegador a partir del punto. Solo informativa.
 	private String direccion;
+
+	// Datos de un reclamo DESCARTADO (V9). La base garantiza que el motivo existe solo con ese estado, que el original
+	// es de la misma comuna, distinto del propio, y que solo se informa con motivo DUPLICADO.
+	@Enumerated(EnumType.STRING)
+	@Column(name = "motivo_descarte")
+	private MotivoDescarte motivoDescarte;
+
+	@Column(name = "observacion_descarte")
+	private String observacionDescarte;
+
+	// Si es un duplicado, el reclamo que sigue la comuna.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "id_reclamo_original")
+	private Reclamo reclamoOriginal;
+
+	// Lo que hizo el agente al resolverlo. Si el reclamo se reabre queda como antecedente.
+	@Column(name = "trabajo_realizado")
+	private String trabajoRealizado;
 
 	@Column(name = "creado_en", nullable = false, updatable = false)
 	private Instant creadoEn;

@@ -44,6 +44,24 @@ class ComunaControllerTests {
 	}
 
 	@Test
+	void devuelveTelefonoYWhatsappDeLaComunaOVaciosSiNoLosCargo() throws Exception {
+		Comuna con = guardar("t17-con-contacto", true);
+		con.setTelefono("543543123456");
+		con.setWhatsapp("5493543123456");
+		comunas.saveAndFlush(con);
+		guardar("t17-sin-contacto", true);
+
+		mockMvc.perform(get("/api/comunas/t17-con-contacto"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.telefono").value("543543123456"))
+				.andExpect(jsonPath("$.whatsapp").value("5493543123456"));
+		mockMvc.perform(get("/api/comunas/t17-sin-contacto"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.telefono").value(org.hamcrest.Matchers.nullValue()))
+				.andExpect(jsonPath("$.whatsapp").value(org.hamcrest.Matchers.nullValue()));
+	}
+
+	@Test
 	void devuelveLosDatosDeUnaComunaActiva() throws Exception {
 		guardar("t3c-salsipuedes-cordoba", true);
 

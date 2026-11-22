@@ -88,4 +88,29 @@ describe('ReclamosService', () => {
     pedido.flush(null, { status: 204, statusText: 'No Content' });
     expect(recibido).toBeNull();
   });
+
+  it('pideMisReclamosPaginadosConPaginaYTamanio', () => {
+    servicio.misReclamos(2, 10).subscribe();
+    const pedido = http.expectOne((p) => p.url === '/api/reclamos/mios');
+    expect(pedido.request.method).toBe('GET');
+    expect(pedido.request.params.get('pagina')).toBe('2');
+    expect(pedido.request.params.get('tamanio')).toBe('10');
+    pedido.flush({ reclamos: [], pagina: 2, tamanio: 10, total: 0 });
+  });
+
+  it('pideElDetalleDeMiReclamoPorNumero', () => {
+    servicio.detalleDeMiReclamo(42).subscribe();
+    const pedido = http.expectOne('/api/reclamos/mios/42');
+    expect(pedido.request.method).toBe('GET');
+    pedido.flush({});
+  });
+
+  it('bajaLaFotoComoBlobPorElServicioParaQueViajeElToken', () => {
+    let recibida: Blob | undefined;
+    servicio.fotoDeMiReclamo(42, 7).subscribe((b) => (recibida = b));
+    const pedido = http.expectOne('/api/reclamos/mios/42/fotos/7');
+    expect(pedido.request.responseType).toBe('blob');
+    pedido.flush(new Blob(['x'], { type: 'image/jpeg' }));
+    expect(recibida?.type).toBe('image/jpeg');
+  });
 });

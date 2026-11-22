@@ -814,7 +814,9 @@ describe('Reportar un problema', () => {
       expect(texto()).toContain('Reclamo n.º 43');
       expect(texto()).toContain('Recibido');
       expect(texto()).not.toContain('Paso');
-      expect(el().querySelector('a.btn')?.getAttribute('href')).toBe('/inicio');
+      const enlaces = Array.from(el().querySelectorAll('a.btn'));
+      expect(enlaces.find((a) => a.textContent?.trim() === 'Volver al inicio')?.getAttribute('href')).toBe('/inicio');
+      expect(enlaces.find((a) => a.textContent?.trim() === 'Ver mi reclamo')?.getAttribute('href')).toBe('/salsipuedes-cordoba/reclamos/43');
       expect(document.activeElement?.textContent?.trim()).toBe('Recibimos tu reclamo');
       expect(liberadas).toEqual(['blob:foto-1', 'blob:foto-2']);
     });

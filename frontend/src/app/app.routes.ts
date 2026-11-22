@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { comunaDeSesionGuard } from './auth/comuna-de-sesion.guard';
+import { inicioDelVecinoGuard } from './auth/inicio-del-vecino.guard';
 import { comunaResolver } from './auth/comuna.resolver';
 import { loginDeLaComuna, rolGuard } from './auth/rol.guard';
 import { sesionGuard } from './auth/sesion.guard';
@@ -7,7 +8,7 @@ import { sesionGuard } from './auth/sesion.guard';
 // Las pantallas de una comuna reciben `slug`, `comuna` y los datos de la ruta como inputs
 // (withComponentInputBinding + paramsInheritanceStrategy 'always' en app.config.ts).
 export const routes: Routes = [
-  { path: 'inicio', canActivate: [sesionGuard], loadComponent: () => import('./pages/inicio/inicio').then((m) => m.Inicio) },
+  { path: 'inicio', canActivate: [sesionGuard, inicioDelVecinoGuard], loadComponent: () => import('./pages/inicio/inicio').then((m) => m.Inicio) },
   { path: 'sin-permiso', canActivate: [sesionGuard], loadComponent: () => import('./pages/sin-permiso/sin-permiso').then((m) => m.SinPermiso) },
   { path: 'no-encontrada', loadComponent: () => import('./pages/no-encontrada/no-encontrada').then((m) => m.NoEncontrada) },
   // `admin` va antes que `:slug`: el panel del superadmin no es una comuna.
@@ -52,6 +53,16 @@ export const routes: Routes = [
         path: 'reportar',
         canActivate: [rolGuard('VECINO', loginDeLaComuna)],
         loadChildren: () => import('./pages/reportar/reportar.routes').then((m) => m.RUTAS_REPORTAR),
+      },
+      // Pantallas del vecino con sesión (MC-17): su inicio con el seguimiento y el detalle de cada reclamo.
+      {
+        path: '',
+        canActivate: [rolGuard('VECINO', loginDeLaComuna)],
+        loadComponent: () => import('./pages/vecino/marco-vecino').then((m) => m.MarcoVecino),
+        children: [
+          { path: 'inicio', loadComponent: () => import('./pages/vecino/inicio-vecino/inicio-vecino').then((m) => m.InicioVecino) },
+          { path: 'reclamos/:numero', loadComponent: () => import('./pages/vecino/detalle-reclamo/detalle-reclamo').then((m) => m.DetalleReclamo) },
+        ],
       },
       {
         path: '',
