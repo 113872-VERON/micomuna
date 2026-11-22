@@ -1,0 +1,53 @@
+.resumen { margin: 0; padding: 0; list-style: none; background: #fff; border: 2px solid #c9d1d9; border-radius: 20px; overflow: hidden; }
+
+.fila-r {
+  padding: 14px 12px 14px 16px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border-bottom: 1px solid #c9d1d9;
+  &:last-child { border-bottom: 0; }
+}
+
+.ic {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--ayuda);
+  color: var(--p);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 19px; }
+.rotulo { font-size: 16px; font-weight: 700; color: var(--sub); }
+// La descripción puede ser larga y sin espacios (un enlace pegado): que se parta y no empuje "Cambiar".
+.largo { overflow-wrap: anywhere; white-space: pre-line; }
+.extra { font-size: 17px; color: var(--sub); }
+
+.minis {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 10px; background: #52606d; }
+}
+
+.cambiar {
+  flex: none;
+  align-self: center;
+  min-height: 48px;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--p);
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+  &:disabled { opacity: 0.6; cursor: default; }
+}

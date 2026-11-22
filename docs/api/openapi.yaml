@@ -18,6 +18,8 @@ tags:
   description: Registro e inicio de sesión de los usuarios de una comuna
 - name: Usuarios de la comuna
   description: El administrador de la comuna gestiona a los usuarios de su comuna
+- name: Reclamos
+  description: Reclamos de los vecinos de una comuna
 - name: Salud
   description: Comprobación de que el backend responde
 paths:
@@ -606,6 +608,108 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/tipos-reclamo:
+    get:
+      tags:
+      - Reclamos
+      summary: Tipos de problema
+      description: "Los seis tipos de problema, iguales para todas las comunas, en\
+        \ el orden en que se muestran, con el consejo para sacar la foto de cada uno.\
+        \ Para cualquier usuario de una comuna (no el superadmin)."
+      operationId: listarTiposReclamo
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TipoReclamoDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/reclamos:
+    post:
+      tags:
+      - Reclamos
+      summary: Reportar un problema
+      description: "Solo el vecino. Crea el reclamo en la comuna del token (nunca\
+        \ de lo que manda el cliente) con estado RECIBIDO y el número de seguimiento\
+        \ que le toca en esa comuna (correlativo, cada comuna empieza en 1). Formulario\
+        \ multipart. La ubicación es obligatoria de una de dos formas: latitud y longitud\
+        \ juntas (GPS del celular) o una referencia escrita; pueden ir las dos. Hasta\
+        \ 3 fotos opcionales en el campo \"fotos\": cada una tiene que ser un JPG o\
+        \ PNG real (se decide por el contenido, no por lo que declara el cliente),\
+        \ de hasta 2 MB y hasta 2560 px de lado. El servidor vuelve a armar cada foto\
+        \ y no guarda sus datos ocultos (por ejemplo la ubicación GPS de la cámara).\
+        \ Cada vecino puede crear hasta 10 reclamos por hora."
+      operationId: crearReclamo
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CrearReclamoForm"
+            encoding:
+              fotos:
+                contentType: "image/jpeg, image/png"
+      responses:
+        "201":
+          description: Reclamo creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoCreadoDto"
+        "400":
+          description: "Datos inválidos (VALIDACION, con el motivo de cada campo en\
+            \ errores), tipo de problema inexistente (TIPO_INVALIDO), falta la ubicación\
+            \ (UBICACION_REQUERIDA), más de 3 fotos o una foto que no es un JPG o PNG\
+            \ real, pesa más de 2 MB, supera los 2560 px, ocuparía demasiada memoria\
+            \ al abrirla o pesaría más de 3 MB una vez limpia (FOTO_INVALIDA), o el pedido\
+            \ supera el tope de subida del servidor (ARCHIVO_MUY_GRANDE)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "Otra persona está reportando en este momento y no se pudo\
+            \ asignar el número (CONFLICTO). Probá de nuevo."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "429":
+          description: "El vecino ya creó 10 reclamos en la última hora (DEMASIADOS_RECLAMOS).\
+            \ Puede volver a intentar más tarde."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "503":
+          description: "El servidor está procesando muchas fotos a la vez (OCUPADO).\
+            \ Probá de nuevo en unos segundos."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/salud:
     get:
       tags:
@@ -677,6 +781,88 @@ paths:
                 $ref: "#/components/schemas/Problema"
 components:
   schemas:
+    TipoReclamoDto:
+      type: object
+      properties:
+        codigo:
+          type: string
+          enum:
+          - BACHE
+          - LUZ
+          - BASURA
+          - ARBOL
+          - AGUA
+          - OTRO
+        nombre:
+          type: string
+          description: "Nombre para mostrar, por ejemplo \"Bache o calle rota\""
+        consejoFoto:
+          type: string
+          description: Consejo para sacar la foto de este tipo de problema
+    CrearReclamoForm:
+      type: object
+      required:
+      - tipo
+      - descripcion
+      properties:
+        tipo:
+          type: string
+          description: Código del tipo de problema (ver /api/tipos-reclamo)
+          enum:
+          - BACHE
+          - LUZ
+          - BASURA
+          - ARBOL
+          - AGUA
+          - OTRO
+        descripcion:
+          type: string
+          minLength: 1
+          maxLength: 500
+        latitud:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Va junto con longitud. Se guardan 6 decimales.
+        longitud:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Va junto con latitud. Se guardan 6 decimales.
+        referencia:
+          type: string
+          maxLength: 200
+          description: "Cómo encontrar el lugar, por ejemplo \"frente a la panadería\""
+        fotos:
+          type: array
+          maxItems: 3
+          items:
+            type: string
+            format: binary
+    ReclamoCreadoDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        numero:
+          type: integer
+          format: int32
+          description: Número de seguimiento, correlativo dentro de la comuna
+        tipo:
+          type: string
+        estado:
+          type: string
+          enum:
+          - RECIBIDO
+        cantidadFotos:
+          type: integer
+          format: int32
+        creadoEn:
+          type: string
+          format: date-time
     UsuarioComunaDto:
       type: object
       description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.
@@ -773,6 +959,12 @@ components:
         codigo:
           type: string
           description: "Por ejemplo ACCESO_DENEGADO, NO_ENCONTRADO, VALIDACION, LOGO_INVALIDO"
+        errores:
+          type: object
+          description: "Solo en VALIDACION: el motivo de cada campo inválido, con\
+            \ el nombre del campo como clave"
+          additionalProperties:
+            type: string
     RestablecerClaveRequest:
       type: object
       properties:

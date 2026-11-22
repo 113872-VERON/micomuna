@@ -1,0 +1,39 @@
+.formulario { flex: 1; }
+
+.btn { gap: 10px; svg { flex: none; } }
+.ubicar { height: 60px; }
+
+.estado { display: flex; flex-direction: column; }
+// Vacío no suma el espacio entre elementos, pero sigue en la página para anunciar los cambios.
+.estado:empty { margin-top: -16px; }
+
+.guardada {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 8px 10px 14px;
+  border-radius: 14px;
+  background: var(--ayuda);
+  font-size: 18px;
+  svg { flex: none; color: var(--p); }
+  span { flex: 1; min-width: 0; }
+}
+
+.quitar {
+  flex: none;
+  min-height: 48px;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--p);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.ayuda-campo { margin: -4px 0 8px; font-size: 17px; color: var(--sub); }
+.campo { gap: 10px; svg { flex: none; color: var(--p); } }
+.campo.error { border-width: 3px; }
+.cuenta { margin: 4px 0 0; text-align: right; font-size: 16px; color: var(--sub); }

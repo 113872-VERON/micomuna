@@ -7,7 +7,13 @@ import { authInterceptor } from './auth/auth.interceptor';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideRouter(routes, withComponentInputBinding(), withRouterConfig({ paramsInheritanceStrategy: 'always' })),
+    // 'computed': si el vecino toca "atrás" y en el aviso elige "Seguir cargando", el historial
+    // del navegador vuelve a quedar como estaba (con 'replace' se perdería una entrada).
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withRouterConfig({ paramsInheritanceStrategy: 'always', canceledNavigationResolution: 'computed' }),
+    ),
     provideHttpClient(withInterceptors([authInterceptor]))
   ]
 };

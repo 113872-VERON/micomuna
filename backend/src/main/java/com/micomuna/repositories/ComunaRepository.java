@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
@@ -37,4 +38,15 @@ public interface ComunaRepository extends JpaRepository<Comuna, Long> {
 	@QueryHints(@QueryHint(name = Bloqueo.HINT_ESPERA, value = Bloqueo.ESPERA_MAXIMA_MS))
 	@Query("select c from Comuna c where c.id = :id")
 	Optional<Comuna> bloquear(@Param("id") Long id);
+
+	// Contador del número de seguimiento de los reclamos (columna ultimo_numero_reclamo, que la entidad Comuna
+	// no mapea a propósito: así guardar una comuna nunca pisa el contador).
+	// Se usa dentro de la transacción del alta, después de bloquear(id): con la fila ya tomada, el UPDATE no espera,
+	// y dos altas simultáneas en la misma comuna se hacen de a una. Si el alta falla, el contador vuelve atrás.
+	@Modifying
+	@Query(value = "update comuna set ultimo_numero_reclamo = ultimo_numero_reclamo + 1 where id = :id", nativeQuery = true)
+	int sumarNumeroReclamo(@Param("id") Long id);
+
+	@Query(value = "select ultimo_numero_reclamo from comuna where id = :id", nativeQuery = true)
+	Integer ultimoNumeroReclamo(@Param("id") Long id);
 }

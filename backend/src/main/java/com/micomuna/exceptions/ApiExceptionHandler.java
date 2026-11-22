@@ -58,6 +58,17 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.BAD_GATEWAY, "Correo no enviado", "CORREO_NO_ENVIADO", e.getMessage());
 	}
 
+	@ExceptionHandler(LimiteSuperadoException.class)
+	ProblemDetail limiteSuperado(LimiteSuperadoException e) {
+		return problema(HttpStatus.TOO_MANY_REQUESTS, "Demasiados pedidos", e.getCodigo(), e.getMessage());
+	}
+
+	@ExceptionHandler(ServicioOcupadoException.class)
+	ProblemDetail servicioOcupado(ServicioOcupadoException e) {
+		log.info("Servidor ocupado: {}", e.getMessage());
+		return problema(HttpStatus.SERVICE_UNAVAILABLE, "Servidor ocupado", "OCUPADO", e.getMessage());
+	}
+
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "CONFLICTO", e.getMessage());
@@ -81,7 +92,10 @@ public class ApiExceptionHandler {
 	ProblemDetail datosInvalidos(MethodArgumentNotValidException e) {
 		Map<String, String> errores = new LinkedHashMap<>();
 		for (FieldError error : e.getBindingResult().getFieldErrors()) {
-			errores.putIfAbsent(error.getField(), error.getDefaultMessage());
+			// Un valor que no se pudo convertir (por ejemplo, letras en la latitud de un formulario multipart) trae
+			// un mensaje técnico en inglés: se reemplaza por uno para la persona.
+			errores.putIfAbsent(error.getField(),
+					error.isBindingFailure() ? "El valor no es válido" : error.getDefaultMessage());
 		}
 		ProblemDetail problema = problema(HttpStatus.BAD_REQUEST, "Datos inválidos", "VALIDACION",
 				"Revisá los datos ingresados");

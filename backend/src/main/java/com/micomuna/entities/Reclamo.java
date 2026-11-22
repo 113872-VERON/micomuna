@@ -1,0 +1,90 @@
+package com.micomuna.entities;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+
+import com.micomuna.enums.EstadoReclamo;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+// Un problema que reportó un vecino en su comuna.
+// A propósito no tiene la lista de fotos: cargar un reclamo (o una lista de reclamos) nunca trae las imágenes.
+// Las fotos se leen aparte, con ReclamoFoto. Lo mismo el historial de estados (ReclamoEstado).
+@Entity
+@Table(name = "reclamo")
+@Getter
+@Setter
+@NoArgsConstructor
+public class Reclamo {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "id_comuna", nullable = false, updatable = false)
+	private Comuna comuna;
+
+	// Número de seguimiento, correlativo dentro de la comuna (lo asigna ReclamoService con el contador de la comuna).
+	@Column(nullable = false, updatable = false)
+	private Integer numero;
+
+	// La base exige que el vecino sea de la misma comuna que el reclamo (fk_reclamo_vecino, de dos columnas).
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "id_vecino", nullable = false, updatable = false)
+	private Usuario vecino;
+
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "id_tipo", nullable = false)
+	private TipoReclamo tipo;
+
+	@Column(nullable = false)
+	private String descripcion;
+
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private EstadoReclamo estado = EstadoReclamo.RECIBIDO;
+
+	// Latitud y longitud van juntas o no va ninguna, con 6 decimales (ck_reclamo_lat_lng_juntas).
+	@Column(precision = 8, scale = 6)
+	private BigDecimal latitud;
+
+	@Column(precision = 9, scale = 6)
+	private BigDecimal longitud;
+
+	private String referencia;
+
+	@Column(name = "creado_en", nullable = false, updatable = false)
+	private Instant creadoEn;
+
+	@Column(name = "actualizado_en", nullable = false)
+	private Instant actualizadoEn;
+
+	@PrePersist
+	void alCrear() {
+		if (creadoEn == null) {
+			creadoEn = Instant.now();
+		}
+		actualizadoEn = creadoEn;
+	}
+
+	@PreUpdate
+	void alActualizar() {
+		actualizadoEn = Instant.now();
+	}
+}

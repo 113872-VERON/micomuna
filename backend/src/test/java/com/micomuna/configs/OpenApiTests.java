@@ -55,6 +55,34 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.paths['/api/prueba/{slug}/comuna-actual']").doesNotExist());
 	}
 
+	// MC-15: el alta de un reclamo es un formulario multipart (como dice docs/api/openapi.yaml), no parámetros sueltos.
+	@Test
+	void elAltaDeUnReclamoDocumentaElFormularioMultipartYSusRespuestas() throws Exception {
+		String alta = "$.paths['/api/reclamos'].post";
+		String formulario = alta + ".requestBody.content['multipart/form-data']";
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(alta + ".operationId").value("crearReclamo"))
+				.andExpect(jsonPath(alta + ".tags[0]").value("Reclamos"))
+				.andExpect(jsonPath(alta + ".parameters").doesNotExist())
+				.andExpect(jsonPath(alta + ".requestBody.required").value(true))
+				.andExpect(jsonPath(formulario + ".schema['$ref']").value("#/components/schemas/CrearReclamoForm"))
+				.andExpect(jsonPath(formulario + ".encoding.fotos.contentType").value("image/jpeg, image/png"))
+				.andExpect(jsonPath(alta + ".responses['201']").exists())
+				.andExpect(jsonPath(alta + ".responses['400'].description").value(org.hamcrest.Matchers.containsString("FOTO_INVALIDA")))
+				.andExpect(jsonPath(alta + ".responses['401']").exists())
+				.andExpect(jsonPath(alta + ".responses['403']").exists())
+				.andExpect(jsonPath(alta + ".responses['409'].description").value(org.hamcrest.Matchers.containsString("CONFLICTO")))
+				.andExpect(jsonPath(alta + ".responses['429'].description").value(org.hamcrest.Matchers.containsString("DEMASIADOS_RECLAMOS")))
+				.andExpect(jsonPath(alta + ".responses['503'].description").value(org.hamcrest.Matchers.containsString("OCUPADO")))
+				.andExpect(jsonPath(alta + ".description").value(org.hamcrest.Matchers.containsString("2560 px")))
+				.andExpect(jsonPath("$.components.schemas.CrearReclamoForm.required")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("tipo", "descripcion")))
+				.andExpect(jsonPath("$.components.schemas.CrearReclamoForm.properties.fotos.maxItems").value(3))
+				.andExpect(jsonPath("$.paths['/api/tipos-reclamo'].get.operationId").value("listarTiposReclamo"))
+				.andExpect(jsonPath("$.paths['/api/tipos-reclamo'].get.responses['403']").exists());
+	}
+
 	@Test
 	void losEndpointsPublicosNoDocumentan401() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))

@@ -45,6 +45,12 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'usuarios' },
         ],
       },
+      // Reportar un problema (MC-15): solo el vecino. Marco propio de una columna, un paso por dirección.
+      {
+        path: 'reportar',
+        canActivate: [rolGuard('VECINO', loginDeLaComuna)],
+        loadChildren: () => import('./pages/reportar/reportar.routes').then((m) => m.RUTAS_REPORTAR),
+      },
       {
         path: '',
         loadComponent: () => import('./pages/comuna/comuna-layout').then((m) => m.ComunaLayout),

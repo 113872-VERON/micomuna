@@ -165,6 +165,54 @@ describe('Rutas de la aplicación', () => {
     });
   });
 
+  describe('reportar un problema', () => {
+    it('elVecinoEntraYVeElPrimerPaso', async () => {
+      entrar('VECINO');
+      const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/reportar');
+      await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));
+      await navegacion;
+      await vi.waitFor(() => http.expectOne('/api/tipos-reclamo').flush([]));
+      harness.detectChanges();
+
+      // Entrar a reportar lleva al primer paso, con su propia dirección.
+      expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/reportar/que-paso');
+      const texto = (harness.routeNativeElement as HTMLElement).textContent ?? '';
+      expect(texto).toContain('Paso 1 de 4');
+      expect(texto).toContain('¿Qué pasó?');
+    });
+
+    it('losDemasRolesVanASinPermisoSinPedirLosTipos', async () => {
+      for (const rol of ['AGENTE', 'ADMINISTRATIVO', 'ADMIN_COMUNA'] as Rol[]) {
+        entrar(rol);
+        await harness.navigateByUrl('/salsipuedes-cordoba/reportar');
+        expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+      }
+      http.expectNone('/api/tipos-reclamo');
+    });
+
+    it('sinSesionVaAlLoginDeEsaComuna', async () => {
+      const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/reportar');
+      await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));
+      await navegacion;
+
+      expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/login');
+      http.expectNone('/api/tipos-reclamo');
+    });
+
+    it('unVecinoDeOtraComunaPierdeLaSesionYVaAlLoginDeEstaComuna', async () => {
+      entrar('VECINO');
+      const navegacion = harness.navigateByUrl('/rio-ceballos/reportar');
+      await vi.waitFor(() =>
+        http.expectOne('/api/comunas/rio-ceballos').flush({ ...comuna, nombre: 'Río Ceballos', slug: 'rio-ceballos' }),
+      );
+      await navegacion;
+
+      expect(TestBed.inject(AuthService).estaAutenticado()).toBe(false);
+      expect(TestBed.inject(Router).url).toBe('/rio-ceballos/login');
+      http.expectNone('/api/tipos-reclamo');
+    });
+  });
+
   it('elEnlaceDeLaInvitacionMuestraLaComunaYPideLaContrasena', async () => {
     const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/invitacion?codigo=abc');
     await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));

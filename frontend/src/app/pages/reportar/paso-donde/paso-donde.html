@@ -1,0 +1,65 @@
+<form class="formulario" [formGroup]="b.form" (ngSubmit)="siguiente()" novalidate>
+  <h1 tabindex="-1">¿Dónde está?</h1>
+  <p class="sub">Si estás en el lugar, usá tu ubicación. Si no, escribí la dirección.</p>
+
+  <!-- MC-16: acá va el mapa con el pin fijo al centro. -->
+
+  <button
+    type="button"
+    class="btn sec ubicar"
+    [disabled]="b.buscandoUbicacion()"
+    [attr.aria-busy]="b.buscandoUbicacion()"
+    (click)="b.usarMiUbicacion()"
+  >
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+    {{ b.buscandoUbicacion() ? 'Buscando dónde estás…' : b.ubicacion() ? 'Volver a tomar mi ubicación' : 'Usar mi ubicación' }}
+  </button>
+
+  <!-- Siempre presente: así el lector de pantalla anuncia cuando se tomó la ubicación. -->
+  <div class="estado" role="status">
+    @if (b.ubicacion()) {
+      <div class="guardada">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        <span><b>Tomamos tu ubicación.</b> Es el lugar donde estás ahora.</span>
+        <button type="button" class="quitar" aria-label="Quitar la ubicación" (click)="b.quitarUbicacion()">Quitar</button>
+      </div>
+    }
+  </div>
+
+  @if (b.errorUbicacion(); as mensaje) {
+    <p class="msg-error caja-error" role="alert">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+      {{ mensaje }}
+    </p>
+  }
+
+  <div>
+    <label for="referencia">Dirección o referencia</label>
+    <p class="ayuda-campo" id="ayuda-referencia">Por ejemplo: "San Martín 450" o "frente a la panadería".</p>
+    <div class="campo" [class.error]="faltaLugar()">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12z" /><circle cx="12" cy="10" r="2.5" /></svg>
+      <input
+        id="referencia"
+        type="text"
+        formControlName="referencia"
+        [attr.maxlength]="maximo"
+        autocomplete="off"
+        enterkeyhint="next"
+        [attr.aria-invalid]="faltaLugar()"
+        [attr.aria-describedby]="faltaLugar() ? 'error-lugar ayuda-referencia' : 'ayuda-referencia'"
+      />
+    </div>
+    @if (faltaLugar()) {
+      <p class="msg-error" id="error-lugar" role="alert">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
+        Usá tu ubicación o escribí la dirección, así la comuna encuentra el lugar.
+      </p>
+    }
+    @if (b.largoReferencia() > maximo - 40) {
+      <p class="cuenta">{{ b.largoReferencia() }} de {{ maximo }}</p>
+    }
+  </div>
+
+  <div class="espacio"></div>
+  <button type="submit" class="btn pri">Siguiente</button>
+</form>
