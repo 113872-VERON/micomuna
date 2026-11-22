@@ -39,11 +39,19 @@
     </span>
     <div class="t">
       <span class="rotulo">Dónde</span>
+      @if (b.direccion(); as direccion) {
+        <span class="largo" data-direccion>{{ direccion }}</span>
+      }
       @if (b.referencia()) {
-        <span class="largo">{{ b.referencia() }}</span>
+        <span class="largo" data-referencia>{{ b.referencia() }}</span>
       }
       @if (b.ubicacion()) {
-        <span class="extra">Con tu ubicación del teléfono</span>
+        <span class="extra">{{ b.origenUbicacion() === 'gps' ? 'Con tu ubicación del teléfono' : 'Marcado en el mapa' }}</span>
+      }
+      @if (vistaMapa(); as vista) {
+        <div class="mini">
+          <app-mapa-ubicacion [vista]="vista" [interactivo]="false" altura="150px" etiqueta="Mapa con el lugar que marcaste" (falla)="sinMapa()" />
+        </div>
       }
     </div>
     <button type="button" class="cambiar" aria-label="Cambiar dónde está" [disabled]="b.enviando()" (click)="b.ir(3)">Cambiar</button>

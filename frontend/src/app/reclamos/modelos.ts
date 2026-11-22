@@ -29,6 +29,9 @@ export interface NuevoReclamo {
   tipo: CodigoTipo;
   descripcion: string;
   referencia: string;
+  // Dirección aproximada que calculó el backend a partir del punto (solo informativa).
+  direccion?: string | null;
+  // Obligatoria para el servidor: el punto del mapa o del GPS.
   ubicacion: Coordenadas | null;
   fotos: readonly Blob[];
 }
@@ -37,3 +40,4 @@ export interface NuevoReclamo {
 export const MAX_FOTOS = 3;
 export const MAX_DESCRIPCION = 500;
 export const MAX_REFERENCIA = 200;
+export const MAX_DIRECCION = 300;

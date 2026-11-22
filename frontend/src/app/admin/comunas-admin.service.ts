@@ -29,6 +29,11 @@ export class ComunasAdminService {
     return this.http.put<ComunaAdminDto>(`${BASE}/${id}/logo`, datos);
   }
 
+  // El cuerpo es el GeoJSON tal cual (JSON, hasta 1 MB).
+  cambiarLimite(id: number, geojson: unknown): Observable<ComunaAdminDto> {
+    return this.http.put<ComunaAdminDto>(`${BASE}/${id}/limite`, geojson);
+  }
+
   reenviarInvitacion(id: number): Observable<void> {
     return this.http.post<void>(`${BASE}/${id}/administrador/reenviar-invitacion`, null);
   }

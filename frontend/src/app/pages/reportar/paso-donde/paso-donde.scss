@@ -37,3 +37,28 @@
 .campo { gap: 10px; svg { flex: none; color: var(--p); } }
 .campo.error { border-width: 3px; }
 .cuenta { margin: 4px 0 0; text-align: right; font-size: 16px; color: var(--sub); }
+
+.cargando, .aviso-sin-mapa, .nota-mapa {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--ayuda);
+  font-size: 18px;
+  svg { flex: none; margin-top: 1px; color: var(--p); }
+}
+// El lugar del mapa ya tiene su alto mientras carga: la pantalla no salta cuando aparece.
+.cargando { min-height: 120px; align-items: center; justify-content: center; }
+.nota-mapa { margin-top: -4px; }
+.es-aca { height: 60px; }
+
+.direccion {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  .rotulo { font-size: 16px; color: var(--sub); }
+  .texto { font-size: 18px; font-weight: 500; overflow-wrap: anywhere; }
+}

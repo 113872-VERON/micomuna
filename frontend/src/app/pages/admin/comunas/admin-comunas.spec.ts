@@ -295,4 +295,111 @@ describe('AdminComunas', () => {
     f.detectChanges();
     expect(el(f).textContent).toContain('/salsipuedes-cordoba');
   });
+  describe('límite de la comuna', () => {
+    const botonLimite = (f: ComponentFixture<unknown>, id: number) =>
+      el(f).querySelector<HTMLButtonElement>(`[data-limite-boton="${id}"]`)!;
+    const estadoLimite = (f: ComponentFixture<unknown>, id: number) =>
+      el(f).querySelector(`[data-limite-estado="${id}"]`)?.textContent?.trim();
+    const FIGURA = { type: 'Polygon', coordinates: [[[-64.31, -31.13], [-64.29, -31.13], [-64.29, -31.11], [-64.31, -31.11], [-64.31, -31.13]]] };
+    const conLimite: ComunaAdminDto = { ...salsipuedes, tieneLimite: true, limiteCargadoEn: '2026-11-20T15:30:00Z' };
+
+    async function elegir(f: ComponentFixture<unknown>, id: number, archivo: File): Promise<HTMLInputElement> {
+      const input = el(f).querySelector<HTMLInputElement>(`[data-limite-entrada="${id}"]`)!;
+      Object.defineProperty(input, 'files', { value: [archivo], configurable: true });
+      input.dispatchEvent(new Event('change'));
+      // El archivo se lee en el navegador antes de mandarlo.
+      for (let i = 0; i < 5; i++) {
+        await new Promise((listo) => setTimeout(listo, 0));
+      }
+      f.detectChanges();
+      return input;
+    }
+    const geojson = (contenido: unknown = FIGURA) => new File([JSON.stringify(contenido)], 'limite.geojson', { type: 'application/geo+json' });
+
+    it('sinLimiteAvisaQueLosVecinosPuedenReportarDesdeCualquierLugar', () => {
+      const f = crear();
+
+      expect(estadoLimite(f, 1)).toBe('Sin límite: los vecinos pueden reportar desde cualquier lugar.');
+      expect(botonLimite(f, 1).textContent).toContain('Subir límite (GeoJSON)');
+    });
+
+    it('conLimiteMuestraLaFechaYOfreceCambiarlo', () => {
+      const f = crear([conLimite]);
+
+      expect(estadoLimite(f, 1)).toMatch(/^Límite cargado el 20 de noviembre de 2026$/);
+      expect(botonLimite(f, 1).textContent).toContain('Cambiar límite');
+    });
+
+    it('elInputTieneEtiquetaYElBotonMide44', () => {
+      const f = crear();
+
+      expect(el(f).querySelector('[data-limite-entrada="1"]')?.getAttribute('aria-label')).toBe('Límite de Salsipuedes (GeoJSON)');
+      expect(botonLimite(f, 1).classList.contains('chico')).toBe(true);
+    });
+
+    it('subeElGeoJsonPorPutYActualizaLaFila', async () => {
+      const f = crear();
+      const input = await elegir(f, 1, geojson());
+
+      const pedido = http.expectOne(`${URL}/1/limite`);
+      expect(pedido.request.method).toBe('PUT');
+      expect(pedido.request.body).toEqual(FIGURA);
+      expect(botonLimite(f, 1).textContent).toContain('Subiendo…');
+      expect(botonLimite(f, 1).disabled).toBe(true);
+      pedido.flush(conLimite);
+      f.detectChanges();
+
+      expect(estadoLimite(f, 1)).toContain('Límite cargado el 20 de noviembre de 2026');
+      expect(botonLimite(f, 1).textContent).toContain('Cambiar límite');
+      expect(botonLimite(f, 1).disabled).toBe(false);
+      expect(input.value).toBe('');
+    });
+
+    it('rechazaSinLlamarAlBackendUnArchivoDeMasDe1MB', async () => {
+      const f = crear();
+
+      await elegir(f, 1, new File([new Uint8Array(1024 * 1024 + 1)], 'grande.geojson'));
+
+      http.expectNone(`${URL}/1/limite`);
+      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('pesa más de 1 MB');
+      expect(botonLimite(f, 1).disabled).toBe(false);
+    });
+
+    it('rechazaSinLlamarAlBackendUnArchivoQueNoEsJson', async () => {
+      const f = crear();
+
+      await elegir(f, 1, new File(['<kml></kml>'], 'limite.kml'));
+
+      http.expectNone(`${URL}/1/limite`);
+      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('no es un GeoJSON');
+      expect(estadoLimite(f, 1)).toContain('Sin límite');
+    });
+
+    it('muestraElMensajeDelServidorSiElLimiteNoSirve', async () => {
+      const f = crear();
+      await elegir(f, 1, geojson({ type: 'Polygon', coordinates: [] }));
+
+      http.expectOne(`${URL}/1/limite`).flush(
+        { status: 400, codigo: 'LIMITE_INVALIDO', detail: 'El polígono se corta a sí mismo.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      f.detectChanges();
+
+      expect(el(f).querySelector('[role="alert"]')?.textContent).toContain('El polígono se corta a sí mismo.');
+      expect(estadoLimite(f, 1)).toContain('Sin límite');
+      expect(botonLimite(f, 1).disabled).toBe(false);
+    });
+
+    it('unaSubidaNuevaLimpiaElErrorAnterior', async () => {
+      const f = crear();
+      await elegir(f, 1, new File(['no'], 'x.geojson'));
+      expect(el(f).querySelector('[role="alert"]')).not.toBeNull();
+
+      await elegir(f, 1, geojson());
+      http.expectOne(`${URL}/1/limite`).flush(conLimite);
+      f.detectChanges();
+
+      expect(el(f).querySelector('[role="alert"]')).toBeNull();
+    });
+  });
 });

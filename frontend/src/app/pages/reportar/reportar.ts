@@ -51,6 +51,7 @@ export class Reportar {
 
   constructor() {
     effect(() => this.tema.aplicar(this.comuna().color));
+    effect(() => this.b.comunaNombre.set(this.comuna().nombre));
     inject(DestroyRef).onDestroy(() => {
       this.tema.restablecer();
       this.preguntando()?.(false);

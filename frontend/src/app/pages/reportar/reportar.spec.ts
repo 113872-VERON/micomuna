@@ -2,16 +2,20 @@ import { Location } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideLocationMocks } from '@angular/common/testing';
-import { Component } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Router, Routes, provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Mock } from 'vitest';
 import { AuthService } from '../../auth/auth.service';
 import { ComunaDto } from '../../auth/modelos';
+import { MapaUbicacion, VistaMapa } from '../../mapas/mapa-ubicacion/mapa-ubicacion';
 import { ACHICAR_FOTO, AchicarFoto } from '../../reclamos/achicar-foto';
 import { Coordenadas, ReclamoCreadoDto, TipoReclamoDto } from '../../reclamos/modelos';
 import { SinUbicacion, UbicacionService } from '../../reclamos/ubicacion.service';
+import { PasoDonde } from './paso-donde/paso-donde';
+import { PasoRevisar } from './paso-revisar/paso-revisar';
 import { cuandoSeEnvio } from './reclamo-recibido/reclamo-recibido';
 import { RUTAS_REPORTAR } from './reportar.routes';
 
@@ -32,7 +36,36 @@ const CREADO: ReclamoCreadoDto = { id: 99, numero: 43, tipo: 'BACHE', estado: 'R
 
 const URL_TIPOS = '/api/tipos-reclamo';
 const URL_RECLAMOS = '/api/reclamos';
+const URL_DIRECCION = '/api/ubicacion/direccion';
+const URL_LIMITE = '/api/mi-comuna/limite';
 const BASE = '/salsipuedes-cordoba/reportar';
+
+// Un cuadrado de 2 km de lado alrededor de (-31.12, -64.30): el límite de prueba. GeoJSON va [longitud, latitud].
+const LIMITE = {
+  type: 'Polygon',
+  coordinates: [[[-64.31, -31.13], [-64.29, -31.13], [-64.29, -31.11], [-64.31, -31.11], [-64.31, -31.13]]],
+};
+const ADENTRO = { latitud: -31.12, longitud: -64.3 };
+const OTRO_ADENTRO = { latitud: -31.121, longitud: -64.301 };
+const AFUERA = { latitud: -31.2, longitud: -64.5 };
+
+// El mapa de Leaflet no se monta en las pruebas: este reemplaza al componente real con las mismas entradas y
+// salidas, y la prueba lo "mueve" emitiendo `detenido`.
+@Component({ selector: 'app-mapa-ubicacion', template: '<div class="mapa-falso"></div>' })
+class MapaFalso {
+  readonly vista = input.required<VistaMapa>();
+  readonly limite = input<unknown>(null);
+  readonly interactivo = input(true);
+  readonly altura = input('300px');
+  readonly etiqueta = input('Mapa');
+  readonly detenido = output<Coordenadas>();
+  readonly falla = output<void>();
+  // Lo que el mapa "ve" en el centro: la prueba lo cambia para simular que el vecino lo movió sin que se detenga.
+  centro: Coordenadas | null = { latitud: -31.12, longitud: -64.3 };
+  centroActual() {
+    return this.centro;
+  }
+}
 
 @Component({ template: '<p>Pantalla de inicio</p>' })
 class InicioDePrueba {}
@@ -49,6 +82,12 @@ describe('Reportar un problema', () => {
   let achicar: Mock<AchicarFoto>;
   let gps: { obtener: Mock<() => Promise<Coordenadas>> };
   let liberadas: string[];
+  // Lo que responde el servidor al pedido de dirección ('manual': la prueba contesta cada pedido a mano).
+  type RespuestaDireccion = 'ok' | '204' | '429' | 'error' | 'manual';
+  let respuestaDireccion: RespuestaDireccion;
+  let pedidosDireccion: { latitud: string | null; longitud: string | null }[];
+  // Lo que responde el servidor al límite de la comuna.
+  let limiteComuna: object | null;
 
   beforeEach(async () => {
     localStorage.clear();
@@ -60,6 +99,11 @@ describe('Reportar un problema', () => {
     // El achicado real usa el canvas del navegador: acá se simula (se prueba aparte en achicar-foto.spec).
     achicar = vi.fn<AchicarFoto>(async () => new Blob(['jpeg'], { type: 'image/jpeg' }));
     gps = { obtener: vi.fn<() => Promise<Coordenadas>>() };
+    respuestaDireccion = '204';
+    pedidosDireccion = [];
+    limiteComuna = null;
+    TestBed.overrideComponent(PasoDonde, { remove: { imports: [MapaUbicacion] }, add: { imports: [MapaFalso] } });
+    TestBed.overrideComponent(PasoRevisar, { remove: { imports: [MapaUbicacion] }, add: { imports: [MapaFalso] } });
 
     TestBed.configureTestingModule({
       providers: [
@@ -87,6 +131,8 @@ describe('Reportar un problema', () => {
   });
 
   afterEach(() => {
+    respuestaDireccion = '204';
+    responderMapa();
     http.verify();
     vi.restoreAllMocks();
     document.documentElement.style.removeProperty('--p');
@@ -98,11 +144,37 @@ describe('Reportar un problema', () => {
   const url = () => TestBed.inject(Router).url;
   const historial = () => TestBed.inject(Location);
 
+  // Al abrir el paso del mapa la pantalla pide la clave y el límite: se contestan con lo configurado arriba.
+  function responderMapa() {
+    if (respuestaDireccion !== 'manual') {
+      for (const pedido of http.match((p) => p.url === URL_DIRECCION)) {
+        pedidosDireccion.push({ latitud: pedido.request.params.get('latitud'), longitud: pedido.request.params.get('longitud') });
+        if (respuestaDireccion === 'ok') {
+          pedido.flush({ direccion: 'San Martín 450, Salsipuedes' });
+        } else if (respuestaDireccion === '204') {
+          pedido.flush(null, { status: 204, statusText: 'No Content' });
+        } else if (respuestaDireccion === '429') {
+          pedido.flush(null, { status: 429, statusText: 'Too Many Requests' });
+        } else {
+          pedido.flush(null, { status: 500, statusText: 'Server Error' });
+        }
+      }
+    }
+    for (const pedido of http.match(URL_LIMITE)) {
+      if (limiteComuna === null) {
+        pedido.flush(null, { status: 204, statusText: 'No Content' });
+      } else {
+        pedido.flush(limiteComuna);
+      }
+    }
+  }
+
   // Navegaciones, el achicado y el GPS terminan en otras vueltas del ciclo de eventos.
   async function esperar() {
     // Sin whenStable: con el aviso abierto la navegación queda esperando la respuesta a propósito.
     for (let i = 0; i < 5; i++) {
       await new Promise((listo) => setTimeout(listo, 0));
+      responderMapa();
       harness.detectChanges();
     }
   }
@@ -197,7 +269,8 @@ describe('Reportar un problema', () => {
       expect(url()).toBe(`${BASE}/fotos`);
       await tocar('Seguir sin foto');
       expect(url()).toBe(`${BASE}/donde`);
-      escribir('#referencia', 'Plaza');
+      gps.obtener.mockResolvedValue({ latitud: -31.1, longitud: -64.3 });
+      await tocar('Usar mi ubicación');
       await siguiente();
       expect(url()).toBe(`${BASE}/revisar`);
     });
@@ -593,14 +666,14 @@ describe('Reportar un problema', () => {
       responder({ latitud: -31.1, longitud: -64.3, precision: 10 });
       await esperar();
 
-      expect(el().querySelector('main [role="status"]')?.textContent).toContain('Tomamos tu ubicación.');
+      expect(el().querySelector('main .estado')?.textContent).toContain('Tomamos tu ubicación.');
       expect(texto()).not.toContain('Guardamos');
       expect(hayBoton('Volver a tomar mi ubicación')).toBe(true);
       await siguiente();
       expect(texto()).toContain('Paso 4 de 4');
     });
 
-    it('siElTelefonoNoDaPermisoLoExplicaYSePuedeSeguirConLaReferencia', async () => {
+    it('siElTelefonoNoDaPermisoLoExplicaYNoDejaSeguirSinUnPunto', async () => {
       await abrir();
       await irAlPaso3();
       gps.obtener.mockRejectedValue(new SinUbicacion('permiso'));
@@ -609,48 +682,57 @@ describe('Reportar un problema', () => {
 
       const alerta = el().querySelector('[role="alert"]')?.textContent ?? '';
       expect(alerta).toContain('No pudimos ver dónde estás porque el teléfono no dio permiso.');
-      expect(alerta).toContain('Escribí la dirección');
+      expect(alerta).toContain('Mové el mapa hasta el lugar y tocá «Es acá», o permití la ubicación y probá de nuevo.');
       expect(hayBoton('Usar mi ubicación')).toBe(true);
 
+      // Con la referencia sola ya no alcanza: el servidor exige el punto.
       escribir('#referencia', 'Frente a la panadería');
       await siguiente();
-      expect(texto()).toContain('Paso 4 de 4');
+      expect(url()).toBe(`${BASE}/donde`);
     });
 
-    it('otraFallaDelGpsTambienDejaSeguir', async () => {
+    it('otraFallaDelGpsTambienSeExplica', async () => {
       await abrir();
       await irAlPaso3();
       gps.obtener.mockRejectedValue(new SinUbicacion('otro'));
 
       await tocar('Usar mi ubicación');
 
-      expect(el().querySelector('[role="alert"]')?.textContent).toContain('No pudimos ver dónde estás. Escribí la dirección');
+      expect(el().querySelector('[role="alert"]')?.textContent).toContain('No pudimos ver dónde estás. Mové el mapa hasta el lugar y tocá «Es acá», o probá de nuevo.');
     });
 
-    it('soloConLaReferenciaAlcanza', async () => {
+    it('laReferenciaSolaNoAlcanzaPorqueElPuntoEsObligatorio', async () => {
       await abrir();
       await irAlPaso3();
 
       escribir('#referencia', 'San Martín 450');
       await siguiente();
 
-      expect(texto()).toContain('Paso 4 de 4');
+      expect(url()).toBe(`${BASE}/donde`);
       expect(gps.obtener).not.toHaveBeenCalled();
     });
 
-    it('sinUbicacionNiReferenciaNoAvanza', async () => {
+    it('sinPuntoNoAvanzaYDiceQueHacer', async () => {
       await abrir();
       await irAlPaso3();
 
-      escribir('#referencia', '   ');
       await siguiente();
 
       expect(url()).toBe(`${BASE}/donde`);
-      expect(el().querySelector('[role="alert"]')?.textContent).toContain(
-        'Usá tu ubicación o escribí la dirección, así la comuna encuentra el lugar.',
-      );
-      expect(el().querySelector('#referencia')?.getAttribute('aria-invalid')).toBe('true');
-      expect(document.activeElement?.id).toBe('referencia');
+      expect(el().querySelector('[role="alert"]')?.textContent).toContain('Mové el mapa hasta el lugar y tocá «Es acá», o usá tu ubicación.');
+      expect(document.activeElement?.id).toBe('usar-ubicacion');
+    });
+
+    it('laReferenciaEsOpcional', async () => {
+      await abrir();
+      await irAlPaso3();
+      gps.obtener.mockResolvedValue({ latitud: -31.1, longitud: -64.3 });
+      await tocar('Usar mi ubicación');
+
+      expect(el().querySelector('label[for="referencia"]')?.textContent).toContain('Referencia (opcional)');
+      await siguiente();
+
+      expect(texto()).toContain('Paso 4 de 4');
     });
 
     it('quitarLaUbicacionVuelveAPedirUnLugar', async () => {
@@ -663,6 +745,7 @@ describe('Reportar un problema', () => {
       await siguiente();
 
       expect(texto()).toContain('Paso 3 de 4');
+      expect(el().querySelector('[role="alert"]')?.textContent).toContain('Mové el mapa hasta el lugar y tocá «Es acá», o usá tu ubicación.');
     });
   });
 
@@ -678,6 +761,7 @@ describe('Reportar un problema', () => {
       expect(fila('fotos').querySelectorAll('img').length).toBe(2);
       expect(fila('lugar').textContent).toContain('Frente a la panadería');
       expect(fila('lugar').textContent).toContain('Con tu ubicación del teléfono');
+      expect(fila('lugar').querySelector('app-mapa-ubicacion')).not.toBeNull();
     });
 
     it('cambiarVuelveACadaPasoSinPerderLoCargado', async () => {
@@ -884,17 +968,18 @@ describe('Reportar un problema', () => {
       expect(el().querySelector('[role="alert"]')?.textContent).toContain('Algo que solo sabe el servidor.');
     });
 
-    it('sinFotosNiGpsMandaSoloLoQueHay', async () => {
+    it('sinFotosNiReferenciaNiDireccionMandaSoloLoQueHay', async () => {
       await abrir();
       await completarPaso1('Otro problema', 'Un cartel caído');
       await tocar('Seguir sin foto');
-      escribir('#referencia', 'Plaza central');
+      gps.obtener.mockResolvedValue({ latitud: -31.5, longitud: -64.25 });
+      await tocar('Usar mi ubicación');
       await siguiente();
 
       expect(fila('fotos').textContent).toContain('Sin fotos');
       await tocar('Enviar reclamo');
       const datos = http.expectOne(URL_RECLAMOS).request.body as FormData;
-      expect(Array.from(datos.keys())).toEqual(['tipo', 'descripcion', 'referencia']);
+      expect(Array.from(datos.keys())).toEqual(['tipo', 'descripcion', 'latitud', 'longitud']);
       expect(datos.get('tipo')).toBe('OTRO');
     });
 
@@ -911,6 +996,475 @@ describe('Reportar un problema', () => {
       expect(el().querySelector('label.tipo.sel')).toBeNull();
       expect((el().querySelector('#descripcion') as HTMLTextAreaElement).value).toBe('');
       http.expectNone(URL_TIPOS);
+    });
+  });
+
+  describe('paso 3 con mapa', () => {
+    beforeEach(() => {
+      respuestaDireccion = 'ok';
+      limiteComuna = LIMITE;
+    });
+
+    const mapas = () => harness.fixture.debugElement.queryAll(By.directive(MapaFalso)).map((d) => d.componentInstance as MapaFalso);
+    const mapa = () => mapas()[0];
+    async function mover(punto: Coordenadas) {
+      mapa().detenido.emit(punto);
+      await esperar();
+    }
+    const alertas = () => Array.from(el().querySelectorAll('[role="alert"]')).map((a) => a.textContent?.replace(/\s+/g, ' ').trim());
+    const FUERA =
+      'Ese lugar está fuera de Salsipuedes. Solo podés reportar problemas de tu comuna. Mové el mapa hasta adentro de la línea punteada.';
+
+    async function irAlMapa() {
+      await abrir();
+      await irAlPaso3();
+    }
+
+    describe('carga del mapa', () => {
+      it('muestraElMapaSinPedirClaveNiCargarScriptsDeAfuera', async () => {
+        await irAlMapa();
+
+        http.expectNone('/api/config/mapas');
+        expect(mapas().length).toBe(1);
+        expect(texto()).toContain('Mové el mapa hasta que el pin quede en el lugar.');
+        expect(texto()).not.toContain('No pudimos mostrar el mapa');
+        expect(mapa().etiqueta()).toContain('Mapa para marcar el lugar');
+      });
+
+      it('siElMapaNoPuedeMostrarseSigueConElGpsYAvisaLoQueHacer', async () => {
+        await irAlMapa();
+
+        mapa().falla.emit();
+        await esperar();
+
+        expect(mapas().length).toBe(0);
+        expect(texto()).toContain(
+          'No pudimos mostrar el mapa. Tocá «Usar mi ubicación» para marcar el lugar. Si no funciona, probá de nuevo en un rato o desde otro celular.',
+        );
+        expect(hayBoton('Usar mi ubicación')).toBe(true);
+        expect(el().querySelector('#referencia')).not.toBeNull();
+        await completarGps(ADENTRO);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('sinMapaLosMensajesSoloHablanDelGps', async () => {
+        await irAlMapa();
+        mapa().falla.emit();
+        await esperar();
+
+        await siguiente();
+        expect(alertas()).toEqual(['Usá tu ubicación para marcar el lugar.']);
+        gps.obtener.mockRejectedValue(new SinUbicacion('permiso'));
+        await tocar('Usar mi ubicación');
+        expect(alertas().join(' ')).toContain('el teléfono no dio permiso. Permití la ubicación y probá de nuevo.');
+        expect(texto()).not.toContain('escribí la dirección');
+      });
+
+      it('alVolverAlPasoSeReintentaMostrarElMapa', async () => {
+        await irAlMapa();
+        mapa().falla.emit();
+        await esperar();
+        expect(mapas().length).toBe(0);
+
+        await tocar('Volver');
+        await tocar('Seguir sin foto');
+
+        expect(url()).toBe(`${BASE}/donde`);
+        expect(mapas().length).toBe(1);
+      });
+
+      it('ElLimiteSeDibujaYSeIrYVolverNoLoPideDeNuevo', async () => {
+        await irAlMapa();
+        await completarGps(ADENTRO);
+        await siguiente();
+        await tocar('Cambiar dónde está');
+
+        http.expectNone(URL_LIMITE);
+        expect(mapas().length).toBe(1);
+      });
+    });
+
+    async function completarGps(punto: Coordenadas) {
+      gps.obtener.mockResolvedValue({ ...punto, precision: 5 });
+      await tocar('Usar mi ubicación');
+    }
+
+    describe('centro inicial', () => {
+      it('conLimiteArrancaEnElCentroDelLimiteYLoDibuja', async () => {
+        await irAlMapa();
+
+        expect(mapa().vista().centro.latitud).toBeCloseTo(-31.12, 6);
+        expect(mapa().vista().centro.longitud).toBeCloseTo(-64.3, 6);
+        expect(mapa().vista().zoom).toBe(14);
+        expect(mapa().limite()).toEqual(LIMITE);
+        expect(texto()).toContain('Solo podés reportar problemas de Salsipuedes. El área está marcada con la línea punteada.');
+      });
+
+      it('sinLimiteArrancaEnUnaVistaDeLaProvinciaYNoHablaDeLaLinea', async () => {
+        limiteComuna = null;
+        await irAlMapa();
+
+        expect(mapa().vista().zoom).toBe(7);
+        expect(mapa().limite()).toBeNull();
+        expect(texto()).not.toContain('línea punteada');
+      });
+
+      it('unLimiteIlegibleSeIgnoraYElServidorDecide', async () => {
+        limiteComuna = { type: 'Point', coordinates: [0, 0] };
+        await irAlMapa();
+
+        await mover(AFUERA);
+
+        expect(alertas()).toEqual([]);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('moverElMapaNoLoRecentra', async () => {
+        await irAlMapa();
+        const antes = mapa().vista();
+
+        await mover(ADENTRO);
+
+        expect(mapa().vista()).toBe(antes);
+      });
+    });
+
+    describe('marcar el punto', () => {
+      it('sinPuntoNoAvanzaYDiceQueMoverElMapa', async () => {
+        await irAlMapa();
+
+        await siguiente();
+
+        expect(url()).toBe(`${BASE}/donde`);
+        expect(alertas()).toEqual(['Mové el mapa hasta el lugar y tocá «Es acá», o usá tu ubicación.']);
+      });
+
+      it('unPuntoAdentroDejaAvanzar', async () => {
+        await irAlMapa();
+
+        await mover(ADENTRO);
+        expect(alertas()).toEqual([]);
+        await siguiente();
+
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('unPuntoSobreElBordeCuentaComoAdentro', async () => {
+        await irAlMapa();
+
+        await mover({ latitud: -31.13, longitud: -64.3 });
+        await siguiente();
+
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('unPuntoAfueraMuestraElErrorYNoDejaAvanzar', async () => {
+        await irAlMapa();
+
+        await mover(AFUERA);
+
+        expect(alertas()).toEqual([FUERA]);
+        await siguiente();
+        expect(url()).toBe(`${BASE}/donde`);
+
+        // Al volver adentro el error se va y se puede seguir.
+        await mover(ADENTRO);
+        expect(alertas()).toEqual([]);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+    });
+
+    describe('botón "Es acá"', () => {
+      const esAca = () => boton('Es acá: marcar el lugar donde está el pin');
+
+      it('tieneSuTextoVisibleYSuNombreAccesible', async () => {
+        await irAlMapa();
+
+        expect(esAca().textContent?.trim()).toBe('Es acá');
+        expect(esAca().getAttribute('aria-label')).toContain('marcar el lugar donde está el pin');
+      });
+
+      it('sinMapaNoHayBoton', async () => {
+        await irAlMapa();
+        mapa().falla.emit();
+        await esperar();
+
+        expect(hayBoton('Es acá')).toBe(false);
+      });
+
+      it('registraElCentroActualPidiendoLaDireccionYDejaAvanzar', async () => {
+        await irAlMapa();
+        mapa().centro = OTRO_ADENTRO;
+        // Nada se toma solo: ni al mirar ni al apretar "Siguiente".
+        await siguiente();
+        expect(url()).toBe(`${BASE}/donde`);
+        expect(pedidosDireccion.length).toBe(0);
+
+        await tocar('Es acá: marcar el lugar donde está el pin');
+
+        expect(pedidosDireccion).toEqual([{ latitud: OTRO_ADENTRO.latitud.toFixed(6), longitud: OTRO_ADENTRO.longitud.toFixed(6) }]);
+        expect(el().querySelector('#direccion-aprox')?.textContent).toContain('San Martín 450, Salsipuedes');
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('conElCentroFueraDelLimiteMuestraElErrorYNoDejaAvanzar', async () => {
+        await irAlMapa();
+        mapa().centro = AFUERA;
+
+        await tocar('Es acá: marcar el lugar donde está el pin');
+
+        expect(alertas()).toEqual([FUERA]);
+        await siguiente();
+        expect(url()).toBe(`${BASE}/donde`);
+      });
+
+      it('despuesDeQuitarLaUbicacionDelGpsTambienSirve', async () => {
+        await irAlMapa();
+        await completarGps(ADENTRO);
+        await tocar('Quitar la ubicación');
+        await siguiente();
+        expect(url()).toBe(`${BASE}/donde`);
+
+        mapa().centro = OTRO_ADENTRO;
+        await tocar('Es acá: marcar el lugar donde está el pin');
+        await siguiente();
+
+        expect(texto()).toContain('Paso 4 de 4');
+        expect(texto()).not.toContain('Tomamos tu ubicación.');
+      });
+    });
+
+    describe('dirección aproximada', () => {
+      const punto = (p: Coordenadas) => ({ latitud: p.latitud.toFixed(6), longitud: p.longitud.toFixed(6) });
+
+      it('sePideAlBackendAlDetenerseElMapaYSeMuestraDebajo', async () => {
+        await irAlMapa();
+        expect(pedidosDireccion.length).toBe(0);
+
+        await mover(ADENTRO);
+
+        expect(pedidosDireccion).toEqual([punto(ADENTRO)]);
+        expect(el().querySelector('#direccion-aprox')?.textContent).toContain('San Martín 450, Salsipuedes');
+      });
+
+      it('noLaPideDosVecesParaElMismoPunto', async () => {
+        await irAlMapa();
+
+        await mover(ADENTRO);
+        await mover({ ...ADENTRO });
+        // Distinto en el sexto decimal: para la dirección es el mismo punto.
+        await mover({ latitud: ADENTRO.latitud + 0.000001, longitud: ADENTRO.longitud });
+        expect(pedidosDireccion.length).toBe(1);
+
+        await mover(OTRO_ADENTRO);
+        expect(pedidosDireccion.length).toBe(2);
+      });
+
+      it('sinContenido204NoMuestraNadaYNoBloquea', async () => {
+        respuestaDireccion = '204';
+        await irAlMapa();
+
+        await mover(ADENTRO);
+
+        expect(el().querySelector('#direccion-aprox')).toBeNull();
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('conDemasiadosPedidos429EsSinDireccionYNoBloquea', async () => {
+        respuestaDireccion = '429';
+        await irAlMapa();
+
+        await mover(ADENTRO);
+
+        expect(el().querySelector('#direccion-aprox')).toBeNull();
+        expect(alertas()).toEqual([]);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('unErrorDelServidorEsSinDireccionYNoBloquea', async () => {
+        respuestaDireccion = 'error';
+        await irAlMapa();
+
+        await mover(ADENTRO);
+
+        expect(el().querySelector('#direccion-aprox')).toBeNull();
+        expect(alertas()).toEqual([]);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('unaRespuestaViejaNoPisaLaDireccionDelPuntoNuevo', async () => {
+        respuestaDireccion = 'manual';
+        await irAlMapa();
+
+        await mover(ADENTRO);
+        await mover(OTRO_ADENTRO);
+        const pendientes = http.match((p) => p.url === URL_DIRECCION);
+        expect(pendientes.length).toBe(2);
+        pendientes[1].flush({ direccion: 'Calle nueva 2' });
+        pendientes[0].flush({ direccion: 'Calle vieja 1' });
+        await esperar();
+
+        expect(el().querySelector('#direccion-aprox')?.textContent).toContain('Calle nueva 2');
+      });
+
+      it('tambienSePideConElGpsSinMapa', async () => {
+        respuestaDireccion = 'ok';
+        await irAlMapa();
+        mapa().falla.emit();
+        await esperar();
+
+        await completarGps(ADENTRO);
+
+        expect(pedidosDireccion.length).toBe(1);
+        expect(el().querySelector('#direccion-aprox')?.textContent).toContain('San Martín 450, Salsipuedes');
+      });
+    });
+
+    describe('usar mi ubicación', () => {
+      it('centraEnElMapaEnElPuntoDelGps', async () => {
+        await irAlMapa();
+
+        await completarGps({ latitud: -31.1234, longitud: -64.2987 });
+
+        expect(mapa().vista().centro).toEqual({ latitud: -31.1234, longitud: -64.2987, precision: 5 });
+        expect(mapa().vista().zoom).toBe(17);
+        expect(texto()).toContain('Tomamos tu ubicación.');
+        expect(pedidosDireccion.length).toBe(1);
+
+        // Cuando el mapa se detiene en ese mismo punto no se vuelve a pedir la dirección.
+        await mover({ latitud: -31.1234, longitud: -64.2987 });
+        expect(pedidosDireccion.length).toBe(1);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('siElVecinoMueveElMapaDejaDeDecirQueEsSuUbicacion', async () => {
+        await irAlMapa();
+        await completarGps(ADENTRO);
+        expect(texto()).toContain('Tomamos tu ubicación.');
+
+        await mover(OTRO_ADENTRO);
+
+        expect(texto()).not.toContain('Tomamos tu ubicación.');
+        expect(hayBoton('Usar mi ubicación')).toBe(true);
+      });
+
+      it('unGpsFueraDeLaComunaMuestraElError', async () => {
+        await irAlMapa();
+
+        await completarGps(AFUERA);
+
+        expect(alertas()).toEqual([FUERA]);
+        await siguiente();
+        expect(url()).toBe(`${BASE}/donde`);
+      });
+
+      it('sinPermisoElVecinoMarcaElLugarAMano', async () => {
+        await irAlMapa();
+        gps.obtener.mockRejectedValue(new SinUbicacion('permiso'));
+
+        await tocar('Usar mi ubicación');
+
+        expect(alertas()[0]).toContain('el teléfono no dio permiso. Mové el mapa hasta el lugar y tocá «Es acá», o permití la ubicación y probá de nuevo.');
+        await mover(ADENTRO);
+        await siguiente();
+        expect(texto()).toContain('Paso 4 de 4');
+      });
+    });
+
+    describe('entre pasos', () => {
+      it('atrasYAdelanteConservanElPuntoYLaDireccion', async () => {
+        await irAlMapa();
+        await mover(OTRO_ADENTRO);
+        await siguiente();
+        expect(url()).toBe(`${BASE}/revisar`);
+
+        historial().back();
+        await esperar();
+
+        expect(url()).toBe(`${BASE}/donde`);
+        expect(mapa().vista().centro).toEqual(OTRO_ADENTRO);
+        expect(el().querySelector('#direccion-aprox')?.textContent).toContain('San Martín 450, Salsipuedes');
+        expect(pedidosDireccion.length).toBe(1);
+
+        historial().forward();
+        await esperar();
+        expect(url()).toBe(`${BASE}/revisar`);
+      });
+    });
+
+    describe('revisar y enviar', () => {
+      async function llegarConMapa(referencia = 'Frente a la panadería') {
+        await irAlMapa();
+        await mover(OTRO_ADENTRO);
+        if (referencia) {
+          escribir('#referencia', referencia);
+        }
+        await siguiente();
+      }
+
+      it('muestraLaDireccionLaReferenciaYUnMapaChicoSinInteraccion', async () => {
+        await llegarConMapa();
+
+        const lugar = fila('lugar').textContent?.replace(/\s+/g, ' ');
+        expect(lugar).toContain('San Martín 450, Salsipuedes');
+        expect(lugar).toContain('Frente a la panadería');
+        expect(lugar).toContain('Marcado en el mapa');
+        const mini = mapas()[0];
+        expect(mini.interactivo()).toBe(false);
+        expect(mini.vista().centro).toEqual(OTRO_ADENTRO);
+        expect(mini.etiqueta()).toBe('Mapa con el lugar que marcaste');
+      });
+
+      it('elEnvioLlevaLatitudLongitudDireccionYReferencia', async () => {
+        await llegarConMapa();
+
+        await tocar('Enviar reclamo');
+
+        const datos = http.expectOne(URL_RECLAMOS).request.body as FormData;
+        expect(datos.get('latitud')).toBe('-31.121000');
+        expect(datos.get('longitud')).toBe('-64.301000');
+        expect(datos.get('direccion')).toBe('San Martín 450, Salsipuedes');
+        expect(datos.get('referencia')).toBe('Frente a la panadería');
+      });
+
+      it('sinReferenciaNoLaMandaYSinDireccionTampoco', async () => {
+        respuestaDireccion = '204';
+        await llegarConMapa('');
+
+        await tocar('Enviar reclamo');
+
+        const datos = http.expectOne(URL_RECLAMOS).request.body as FormData;
+        expect(Array.from(datos.keys())).toEqual(['tipo', 'descripcion', 'latitud', 'longitud']);
+      });
+
+      it('fueraDeComunaDelServidorTieneSuMensajeYLlevaAlMapaConCambiar', async () => {
+        await llegarConMapa();
+        await tocar('Enviar reclamo');
+
+        http.expectOne(URL_RECLAMOS).flush(
+          { status: 400, codigo: 'FUERA_DE_COMUNA', detail: 'El punto está fuera de la comuna.' },
+          { status: 400, statusText: 'Bad Request' },
+        );
+        await esperar();
+
+        expect(url()).toBe(`${BASE}/revisar`);
+        expect(alertas()[0]).toBe(
+          'Ese lugar está fuera de tu comuna. Tocá "Cambiar" en el lugar y mové el mapa hasta adentro de la línea punteada.',
+        );
+        expect(boton('Enviar reclamo').disabled).toBe(false);
+
+        await tocar('Cambiar dónde está');
+        expect(url()).toBe(`${BASE}/donde`);
+        expect(mapa().vista().centro).toEqual(OTRO_ADENTRO);
+      });
     });
   });
 });

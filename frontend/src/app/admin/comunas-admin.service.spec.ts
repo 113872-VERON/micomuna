@@ -34,4 +34,18 @@ describe('ComunasAdminService', () => {
 
     expect(recibida).toEqual(devuelta);
   });
+  it('cambiarLimiteMandaElGeoJsonTalCualComoJsonPorPut', () => {
+    const figura = { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] };
+    const devuelta = { id: 7, tieneLimite: true } as ComunaAdminDto;
+    let recibida: ComunaAdminDto | undefined;
+
+    servicio.cambiarLimite(7, figura).subscribe((c) => (recibida = c));
+
+    const pedido = http.expectOne('/api/admin/comunas/7/limite');
+    expect(pedido.request.method).toBe('PUT');
+    expect(pedido.request.body).toEqual(figura);
+    expect(pedido.request.body instanceof FormData).toBe(false);
+    pedido.flush(devuelta);
+    expect(recibida).toEqual(devuelta);
+  });
 });

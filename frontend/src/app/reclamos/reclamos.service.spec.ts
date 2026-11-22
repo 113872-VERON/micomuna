@@ -34,6 +34,23 @@ describe('aFormData', () => {
   });
 });
 
+describe('aFormData con dirección', () => {
+  const base = { tipo: 'LUZ', descripcion: 'Farol', referencia: '', ubicacion: { latitud: -31.1, longitud: -64.3 }, fotos: [] } as const;
+
+  it('mandaLaDireccionSinEspaciosSobrantes', () => {
+    expect(aFormData({ ...base, direccion: '  San Martín 450, Salsipuedes ' }).get('direccion')).toBe('San Martín 450, Salsipuedes');
+  });
+
+  it('enBlancoONullNoLaManda', () => {
+    expect(aFormData({ ...base, direccion: '   ' }).has('direccion')).toBe(false);
+    expect(aFormData({ ...base, direccion: null }).has('direccion')).toBe(false);
+  });
+
+  it('laCortaEnLos300CaracteresDelContrato', () => {
+    expect((aFormData({ ...base, direccion: 'x'.repeat(400) }).get('direccion') as string).length).toBe(300);
+  });
+});
+
 describe('ReclamosService', () => {
   let http: HttpTestingController;
   let servicio: ReclamosService;
@@ -62,5 +79,13 @@ describe('ReclamosService', () => {
     expect(pedido.request.body).toBeInstanceOf(FormData);
     expect(pedido.request.headers.has('Content-Type')).toBe(false);
     pedido.flush({ id: 1, numero: 1, tipo: 'OTRO', estado: 'RECIBIDO', cantidadFotos: 0, creadoEn: '2026-11-21T10:00:00Z' });
+  });
+  it('pideElLimiteDeMiComunaYUn204LlegaComoNull', () => {
+    let recibido: unknown = 'sin respuesta';
+    servicio.limiteDeMiComuna().subscribe((l) => (recibido = l));
+    const pedido = http.expectOne('/api/mi-comuna/limite');
+    expect(pedido.request.method).toBe('GET');
+    pedido.flush(null, { status: 204, statusText: 'No Content' });
+    expect(recibido).toBeNull();
   });
 });

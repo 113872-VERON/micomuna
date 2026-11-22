@@ -5,7 +5,8 @@ import { mensajeDeError } from '../auth/errores';
 // (el `detail` del servidor está escrito para cualquier cliente y no sabe qué botones hay acá).
 const POR_CODIGO: Record<string, string> = {
   TIPO_INVALIDO: 'Ese tipo de problema no existe. Tocá "Cambiar" en el tipo y elegí otro.',
-  UBICACION_REQUERIDA: 'Falta dónde está el problema. Tocá "Cambiar" en el lugar y usá tu ubicación o escribí la dirección.',
+  UBICACION_REQUERIDA: 'Falta marcar dónde está el problema. Tocá "Cambiar" en el lugar y marcalo en el mapa o usá tu ubicación.',
+  FUERA_DE_COMUNA: 'Ese lugar está fuera de tu comuna. Tocá "Cambiar" en el lugar y mové el mapa hasta adentro de la línea punteada.',
   FOTO_INVALIDA: 'No pudimos usar una de las fotos. Tocá "Cambiar" en las fotos, quitala y sacá otra.',
   ARCHIVO_MUY_GRANDE: 'Las fotos pesan demasiado. Tocá "Cambiar" en las fotos y quitá alguna.',
   CONFLICTO: 'Otra persona estaba reportando al mismo tiempo. Tocá "Enviar reclamo" de nuevo.',
