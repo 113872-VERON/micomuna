@@ -19,6 +19,7 @@ import { TemaComunaService } from '../../../tema/tema-comuna.service';
       </div>
       <nav aria-label="Panel de la comuna">
         <a [routerLink]="['/', slug(), 'panel', 'reclamos']" routerLinkActive="on" ariaCurrentWhenActive="page">Reclamos</a>
+        <a [routerLink]="['/', slug(), 'panel', 'metricas']" routerLinkActive="on" ariaCurrentWhenActive="page">Métricas</a>
         @if (puedeVerUsuarios()) {
           <a [routerLink]="['/', slug(), 'panel', 'usuarios']" routerLinkActive="on" ariaCurrentWhenActive="page">Usuarios</a>
         }

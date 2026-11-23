@@ -137,3 +137,28 @@ export const ESTADOS_CERRADOS: readonly EstadoReclamo[] = ['RESUELTO', 'DESCARTA
 export const ESTADOS_NO_DESCARTABLES: readonly EstadoReclamo[] = ['EN_REPARACION', 'RESUELTO', 'DESCARTADO'];
 export const sePuedeDescartar = (estado: EstadoReclamo): boolean => !ESTADOS_NO_DESCARTABLES.includes(estado);
 export const ESTADOS_DE_CAMBIO: readonly EstadoDeCambio[] = ['RECIBIDO', 'ASIGNADO', 'EN_REPARACION', 'RESUELTO'];
+
+// Métricas simples del panel (MC-21), según GET /api/panel/metricas.
+export interface CantidadPorTipoDto {
+  tipo: string;
+  tipoNombre: string;
+  cantidad: number;
+}
+
+export interface CantidadPorSemanaDto {
+  desde: string;
+  hasta: string;
+  cantidad: number;
+}
+
+export interface MetricasDto {
+  desde: string;
+  hasta: string;
+  dias: number;
+  reclamosDelPeriodo: number;
+  resueltos: number;
+  tiempoPromedioResolucionHoras: number | null;
+  sinAsignar: number;
+  porTipo: CantidadPorTipoDto[];
+  porSemana: CantidadPorSemanaDto[];
+}

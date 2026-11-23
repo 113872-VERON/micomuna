@@ -130,7 +130,7 @@ describe('DetallePanel', () => {
     const filas = Array.from(seccion(f, 'Historial')?.querySelectorAll('li') ?? []).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
     expect(filas).toEqual([
       'Recibido 3/11/2026 9:12 Lo envió Ana López',
-      'Asignado 4/11/2026 10:30 Lo cambió Marta Gil Observación Urgente',
+      'Asignado 4/11/2026 10:30 Lo cambió Marta Gil Observación (interna) Urgente',
     ]);
   });
 
@@ -138,6 +138,19 @@ describe('DetallePanel', () => {
     const f = crear('42', reclamo({ historial: [{ estadoAnterior: null, estado: 'RECIBIDO', fecha: '2026-11-03T09:12:00', usuarioNombre: null, observacion: null }] }));
 
     expect(texto(f)).toContain('Lo envió el sistema');
+  });
+
+  it('elHistorialMuestraLaObservacionDeLosDescartesComoTextoPlano', () => {
+    const f = crear('42', reclamo({
+      historial: [
+        { estadoAnterior: 'RECIBIDO', estado: 'DESCARTADO', fecha: '2026-11-04T10:30:00', usuarioNombre: 'Marta Gil', observacion: 'Duplicado del n.º 1' },
+        { estadoAnterior: 'RECIBIDO', estado: 'DESCARTADO', fecha: '2026-11-05T10:30:00', usuarioNombre: 'Marta Gil', observacion: 'No se puede atender: <b>está en un terreno privado</b>' },
+      ],
+    }));
+
+    const obs = Array.from((f.nativeElement as HTMLElement).querySelectorAll('.h-obs')).map((e) => e.textContent?.replace(/\s+/g, ' ').trim());
+    expect(obs).toEqual(['Motivo del descarte (interno) Duplicado del n.º 1', 'Motivo del descarte (interno) No se puede atender: <b>está en un terreno privado</b>']);
+    expect((f.nativeElement as HTMLElement).querySelector('.h-obs b')).toBeNull();
   });
 
   it('laFotoPrincipalSeBajaPorElPanelConElTokenYSeMuestraGrande', () => {

@@ -21,6 +21,7 @@ import com.micomuna.dtos.AsignarAgenteRequest;
 import com.micomuna.dtos.CambioDeEstadoEnLoteRequest;
 import com.micomuna.dtos.DescarteEnLoteRequest;
 import com.micomuna.dtos.MapaReclamosDto;
+import com.micomuna.dtos.MetricasDto;
 import com.micomuna.dtos.PaginaReclamosPanelDto;
 import com.micomuna.dtos.ReclamoPanelDetalleDto;
 import com.micomuna.dtos.ResultadoEnLoteDto;
@@ -30,6 +31,7 @@ import com.micomuna.security.UsuarioAutenticado;
 import com.micomuna.services.CambioDeEstadoService;
 import com.micomuna.services.CambiosEnLoteService;
 import com.micomuna.services.MisReclamosService;
+import com.micomuna.services.MetricasService;
 import com.micomuna.services.PanelReclamosService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +62,15 @@ public class PanelReclamosController {
 	private final PanelReclamosService panel;
 	private final CambiosEnLoteService lotes;
 	private final CambioDeEstadoService cambios;
+	private final MetricasService metricasService;
+
+	@Operation(operationId = "metricasDelPanel", summary = "Métricas simples de la comuna")
+	@GetMapping("/metricas")
+	public MetricasDto metricas(
+			@Parameter(description = "AAAA-MM-DD, día argentino, inclusive") @RequestParam(required = false) String desde,
+			@Parameter(description = "AAAA-MM-DD, día argentino, inclusive") @RequestParam(required = false) String hasta) {
+		return metricasService.calcular(desde, hasta);
+	}
 
 	@Operation(operationId = "listarReclamosDelPanel", summary = "Reclamos de la comuna, con filtros")
 	@GetMapping("/reclamos")

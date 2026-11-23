@@ -46,6 +46,8 @@ export const routes: Routes = [
         children: [
           { path: 'reclamos', loadComponent: () => import('./pages/panel/reclamos/reclamos-panel').then((m) => m.ReclamosPanel) },
           { path: 'reclamos/:numero', loadComponent: () => import('./pages/panel/reclamos/detalle-panel').then((m) => m.DetallePanel) },
+          // Métricas simples (MC-21): las ven el personal administrativo y el administrador.
+          { path: 'metricas', loadComponent: () => import('./pages/panel/metricas/metricas').then((m) => m.Metricas) },
           {
             path: 'usuarios',
             canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],

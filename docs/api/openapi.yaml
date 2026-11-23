@@ -1556,6 +1556,62 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/panel/metricas:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Métricas simples de la comuna
+      description: "Personal administrativo y administrador de la comuna. Solo reclamos\
+        \ de la comuna del token. Las fechas son días de calendario en hora de Argentina\
+        \ (America/Argentina/Buenos_Aires) y el rango incluye los dos extremos. Sin\
+        \ fechas, los últimos 30 días hasta hoy. Si se manda una, hay que mandar las\
+        \ dos. Rango máximo: 366 días.\n\nQué cuenta cada número:\n- reclamosDelPeriodo:\
+        \ los creados en el rango, en cualquier estado (incluidos los descartados).\n\
+        - resueltos: los que pasaron a RESUELTO dentro del rango (por la última vez\
+        \ que pasaron), aunque se hayan creado antes.\n- tiempoPromedioResolucionHoras:\
+        \ de esos resueltos, el promedio entre la creación y esa resolución. Vacío\
+        \ si no hay resueltos.\n- sinAsignar: de los creados en el rango, los que hoy\
+        \ siguen en RECIBIDO.\n- porTipo y porSemana: sobre los creados en el rango.\
+        \ Las semanas van de lunes a domingo; la primera y la última se recortan al\
+        \ rango y se incluyen las semanas con 0."
+      operationId: metricasDelPanel
+      parameters:
+      - name: desde
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: hasta
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MetricasDto"
+        "400":
+          description: "Fecha mal escrita o solo una de las dos (VALIDACION), desde posterior\
+            \ a hasta (FECHAS_INVALIDAS), o más de 366 días (RANGO_MUY_LARGO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/admin/comunas/{id}/limite:
     put:
       tags:
@@ -2258,7 +2314,7 @@ components:
           type:
           - string
           - "null"
-          description: Nota interna del cambio, si la hay. El vecino no la ve
+          description: "Nota interna del cambio, si la hay. El vecino no la ve. En un descarte, el motivo, la observación y el reclamo original, por ejemplo \"Duplicado del n.º 1\" o \"No se puede atender: El farol es de la empresa de energía\", para que no se pierdan si el reclamo se reabre"
         agente:
           oneOf:
           - $ref: "#/components/schemas/AgenteDto"
@@ -2513,6 +2569,68 @@ components:
           type: string
           format: binary
           description: Opcional. Una foto del trabajo terminado
+    MetricasDto:
+      type: object
+      properties:
+        desde:
+          type: string
+          format: date
+        hasta:
+          type: string
+          format: date
+        dias:
+          type: integer
+          format: int32
+          description: Cantidad de días del rango, contando los dos extremos
+        reclamosDelPeriodo:
+          type: integer
+          format: int64
+        resueltos:
+          type: integer
+          format: int64
+        tiempoPromedioResolucionHoras:
+          type:
+          - number
+          - "null"
+          format: double
+          description: Con un decimal. Vacío si no hubo resueltos en el período
+        sinAsignar:
+          type: integer
+          format: int64
+        porTipo:
+          type: array
+          description: "Los seis tipos, en el orden de /api/tipos-reclamo, con 0 si no hubo"
+          items:
+            $ref: "#/components/schemas/CantidadPorTipoDto"
+        porSemana:
+          type: array
+          description: Una fila por semana del rango, en orden, con 0 si no hubo
+          items:
+            $ref: "#/components/schemas/CantidadPorSemanaDto"
+    CantidadPorTipoDto:
+      type: object
+      properties:
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        cantidad:
+          type: integer
+          format: int64
+    CantidadPorSemanaDto:
+      type: object
+      properties:
+        desde:
+          type: string
+          format: date
+          description: El lunes de la semana, o el primer día del rango si empieza a mitad de semana
+        hasta:
+          type: string
+          format: date
+          description: El domingo de la semana, o el último día del rango si termina a mitad de semana
+        cantidad:
+          type: integer
+          format: int64
     UsuarioComunaDto:
       type: object
       description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.
