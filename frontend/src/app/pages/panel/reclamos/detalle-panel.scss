@@ -40,3 +40,15 @@ a { color: var(--p); font-weight: 700; }
 .h-obs { font-size: 16px; white-space: pre-line; overflow-wrap: anywhere; }
 
 .estado-vacio { padding: 20px; border: 2px dashed #cbd2d9; border-radius: 16px; background: #fff; }
+
+label[for] { display: block; margin-bottom: 6px; font-weight: 700; }
+select { width: 100%; box-sizing: border-box; height: 52px; padding: 0 14px; border: 2px solid var(--borde); border-radius: 12px; background: #fff; font: inherit; font-size: 18px; color: var(--tinta); }
+select[aria-invalid='true'] { border-color: var(--error); background: var(--error-fondo); }
+.msg-error { margin: 6px 0 0; color: var(--error); font-weight: 500; font-size: 16px; }
+.aviso-reasignar { margin: 0; padding: 10px 14px; border-radius: 14px; background: #fff4d6; border: 2px solid #e0a81b; color: #3d2a00; }
+.ok { margin: 0; font-weight: 700; color: var(--tinta); }
+.caja-error { padding: 12px 14px; border: 3px solid var(--error); border-radius: 14px; background: var(--error-fondo); overflow-wrap: anywhere; }
+.h-agente { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+.aviso-reasignar .botones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.aviso-reasignar { display: flex; flex-direction: column; }
+.aviso-reasignar p { margin: 0; }

@@ -6,6 +6,20 @@ export interface AgenteDto {
   nombre: string;
 }
 
+// Lo que devuelve /api/panel/agentes: el agente y cuántos reclamos tiene en curso (asignados o en reparación).
+export interface AgenteConCargaDto extends AgenteDto {
+  enCurso: number;
+}
+
+export interface AsignarAgenteRequest {
+  idAgente: number;
+}
+
+// "Marcos Díaz, 3 en curso"
+// Con `actualId`, el agente que ya tiene el reclamo se marca: "Marcos Díaz (actual), 1 en curso".
+export const textoDeAgenteConCarga = (a: AgenteConCargaDto, actualId?: number | null): string =>
+  `${a.nombre}${a.id === actualId ? ' (actual)' : ''}, ${a.enCurso} en curso`;
+
 export interface ReclamoPanelDto {
   numero: number;
   tipo: string;
@@ -53,6 +67,9 @@ export interface CambioDeEstadoPanelDto {
   fecha: string;
   usuarioNombre: string | null;
   observacion: string | null;
+  // Desde MC-19: el agente que quedó asignado con este cambio y, si fue una reasignación, el que tenía antes.
+  agente?: AgenteDto | null;
+  agenteAnterior?: AgenteDto | null;
 }
 
 export interface DescartePanelDto {

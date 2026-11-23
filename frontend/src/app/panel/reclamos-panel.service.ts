@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { FiltrosPanel, aParamsDeApi } from '../reclamos/filtros-panel';
 import {
-  AgenteDto,
+  AgenteConCargaDto,
   CambioDeEstadoEnLoteRequest,
   DescarteEnLoteRequest,
   MapaReclamosDto,
@@ -42,8 +42,13 @@ export class ReclamosPanelService {
     return this.http.get(`${BASE}/reclamos/${numero}/fotos/${idFoto}`, { responseType: 'blob' });
   }
 
-  agentes(): Observable<AgenteDto[]> {
-    return this.http.get<AgenteDto[]>(`${BASE}/agentes`);
+  agentes(): Observable<AgenteConCargaDto[]> {
+    return this.http.get<AgenteConCargaDto[]>(`${BASE}/agentes`);
+  }
+
+  // Asigna o reasigna: devuelve el detalle actualizado.
+  asignarAgente(numero: number, idAgente: number): Observable<ReclamoPanelDetalleDto> {
+    return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/agente`, { idAgente });
   }
 
   cambiarEstado(pedido: CambioDeEstadoEnLoteRequest): Observable<ResultadoEnLoteDto> {

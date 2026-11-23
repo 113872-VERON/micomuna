@@ -21,7 +21,7 @@ import {
 import { EstadoReclamo, TipoReclamoDto } from '../../../reclamos/modelos';
 import { diasDesde } from '../../../reclamos/estilo-estados';
 import {
-  AgenteDto,
+  AgenteConCargaDto,
   PaginaReclamosPanelDto,
   PuntoReclamoDto,
   ReclamoElegido,
@@ -94,7 +94,8 @@ export class ReclamosPanel {
   protected readonly errorMapa = signal(false);
   protected readonly sinMapa = signal(false);
   protected readonly limite = signal<unknown>(null);
-  protected readonly agentes = signal<readonly AgenteDto[]>([]);
+  protected readonly agentes = signal<readonly AgenteConCargaDto[]>([]);
+  protected readonly errorAgentes = signal(false);
   protected readonly tipos = signal<readonly TipoReclamoDto[]>([]);
   private readonly recarga = signal(0);
 
@@ -199,10 +200,20 @@ export class ReclamosPanel {
     inject(DestroyRef).onDestroy(() => clearTimeout(this.temporizador));
   }
 
+  protected cargarAgentes(): void {
+    this.api.agentes().subscribe({
+      next: (a) => {
+        this.agentes.set(a);
+        this.errorAgentes.set(false);
+      },
+      error: () => this.errorAgentes.set(this.agentes().length === 0),
+    });
+  }
+
   // Agentes (para el filtro y para asignar), tipos y límite de la comuna: se piden una vez. Si alguno falla, la
   // pantalla sigue sin ese dato.
   private cargarApoyos(): void {
-    this.api.agentes().subscribe({ next: (a) => this.agentes.set(a), error: () => this.agentes.set([]) });
+    this.cargarAgentes();
     this.reclamosApi.listarTipos().subscribe({ next: (t) => this.tipos.set(t), error: () => this.tipos.set([]) });
     this.reclamosApi.limiteDeMiComuna().subscribe({ next: (l) => this.limite.set(l ?? null), error: () => this.limite.set(null) });
   }
@@ -312,9 +323,15 @@ export class ReclamosPanel {
     this.dialogo.set(null);
   }
 
+  // Reintentar la lista, el resumen y el mapa (no los agentes).
+  protected reintentar(): void {
+    this.recarga.update((n) => n + 1);
+  }
+
   // Algo cambió en el servidor: se vuelve a pedir el resumen, la lista y el mapa.
   protected alAplicar(): void {
     this.recarga.update((n) => n + 1);
+    this.cargarAgentes();
   }
 
   // ---- Mapa ----

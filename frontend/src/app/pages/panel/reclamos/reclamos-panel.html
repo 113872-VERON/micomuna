@@ -75,7 +75,7 @@
     @if (errorLista()) {
       <div class="caja-error" role="alert">
         <p>No pudimos cargar los reclamos.</p>
-        <button type="button" class="btn sec chico" (click)="alAplicar()">Reintentar</button>
+        <button type="button" class="btn sec chico" (click)="reintentar()">Reintentar</button>
       </div>
     } @else if (cargando() && !datos()) {
       <p class="estado-vacio" role="status">Cargando los reclamos…</p>
@@ -189,7 +189,7 @@
       @if (errorMapa()) {
         <div class="caja-error" role="alert">
           <p>No pudimos cargar los puntos del mapa.</p>
-          <button type="button" class="btn sec chico" (click)="alAplicar()">Reintentar</button>
+          <button type="button" class="btn sec chico" (click)="reintentar()">Reintentar</button>
         </div>
       }
       <app-mapa-reclamos [puntos]="puntos()" [limite]="limite()" [resaltado]="filaActiva()" altura="560px" (elegido)="alElegirPin($event)" (falla)="sinMapa.set(true)" />
@@ -203,7 +203,7 @@
 </div>
 
 @if (dialogo() === 'estado') {
-  <app-dialogo-cambiar-estado [reclamos]="elegidosEnDialogo()" [agentes]="agentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+  <app-dialogo-cambiar-estado [reclamos]="elegidosEnDialogo()" [agentes]="agentes()" [agentesFallo]="errorAgentes()" [slug]="slug()" (reintentarAgentes)="cargarAgentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
 }
 @if (dialogo() === 'descarte') {
   <app-dialogo-descartar [reclamos]="elegidosEnDialogo()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />

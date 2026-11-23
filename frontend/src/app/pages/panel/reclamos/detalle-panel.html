@@ -59,6 +59,48 @@
     </div>
 
     <div class="col">
+      @if (sePuedeAsignar()) {
+        <section class="bloque" aria-labelledby="t-asignar">
+          <h2 id="t-asignar">Asignar a un agente</h2>
+          @if (agentes().length === 0) {
+            <app-sin-agentes [fallo]="errorAgentes()" [slug]="slug()" (reintentar)="recargarAgentes()" />
+          } @else {
+            <div>
+              <label for="agente-asignar">Agente</label>
+              <select id="agente-asignar" [attr.aria-invalid]="errorAgenteElegido() ? 'true' : null"
+                [attr.aria-describedby]="errorAgenteElegido() ? 'error-agente-asignar' : null" (change)="elegirAgente($event)">
+                <option value="" [selected]="agenteElegido() === null">Elegí un agente</option>
+                @for (a of agentes(); track a.id) {
+                  <option [value]="a.id" [selected]="agenteElegido() === a.id" [disabled]="a.id === r.agente?.id">{{ textoAgente(a, r.agente?.id) }}</option>
+                }
+              </select>
+              @if (errorAgenteElegido(); as m) {
+                <p id="error-agente-asignar" class="msg-error" role="alert">{{ m }}</p>
+              }
+            </div>
+            @if (confirmandoReasignar()) {
+              <div class="aviso-reasignar" role="alertdialog" aria-labelledby="texto-confirmar">
+                <p id="texto-confirmar">{{ r.agente?.nombre }} ya empezó a trabajar en este reclamo. Si lo reasignás vuelve a Asignado. ¿Reasignar igual?</p>
+                <div class="botones">
+                  <button type="button" class="btn pri" (click)="enviarAsignacion()">Reasignar</button>
+                  <button type="button" class="btn sec" (click)="cancelarReasignar()">Cancelar</button>
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="btn pri" [disabled]="asignando()" (click)="asignar()">
+                {{ asignando() ? 'Guardando…' : textoBotonAsignar() }}
+              </button>
+            }
+          }
+          @if (errorAsignar(); as m) {
+            <div class="caja-error" role="alert">{{ m }}</div>
+          }
+          @if (asignado(); as m) {
+            <p class="ok" role="status">{{ m }}</p>
+          }
+        </section>
+      }
+
       @if (r.descarte; as d) {
         <section class="bloque descartado" aria-labelledby="t-descarte">
           <h2 id="t-descarte">Descartado</h2>
@@ -98,7 +140,7 @@
             <li>
               <div class="h-arriba">
                 <app-chip-estado [estado]="c.estado" />&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
-              </div>&ngsp;<span class="h-quien">{{ $first ? 'Lo envió ' : 'Lo cambió ' }}{{ c.usuarioNombre || 'el sistema' }}</span>
+              </div>&ngsp;@if (textoDeAgente(c); as ag) {<span class="h-agente">{{ ag }}</span>&ngsp;}<span class="h-quien">{{ $first ? 'Lo envió ' : 'Lo cambió ' }}{{ c.usuarioNombre || 'el sistema' }}</span>
               @if (c.observacion) {
                 &ngsp;<span class="h-obs"><span class="rotulo">Observación</span>&ngsp;{{ c.observacion }}</span>
               }
@@ -130,7 +172,7 @@
 }
 
 @if (dialogo() === 'estado') {
-  <app-dialogo-cambiar-estado [reclamos]="elegido()" [agentes]="agentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+  <app-dialogo-cambiar-estado [reclamos]="elegido()" [agentes]="agentes()" [agentesFallo]="errorAgentes()" [slug]="slug()" (reintentarAgentes)="recargarAgentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
 }
 @if (dialogo() === 'descarte') {
   <app-dialogo-descartar [reclamos]="elegido()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
