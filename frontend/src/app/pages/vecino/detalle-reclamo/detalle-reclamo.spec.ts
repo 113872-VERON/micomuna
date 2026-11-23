@@ -263,7 +263,7 @@ describe('DetalleReclamo', () => {
           { estado: 'RECIBIDO', fecha: '2026-11-03T14:05:00' },
           { estado: 'DESCARTADO', fecha: '2026-11-04T10:00:00' },
         ],
-        descarte: { motivo: 'NO_SE_PUEDE_ATENDER', observacion: 'Es un terreno privado.', numeroOriginal: null, estadoOriginal: null },
+        descarte: { motivo: 'NO_SE_PUEDE_ATENDER', observacion: 'Es un terreno privado.', estadoOriginal: null, historialOriginal: [] },
       }),
     );
     f.detectChanges();
@@ -271,6 +271,48 @@ describe('DetalleReclamo', () => {
     expect(el(f).querySelector('.pasos')).toBeNull();
     expect(el(f).querySelector('.descartado')?.textContent).toContain('La comuna no lo puede atender');
     expect(el(f).querySelector('.descartado')?.textContent).toContain('Es un terreno privado.');
+  });
+
+  it('unDuplicadoExplicaYMuestraElAvanceDelOriginalSinSuNumero', () => {
+    const f = crear();
+    http.expectOne('/api/reclamos/mios/12').flush(
+      reclamo({
+        estado: 'DESCARTADO',
+        historial: [
+          { estado: 'RECIBIDO', fecha: '2026-11-03T14:05:00' },
+          { estado: 'DESCARTADO', fecha: '2026-11-04T10:00:00' },
+        ],
+        descarte: {
+          motivo: 'DUPLICADO',
+          observacion: 'Duplicado del n.º 7',
+          estadoOriginal: 'ASIGNADO',
+          historialOriginal: [
+            { estado: 'RECIBIDO', fecha: '2026-11-01T08:00:00' },
+            { estado: 'ASIGNADO', fecha: '2026-11-02T09:30:00' },
+          ],
+        },
+      }),
+    );
+    f.detectChanges();
+
+    const caja = el(f).querySelector('.duplicado') as HTMLElement;
+    const texto = caja.textContent?.replace(/\s+/g, ' ') ?? '';
+    expect(texto).toContain('Se detectó que este reclamo ya fue reportado');
+    expect(texto).toContain('Otro vecino ya avisó de este mismo problema y la comuna se está ocupando. No hace falta que hagas nada más.');
+    expect(texto).toContain('Seguí el avance del problema');
+    expect(caja.querySelectorAll('.pasos li').length).toBe(4);
+    expect(texto).toContain('Recibido 01/11/2026 08:00');
+    expect(texto).toContain('Asignado 02/11/2026 09:30');
+    expect(texto).not.toContain('7');
+    expect(el(f).querySelector('.descartado')).toBeNull();
+  });
+
+  it('avisaQueLasNovedadesLlegaranPorCorreo', () => {
+    const f = crear();
+    http.expectOne('/api/reclamos/mios/12').flush(reclamo());
+    f.detectChanges();
+
+    expect(el(f).textContent).toContain('Te avisamos por correo cada vez que haya novedades.');
   });
 
   it('resueltoMuestraLoQueSeHizo', () => {

@@ -194,7 +194,7 @@ describe('InicioVecino', () => {
             { estado: 'RECIBIDO', fecha: '2026-11-03T14:05:00' },
             { estado: 'DESCARTADO', fecha: '2026-11-06T10:00:00' },
           ],
-          descarte: { motivo: 'NO_ES_DE_LA_COMUNA', observacion: '<b>Es ruta provincial</b>', numeroOriginal: null, estadoOriginal: null },
+          descarte: { motivo: 'NO_ES_DE_LA_COMUNA', observacion: '<b>Es ruta provincial</b>', estadoOriginal: null, historialOriginal: [] },
         }),
       );
       f.detectChanges();
@@ -209,21 +209,49 @@ describe('InicioVecino', () => {
       expect(el(f).querySelector('.pasos')).toBeNull();
     });
 
-    it('unDuplicadoAvisaQueSeSigueEnElOriginalSinEnlazarloYConSuEstado', () => {
+    it('unDuplicadoDiceQueYaFueReportadoYMuestraLosPasosDelOriginalSinNumero', () => {
       const f = crear();
       listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
       http.expectOne('/api/reclamos/mios/12').flush(
         detalle({
           estado: 'DESCARTADO',
-          descarte: { motivo: 'DUPLICADO', observacion: null, numeroOriginal: 7, estadoOriginal: 'EN_REPARACION' },
+          descarte: {
+            motivo: 'DUPLICADO',
+            observacion: 'Duplicado del n.º 7',
+            estadoOriginal: 'EN_REPARACION',
+            historialOriginal: [
+              { estado: 'RECIBIDO', fecha: '2026-11-03T14:05:00' },
+              { estado: 'ASIGNADO', fecha: '2026-11-04T09:00:00' },
+              { estado: 'EN_REPARACION', fecha: '2026-11-05T08:00:00' },
+            ],
+          },
         }),
       );
       f.detectChanges();
 
-      const caja = el(f).querySelector('.descartado') as HTMLElement;
-      expect(caja.textContent?.replace(/\s+/g, ' ')).toContain('Ya había un reclamo por este problema: lo seguimos en el reclamo n.º 7 (En reparación)');
-      // El original casi siempre es de otro vecino: un enlace daría 404.
+      const caja = el(f).querySelector('.duplicado') as HTMLElement;
+      const texto = caja.textContent?.replace(/\s+/g, ' ') ?? '';
+      expect(texto).toContain('Se detectó que este reclamo ya fue reportado');
+      expect(texto).toContain('La comuna ya se está ocupando. Seguís el avance acá.');
+      expect(caja.querySelectorAll('.pasos li').length).toBe(4);
+      expect(texto).toContain('Asignado 04/11/2026 09:00');
+      expect(texto).toContain('Resuelto Todavía no');
+      expect(texto).not.toContain('n.º');
+      expect(el(f).querySelector('.descartado')).toBeNull();
       expect(caja.querySelector('a')).toBeNull();
+    });
+
+    it('siElOriginalEstaDescartadoSeDiceEnPalabras', () => {
+      const f = crear();
+      listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
+      http.expectOne('/api/reclamos/mios/12').flush(
+        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'DUPLICADO', observacion: null, estadoOriginal: 'DESCARTADO', historialOriginal: [{ estado: 'DESCARTADO', fecha: '2026-11-05T08:00:00' }] } }),
+      );
+      f.detectChanges();
+
+      const caja = el(f).querySelector('.duplicado') as HTMLElement;
+      expect(caja.textContent).toContain('La comuna descartó el reclamo que estaba siguiendo');
+      expect(caja.querySelector('.pasos')).toBeNull();
     });
 
     it('unPasoSaltadoMuestraSoloLaTildeSinLaPalabraHecho', () => {
@@ -245,7 +273,7 @@ describe('InicioVecino', () => {
       const f = crear({ ...COMUNA, telefono: '543543123456', whatsapp: '5493543654321' });
       listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
       http.expectOne('/api/reclamos/mios/12').flush(
-        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'OTRO', observacion: null, numeroOriginal: null, estadoOriginal: null } }),
+        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'OTRO', observacion: null, estadoOriginal: null, historialOriginal: [] } }),
       );
       f.detectChanges();
 
@@ -260,7 +288,7 @@ describe('InicioVecino', () => {
       const f = crear();
       listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
       http.expectOne('/api/reclamos/mios/12').flush(
-        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'OTRO', observacion: 'Ya está programado.', numeroOriginal: null, estadoOriginal: null } }),
+        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'OTRO', observacion: 'Ya está programado.', estadoOriginal: null, historialOriginal: [] } }),
       );
       f.detectChanges();
 
@@ -272,26 +300,13 @@ describe('InicioVecino', () => {
       const f = crear({ ...COMUNA, telefono: '543543123456', whatsapp: null });
       listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
       http.expectOne('/api/reclamos/mios/12').flush(
-        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'NO_ES_DE_LA_COMUNA', observacion: null, numeroOriginal: null, estadoOriginal: null } }),
+        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'NO_ES_DE_LA_COMUNA', observacion: null, estadoOriginal: null, historialOriginal: [] } }),
       );
       f.detectChanges();
 
       const caja = el(f).querySelector('.descartado') as HTMLElement;
       expect(caja.textContent).toContain('Si creés que sí le corresponde a la comuna, comunicate con ella.');
       expect(caja.querySelector('a[href="tel:+543543123456"]')).not.toBeNull();
-    });
-
-    it('duplicadoExplicaQueNoHaceFaltaReportarloDeNuevoYNoMuestraBotones', () => {
-      const f = crear({ ...COMUNA, telefono: '543543123456', whatsapp: null });
-      listaPedida().flush(pagina([resumen(12, { estado: 'DESCARTADO' })]));
-      http.expectOne('/api/reclamos/mios/12').flush(
-        detalle({ estado: 'DESCARTADO', descarte: { motivo: 'DUPLICADO', observacion: null, numeroOriginal: 3, estadoOriginal: 'ASIGNADO' } }),
-      );
-      f.detectChanges();
-
-      const caja = el(f).querySelector('.descartado') as HTMLElement;
-      expect(caja.textContent).toContain('No hace falta que lo vuelvas a reportar');
-      expect(caja.querySelector('a[href^="tel:"]')).toBeNull();
     });
 
     it('resueltoConTrabajoRealizadoLoMuestra', () => {
