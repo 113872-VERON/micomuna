@@ -74,9 +74,37 @@ describe('MapaUbicacion (con Leaflet)', () => {
   it('dibujaElLimiteComoLineaPunteada', async () => {
     await montar({ limite: CUADRADO });
 
-    const trazo = el().querySelector('.leaflet-overlay-pane path');
+    const trazo = el().querySelector('.leaflet-overlay-pane path[stroke-dasharray]');
     expect(trazo).not.toBeNull();
     expect(trazo?.getAttribute('stroke-dasharray')).toBe('8 8');
+  });
+
+  it('conLimiteGrisaLoDeAfueraConUnaMascaraSinInteraccionDebajoDeLaLinea', async () => {
+    await montar({ limite: CUADRADO });
+
+    const mascara = el().querySelector('path.mascara-fuera') as SVGPathElement;
+    expect(mascara).not.toBeNull();
+    expect(mascara.getAttribute('fill-rule')).toBe('evenodd');
+    expect(mascara.getAttribute('fill-opacity')).toBe('0.45');
+    // Dos anillos: el mundo y el agujero de la comuna.
+    expect((mascara.getAttribute('d') ?? '').match(/M/g)?.length).toBe(2);
+    expect(mascara.classList.contains('leaflet-interactive')).toBe(false);
+    // Está antes que la línea punteada: queda por debajo.
+    const trazos = Array.from(el().querySelectorAll('.leaflet-overlay-pane path'));
+    expect(trazos.indexOf(mascara)).toBeLessThan(trazos.findIndex((p) => p.getAttribute('stroke-dasharray') === '8 8'));
+  });
+
+  it('sinLimiteNoDibujaMascaraYSiLlegaDespuesLaDibuja', async () => {
+    await montar();
+    expect(el().querySelector('path.mascara-fuera')).toBeNull();
+
+    fixture.componentRef.setInput('limite', CUADRADO);
+    fixture.detectChanges();
+    expect(el().querySelector('path.mascara-fuera')).not.toBeNull();
+
+    fixture.componentRef.setInput('limite', null);
+    fixture.detectChanges();
+    expect(el().querySelector('path.mascara-fuera')).toBeNull();
   });
 
   it('sinLimiteNoDibujaNadaYSiLlegaDespuesLoDibuja', async () => {
@@ -85,7 +113,7 @@ describe('MapaUbicacion (con Leaflet)', () => {
 
     fixture.componentRef.setInput('limite', CUADRADO);
     fixture.detectChanges();
-    expect(el().querySelector('.leaflet-overlay-pane path')?.getAttribute('stroke-dasharray')).toBe('8 8');
+    expect(el().querySelector('.leaflet-overlay-pane path[stroke-dasharray]')?.getAttribute('stroke-dasharray')).toBe('8 8');
 
     fixture.componentRef.setInput('limite', null);
     fixture.detectChanges();

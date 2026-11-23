@@ -39,6 +39,11 @@ export function bordesParaDibujar(figura: unknown): Punto[][] {
   return poligonosDe(figura).flatMap((anillos) => anillos.map((a) => a.map(([lng, lat]) => ({ lat, lng }))));
 }
 
+// Anillo exterior de cada polígono de la comuna (sin los huecos): son los agujeros de la máscara gris.
+export function anillosExterioresParaMascara(figura: unknown): Punto[][] {
+  return poligonosDe(figura).map((anillos) => anillos[0].map(([lng, lat]) => ({ lat, lng })));
+}
+
 // Centro de la caja que rodea toda la figura (alcanza para centrar el mapa).
 export function centroDelLimite(figura: unknown): Coordenadas | null {
   const puntos = poligonosDe(figura).flatMap((anillos) => anillos[0]);

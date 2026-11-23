@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { centroDelLimite } from '../../../mapas/geo';
@@ -16,7 +17,7 @@ const ZOOM_PUNTO = 17;
 // escrita es opcional. Si el mapa no carga, queda el GPS (y la referencia).
 @Component({
   selector: 'app-paso-donde',
-  imports: [ReactiveFormsModule, MapaUbicacion],
+  imports: [ReactiveFormsModule, MapaUbicacion, NgTemplateOutlet],
   templateUrl: './paso-donde.html',
   styleUrl: './paso-donde.scss',
 })
@@ -61,6 +62,10 @@ export class PasoDonde {
   }
 
   // Sirve con el mapa real o con uno falso en las pruebas: solo se le pide el centro.
+  protected readonly textoUbicar = computed(() =>
+    this.b.buscandoUbicacion() ? 'Buscando dónde estás…' : this.b.ubicacion() && this.b.origenUbicacion() === 'gps' ? 'Volver a tomar mi ubicación' : 'Usar mi ubicación',
+  );
+
   private readonly mapa = viewChild<{ centroActual(): Coordenadas | null }>('mapa');
 
   // "Es acá": toma el centro actual del mapa como punto (igual que al mover el mapa). Solo cuando el vecino lo toca.
@@ -69,6 +74,13 @@ export class PasoDonde {
     if (centro) {
       this.b.fijarUbicacion(centro, 'mapa');
     }
+  }
+
+  // "Quitar": deja de usar el GPS y vuelve el mapa a donde abre (el centro de la comuna, o la provincia si no hay
+  // límite). No queda ningún lugar marcado: el vecino tiene que tocar "Es acá" o usar su ubicación.
+  protected quitarUbicacion(): void {
+    this.b.quitarUbicacion();
+    this.vista.set({ ...this.vistaInicial() });
   }
 
   protected alDetenerse(punto: Coordenadas): void {

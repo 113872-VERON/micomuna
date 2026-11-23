@@ -735,17 +735,18 @@ describe('Reportar un problema', () => {
       expect(texto()).toContain('Paso 4 de 4');
     });
 
-    it('quitarLaUbicacionVuelveAPedirUnLugar', async () => {
+    it('quitarLaUbicacionDejaElGpsYNoDejaNingunLugarMarcado', async () => {
       await abrir();
       await irAlPaso3();
       gps.obtener.mockResolvedValue({ latitud: -31.1, longitud: -64.3 });
       await tocar('Usar mi ubicación');
 
       await tocar('Quitar la ubicación');
-      await siguiente();
 
+      expect(texto()).not.toContain('Tomamos tu ubicación.');
+      expect(hayBoton('Usar mi ubicación')).toBe(true);
+      await siguiente();
       expect(texto()).toContain('Paso 3 de 4');
-      expect(el().querySelector('[role="alert"]')?.textContent).toContain('Mové el mapa hasta el lugar y tocá «Es acá», o usá tu ubicación.');
     });
   });
 
@@ -1015,7 +1016,7 @@ describe('Reportar un problema', () => {
     }
     const alertas = () => Array.from(el().querySelectorAll('[role="alert"]')).map((a) => a.textContent?.replace(/\s+/g, ' ').trim());
     const FUERA =
-      'Ese lugar está fuera de Salsipuedes. Solo podés reportar problemas de tu comuna. Mové el mapa hasta adentro de la línea punteada.';
+      'Ese lugar está fuera de Salsipuedes. Mové el mapa hasta la zona marcada.';
 
     async function irAlMapa() {
       await abrir();
@@ -1100,7 +1101,33 @@ describe('Reportar un problema', () => {
         expect(mapa().vista().centro.longitud).toBeCloseTo(-64.3, 6);
         expect(mapa().vista().zoom).toBe(14);
         expect(mapa().limite()).toEqual(LIMITE);
-        expect(texto()).toContain('Solo podés reportar problemas de Salsipuedes. El área está marcada con la línea punteada.');
+        // Sin cartel informativo: el aviso aparece solo cuando el punto queda afuera.
+        expect(texto()).not.toContain('Solo podés reportar problemas');
+        expect(alertas()).toEqual([]);
+      });
+
+      it('elMapaEsAltoEnDvhYLaUbicacionEsUnBotonRedondoFlotanteConNombre', async () => {
+        await irAlMapa();
+
+        expect(mapa().altura()).toContain('dvh');
+        expect(mapa().altura()).not.toMatch(/\dvh/);
+        const flotante = el().querySelector('.mapa-caja button.flotante') as HTMLButtonElement;
+        expect(flotante.getAttribute('aria-label')).toBe('Usar mi ubicación');
+        expect(flotante.getAttribute('title')).toBe('Usar mi ubicación');
+        expect(flotante.textContent?.trim()).toBe('');
+        // Debajo del mapa: "Es acá" a ancho completo.
+        expect(el().querySelector('button.es-aca')?.textContent?.trim()).toBe('Es acá');
+      });
+
+      it('elAvisoDeFueraDeComunaEstaPegadoAlMapaYSoloAparecePorFuera', async () => {
+        await irAlMapa();
+        expect(el().querySelector('#error-fuera')).toBeNull();
+
+        await mover(AFUERA);
+
+        const aviso = el().querySelector('#error-fuera') as HTMLElement;
+        expect(aviso.getAttribute('role')).toBe('alert');
+        expect(aviso.previousElementSibling?.classList.contains('mapa-caja')).toBe(true);
       });
 
       it('sinLimiteArrancaEnUnaVistaDeLaProvinciaYNoHablaDeLaLinea', async () => {
@@ -1224,18 +1251,50 @@ describe('Reportar un problema', () => {
         expect(url()).toBe(`${BASE}/donde`);
       });
 
-      it('despuesDeQuitarLaUbicacionDelGpsTambienSirve', async () => {
+      it('quitarLaUbicacionDelGpsMueveElMapaAlCentroDelLimiteSinMarcarNada', async () => {
         await irAlMapa();
         await completarGps(ADENTRO);
+        const vistaGps = mapa().vista();
+        expect(vistaGps.zoom).toBe(17);
+
         await tocar('Quitar la ubicación');
+
+        expect(mapa().vista().centro.latitud).toBeCloseTo(-31.12, 6);
+        expect(mapa().vista().centro.longitud).toBeCloseTo(-64.3, 6);
+        expect(mapa().vista().zoom).toBe(14);
+        expect(texto()).not.toContain('Tomamos tu ubicación.');
+        expect(hayBoton('Usar mi ubicación')).toBe(true);
+        // Sin lugar marcado: la dirección se limpia y "Siguiente" no avanza hasta tocar "Es acá".
+        expect(el().querySelector('#direccion-aprox')).toBeNull();
         await siguiente();
         expect(url()).toBe(`${BASE}/donde`);
+        expect(alertas()).toEqual(['Mové el mapa hasta el lugar y tocá «Es acá», o usá tu ubicación.']);
 
-        mapa().centro = OTRO_ADENTRO;
         await tocar('Es acá: marcar el lugar donde está el pin');
         await siguiente();
-
         expect(texto()).toContain('Paso 4 de 4');
+      });
+
+      it('quitarLaUbicacionSacaElAvisoDeFueraDeLaComuna', async () => {
+        await irAlMapa();
+        await completarGps(AFUERA);
+        expect(alertas()).toEqual([FUERA]);
+
+        await tocar('Quitar la ubicación');
+
+        expect(alertas()).toEqual([]);
+        expect(el().querySelector('#error-fuera')).toBeNull();
+      });
+
+      it('sinLimiteQuitarLaUbicacionVuelveALaVistaDeLaProvincia', async () => {
+        limiteComuna = null;
+        await irAlMapa();
+        await completarGps(ADENTRO);
+
+        await tocar('Quitar la ubicación');
+
+        expect(mapa().vista().zoom).toBe(7);
+        expect(mapa().vista().centro).toEqual({ latitud: -31.4, longitud: -64.2 });
         expect(texto()).not.toContain('Tomamos tu ubicación.');
       });
     });
@@ -1423,6 +1482,8 @@ describe('Reportar un problema', () => {
         expect(mini.interactivo()).toBe(false);
         expect(mini.vista().centro).toEqual(OTRO_ADENTRO);
         expect(mini.etiqueta()).toBe('Mapa con el lugar que marcaste');
+        // El límite ya cargado en el paso del mapa se reusa para grisar lo de afuera.
+        expect(mini.limite()).toEqual(LIMITE);
       });
 
       it('elEnvioLlevaLatitudLongitudDireccionYReferencia', async () => {

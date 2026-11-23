@@ -50,7 +50,7 @@
       }
       @if (vistaMapa(); as vista) {
         <div class="mini">
-          <app-mapa-ubicacion [vista]="vista" [interactivo]="false" altura="150px" etiqueta="Mapa con el lugar que marcaste" (falla)="sinMapa()" />
+          <app-mapa-ubicacion [vista]="vista" [limite]="b.limite()" [interactivo]="false" altura="150px" etiqueta="Mapa con el lugar que marcaste" (falla)="sinMapa()" />
         </div>
       }
     </div>
