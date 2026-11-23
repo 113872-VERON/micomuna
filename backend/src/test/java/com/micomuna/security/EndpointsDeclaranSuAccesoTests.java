@@ -197,6 +197,27 @@ class EndpointsDeclaranSuAccesoTests {
 				.containsExactlyInAnyOrderElementsOf(SOLO_DEL_PERSONAL);
 	}
 
+	// MC-20: los reclamos del agente de campo son solo del agente.
+	private static final Set<String> SOLO_DEL_AGENTE = Set.of(
+			"GET /api/agente/reclamos",
+			"GET /api/agente/reclamos/{numero}",
+			"GET /api/agente/reclamos/{numero}/fotos/{idFoto}",
+			"POST /api/agente/reclamos/{numero}/empezar",
+			"POST /api/agente/reclamos/{numero}/resolver");
+
+	@Test
+	void losEndpointsDelAgenteSonSoloDelAgente() {
+		Map<String, HandlerMethod> endpoints = endpointsDeLaAplicacion();
+		for (String clave : SOLO_DEL_AGENTE) {
+			assertThat(endpoints).as(clave).containsKey(clave);
+			PreAuthorize regla = preAuthorizeVigente(endpoints.get(clave));
+			assertThat(regla).as("@PreAuthorize de " + clave).isNotNull();
+			assertThat(regla.value()).as(clave).isEqualTo("hasRole('AGENTE')");
+		}
+		assertThat(endpoints.keySet().stream().filter(k -> k.contains(" /api/agente/")).toList())
+				.containsExactlyInAnyOrderElementsOf(SOLO_DEL_AGENTE);
+	}
+
 	@Test
 	void losControladoresDePruebaSeReconocenPorSuUbicacion() {
 		// Si la detección dejara de andar, los controladores de prueba aparecerían en la revisión (y la harían fallar);

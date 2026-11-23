@@ -3,6 +3,7 @@ package com.micomuna.repositories;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
 import org.springframework.data.repository.query.Param;
@@ -30,6 +31,23 @@ public interface ReclamoFotoRepository extends Repository<ReclamoFoto, Long> {
 			""")
 	Optional<ReclamoFoto> buscarDelVecino(@Param("idFoto") Long idFoto, @Param("numero") Integer numero,
 			@Param("idComuna") Long idComuna, @Param("idVecino") Long idVecino);
+
+	// Igual que buscarDelVecino pero para el agente (MC-20): el reclamo tiene que ser de ese agente en esa comuna y no
+	// estar DESCARTADO. Las fotos del TRABAJO solo si el reclamo está RESUELTO (igual que las ve el vecino).
+	@Query("""
+			select f from ReclamoFoto f join f.reclamo r
+			where f.id = :idFoto and r.numero = :numero and r.comuna.id = :idComuna and r.agente.id = :idAgente
+				and r.estado <> com.micomuna.enums.EstadoReclamo.DESCARTADO
+				and (f.origen = com.micomuna.enums.OrigenFoto.VECINO or r.estado = com.micomuna.enums.EstadoReclamo.RESUELTO)
+			""")
+	Optional<ReclamoFoto> buscarDelAgente(@Param("idFoto") Long idFoto, @Param("numero") Integer numero,
+			@Param("idComuna") Long idComuna, @Param("idAgente") Long idAgente);
+
+	// Al resolver de nuevo un reclamo reabierto, las fotos del trabajo de la resolución anterior se reemplazan. Borra
+	// solo las de origen TRABAJO; las del vecino nunca se tocan. Se ejecuta de inmediato, dentro de la transacción.
+	@Modifying(flushAutomatically = true)
+	@Query("delete from ReclamoFoto f where f.reclamo.id = :idReclamo and f.origen = com.micomuna.enums.OrigenFoto.TRABAJO")
+	int eliminarFotosDelTrabajo(@Param("idReclamo") Long idReclamo);
 
 	// Igual que buscarDelVecino pero para el personal: cualquier reclamo de la comuna, sin mirar quién lo reportó.
 	// Las fotos del TRABAJO solo si el reclamo está RESUELTO.
