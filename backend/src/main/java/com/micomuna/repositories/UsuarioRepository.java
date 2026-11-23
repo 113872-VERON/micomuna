@@ -48,4 +48,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	// Trae la comuna junto con el usuario: la sesión de Hibernate ya está cerrada cuando se usa.
 	@Query("select u from Usuario u left join fetch u.comuna where u.id = :id")
 	Optional<Usuario> findConComunaPorId(@Param("id") Long id);
+
+	// Agentes que se pueden asignar: activos, con rol AGENTE y que ya aceptaron la invitación (tienen contraseña). El orden por nombre lo arma el servicio.
+	List<Usuario> findByComunaIdAndRolAndActivoTrueAndClaveHashIsNotNull(Long idComuna, Rol rol);
 }

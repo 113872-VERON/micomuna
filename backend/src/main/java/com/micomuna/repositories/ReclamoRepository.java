@@ -66,4 +66,8 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@QueryHints(@QueryHint(name = Bloqueo.HINT_ESPERA, value = Bloqueo.ESPERA_MAXIMA_MS))
 	@Query("select r from Reclamo r where r.comuna.id = :idComuna and r.numero = :numero")
 	Optional<Reclamo> bloquearPorNumero(@Param("idComuna") Long idComuna, @Param("numero") Integer numero);
+
+	// El agente asignado a un reclamo de la comuna (vacío si no tiene o el reclamo no existe).
+	@Query("select a from Reclamo r join r.agente a where r.comuna.id = :idComuna and r.numero = :numero")
+	Optional<com.micomuna.entities.Usuario> agenteDe(@Param("idComuna") Long idComuna, @Param("numero") Integer numero);
 }

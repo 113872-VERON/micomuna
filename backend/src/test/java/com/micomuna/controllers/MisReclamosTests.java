@@ -160,7 +160,10 @@ class MisReclamosTests {
 		SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
 				new UsuarioAutenticado(agenteA.getId(), Rol.AGENTE, comunaA.getId()), null, List.of()));
 		try {
-			cambios.cambiar(r.getNumero(), cambio, agenteA.getId());
+			// ASIGNADO exige agente: si el pedido no lo trae, se asigna al agente de la prueba.
+			CambioDeEstado completo = cambio.nuevo() == EstadoReclamo.ASIGNADO && cambio.idAgente() == null
+					? CambioDeEstado.asignar(agenteA.getId()) : cambio;
+			cambios.cambiar(r.getNumero(), completo, agenteA.getId());
 		} finally {
 			SecurityContextHolder.clearContext();
 		}
@@ -386,7 +389,7 @@ class MisReclamosTests {
 	@Test
 	void elDetalleNoExponeQuienCambioElEstadoNiLaNotaInterna() throws Exception {
 		Reclamo r = reclamo(comunaA, vecinoA, 1);
-		cambiar(r, new CambioDeEstado(EstadoReclamo.ASIGNADO, null, null, null, null, "nota interna secreta"));
+		cambiar(r, new CambioDeEstado(EstadoReclamo.ASIGNADO, null, null, null, null, "nota interna secreta", agenteA.getId()));
 
 		String cuerpo = pedir(RUTA + "/1").andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
 
@@ -466,11 +469,11 @@ class MisReclamosTests {
 	@Test
 	void elDetalleDeUnDescartadoSinOriginalNoTraeNumeroNiEstadoOriginal() throws Exception {
 		Reclamo r = reclamo(comunaA, vecinoA, 1);
-		cambiar(r, CambioDeEstado.descartar(MotivoDescarte.NO_ES_DE_LA_COMUNA, null, null));
+		cambiar(r, CambioDeEstado.descartar(MotivoDescarte.NO_ES_DE_LA_COMUNA, "Es de la ruta", null));
 
 		pedir(RUTA + "/1")
 				.andExpect(jsonPath("$.descarte.motivo").value("NO_ES_DE_LA_COMUNA"))
-				.andExpect(jsonPath("$.descarte.observacion").value(nullValue()))
+				.andExpect(jsonPath("$.descarte.observacion").value("Es de la ruta"))
 				.andExpect(jsonPath("$.descarte.numeroOriginal").value(nullValue()))
 				.andExpect(jsonPath("$.descarte.estadoOriginal").value(nullValue()));
 	}

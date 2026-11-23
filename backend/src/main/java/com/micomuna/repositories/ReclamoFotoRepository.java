@@ -30,4 +30,14 @@ public interface ReclamoFotoRepository extends Repository<ReclamoFoto, Long> {
 			""")
 	Optional<ReclamoFoto> buscarDelVecino(@Param("idFoto") Long idFoto, @Param("numero") Integer numero,
 			@Param("idComuna") Long idComuna, @Param("idVecino") Long idVecino);
+
+	// Igual que buscarDelVecino pero para el personal: cualquier reclamo de la comuna, sin mirar quién lo reportó.
+	// Las fotos del TRABAJO solo si el reclamo está RESUELTO.
+	@Query("""
+			select f from ReclamoFoto f join f.reclamo r
+			where f.id = :idFoto and r.numero = :numero and r.comuna.id = :idComuna
+				and (f.origen = com.micomuna.enums.OrigenFoto.VECINO or r.estado = com.micomuna.enums.EstadoReclamo.RESUELTO)
+			""")
+	Optional<ReclamoFoto> buscarEnComuna(@Param("idFoto") Long idFoto, @Param("numero") Integer numero,
+			@Param("idComuna") Long idComuna);
 }

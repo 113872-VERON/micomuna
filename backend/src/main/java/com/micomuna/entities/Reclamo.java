@@ -87,6 +87,12 @@ public class Reclamo {
 	@JoinColumn(name = "id_reclamo_original")
 	private Reclamo reclamoOriginal;
 
+	// Agente de campo asignado (V10). Vacío mientras el reclamo está RECIBIDO. La base exige que sea de la misma comuna;
+	// que tenga rol AGENTE lo valida CambioDeEstadoService.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "id_agente")
+	private Usuario agente;
+
 	// Lo que hizo el agente al resolverlo. Si el reclamo se reabre queda como antecedente.
 	@Column(name = "trabajo_realizado")
 	private String trabajoRealizado;

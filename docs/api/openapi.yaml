@@ -20,6 +20,8 @@ tags:
   description: El administrador de la comuna gestiona a los usuarios de su comuna
 - name: Reclamos
   description: Reclamos de los vecinos de una comuna
+- name: Panel de reclamos
+  description: El personal administrativo y el administrador de la comuna gestionan los reclamos
 - name: Salud
   description: Comprobación de que el backend responde
 paths:
@@ -888,6 +890,352 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/panel/reclamos:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Reclamos de la comuna, con filtros
+      description: "Personal administrativo y administrador de la comuna. Solo reclamos\
+        \ de la comuna del token, del más nuevo al más viejo. Los filtros se combinan\
+        \ entre sí. Paginado."
+      operationId: listarReclamosDelPanel
+      parameters:
+      - $ref: "#/components/parameters/FiltroEstado"
+      - $ref: "#/components/parameters/FiltroTipo"
+      - $ref: "#/components/parameters/FiltroAgente"
+      - $ref: "#/components/parameters/FiltroBuscar"
+      - name: pagina
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          default: 0
+      - name: tamanio
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          default: 25
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaReclamosPanelDto"
+        "400":
+          description: Un filtro, la página o el tamaño son inválidos (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/mapa:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Puntos del mapa
+      description: "Personal administrativo y administrador de la comuna. Un punto\
+        \ por reclamo de la comuna del token que cumpla los filtros (los mismos de\
+        \ la lista), sin paginar, hasta 1000 (los más nuevos). Solo los datos para\
+        \ dibujar el pin."
+      operationId: mapaDeReclamosDelPanel
+      parameters:
+      - $ref: "#/components/parameters/FiltroEstado"
+      - $ref: "#/components/parameters/FiltroTipo"
+      - $ref: "#/components/parameters/FiltroAgente"
+      - $ref: "#/components/parameters/FiltroBuscar"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MapaReclamosDto"
+        "400":
+          description: Un filtro es inválido (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/resumen:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Cantidades por estado y reclamos sin asignar
+      description: "Personal administrativo y administrador de la comuna. Cuenta los\
+        \ reclamos de la comuna del token por estado, aplicando los filtros de tipo,\
+        \ agente y búsqueda (no el de estado, para que el desplegable muestre cuántos\
+        \ hay en cada uno). Los reclamos sin asignar son los que están en RECIBIDO,\
+        \ sin filtros."
+      operationId: resumenDelPanel
+      parameters:
+      - $ref: "#/components/parameters/FiltroTipo"
+      - $ref: "#/components/parameters/FiltroAgente"
+      - $ref: "#/components/parameters/FiltroBuscar"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResumenPanelDto"
+        "400":
+          description: Un filtro es inválido (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/{numero}:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Detalle de un reclamo para el personal
+      description: "Personal administrativo y administrador de la comuna. Se busca\
+        \ por número dentro de la comuna del token: de otra comuna o inexistente da\
+        \ el mismo 404. A diferencia del vecino, el personal ve quién hizo cada cambio,\
+        \ las observaciones internas, el vecino que lo reportó y los reclamos vinculados\
+        \ como duplicados."
+      operationId: detalleDeReclamoDelPanel
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoPanelDetalleDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El reclamo no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/{numero}/fotos/{idFoto}:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Una foto de un reclamo de la comuna
+      description: "Personal administrativo y administrador de la comuna. La foto tiene\
+        \ que ser del reclamo pedido y el reclamo de la comuna del token; si no, 404.\
+        \ El tipo es el que guardó el servidor (image/jpeg o image/png), con nosniff\
+        \ y sin que el navegador la guarde."
+      operationId: fotoDeReclamoDelPanel
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      - name: idFoto
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: La imagen en binario
+          headers:
+            Cache-Control:
+              description: no-store
+              schema:
+                type: string
+            X-Content-Type-Options:
+              description: nosniff
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "La foto o el reclamo no existen, o son de otra comuna (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/agentes:
+    get:
+      tags:
+      - Panel de reclamos
+      summary: Agentes de la comuna
+      description: "Personal administrativo y administrador de la comuna. Los usuarios\
+        \ activos con rol AGENTE de la comuna del token, por nombre, para el filtro\
+        \ y para asignar."
+      operationId: agentesDelPanel
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AgenteDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/cambios-de-estado:
+    post:
+      tags:
+      - Panel de reclamos
+      summary: Cambiar el estado de uno o varios reclamos
+      description: "Personal administrativo y administrador de la comuna. Aplica el\
+        \ mismo estado a cada reclamo de la lista, de a uno y por separado: los que\
+        \ se pueden cambiar se cambian y los demás se informan en omitidos con el\
+        \ motivo, sin frenar al resto. Estados posibles: RECIBIDO, ASIGNADO (exige\
+        \ idAgente, un agente activo de la comuna), EN_REPARACION y RESUELTO. Para\
+        \ DESCARTADO está /descartes. Se respetan las reglas de cambio de estado (por\
+        \ ejemplo, de RECIBIDO no se pasa directo a RESUELTO). Volver a RECIBIDO quita\
+        \ el agente. Cada cambio queda en el historial con quién lo hizo. Un número\
+        \ de otra comuna o inexistente sale en omitidos como NO_ENCONTRADO, igual\
+        \ que uno que no existe. Si un reclamo falla por otro motivo sale en omitidos\
+        \ (AGENTE_INVALIDO, ORIGINAL_INVALIDO o ERROR) y los ya cambiados quedan.\
+        \ Tope de 30 segundos por lote: los que no se llegan a procesar salen como\
+        \ CONFLICTO. Solo se puede asignar a agentes que ya aceptaron la invitación."
+      operationId: cambiarEstadoDeReclamos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambioDeEstadoEnLoteRequest"
+      responses:
+        "200":
+          description: "Resultado de cada reclamo: los cambiados y los omitidos con su motivo"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoEnLoteDto"
+        "400":
+          description: "Pedido inválido (VALIDACION): lista vacía o de más de 100, números\
+            \ repetidos, estado no permitido acá; ASIGNADO sin agente o agente que no\
+            \ es un agente activo de la comuna (AGENTE_INVALIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/descartes:
+    post:
+      tags:
+      - Panel de reclamos
+      summary: Descartar uno o varios reclamos
+      description: "Personal administrativo y administrador de la comuna. Descarta\
+        \ cada reclamo de la lista, de a uno y por separado, con el mismo motivo y\
+        \ observación. La observación (hasta 300 caracteres) es obligatoria salvo con\
+        \ motivo DUPLICADO, que en cambio exige numeroOriginal: un reclamo de la misma\
+        \ comuna, que no esté descartado y que no esté en la lista. El vecino lee la\
+        \ observación. Los reclamos RESUELTO o DESCARTADO no se descartan y salen\
+        \ en omitidos (YA_CERRADO)."
+      operationId: descartarReclamos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DescarteEnLoteRequest"
+      responses:
+        "200":
+          description: "Resultado de cada reclamo: los descartados y los omitidos con su motivo"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResultadoEnLoteDto"
+        "400":
+          description: "Pedido inválido (VALIDACION): lista vacía o de más de 100, números\
+            \ repetidos, falta el motivo (MOTIVO_REQUERIDO), falta la observación (OBSERVACION_REQUERIDA),\
+            \ observación de más de 300 caracteres, DUPLICADO sin original (ORIGINAL_REQUERIDO)\
+            \ o con un original inexistente, de otra comuna, descartado o incluido en\
+            \ la lista (ORIGINAL_INVALIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/admin/comunas/{id}/limite:
     put:
       tags:
@@ -1378,6 +1726,332 @@ components:
           - $ref: "#/components/schemas/EstadoReclamo"
           - type: "null"
           description: "Solo con motivo DUPLICADO: el estado actual del reclamo original. No trae ningún otro dato de ese reclamo ni de quién lo hizo"
+    PaginaReclamosPanelDto:
+      type: object
+      properties:
+        reclamos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReclamoPanelDto"
+        pagina:
+          type: integer
+          format: int32
+        tamanio:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    ReclamoPanelDto:
+      type: object
+      description: Una fila de la lista del panel.
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        descripcion:
+          type: string
+        direccion:
+          type:
+          - string
+          - "null"
+        referencia:
+          type:
+          - string
+          - "null"
+        creadoEn:
+          type: string
+          format: date-time
+        agente:
+          oneOf:
+          - $ref: "#/components/schemas/AgenteDto"
+          - type: "null"
+        numeroOriginal:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: "Si se descartó por duplicado, el número del original"
+        cantidadDuplicados:
+          type: integer
+          format: int32
+          description: Cuántos reclamos están descartados como duplicados de este
+    MapaReclamosDto:
+      type: object
+      properties:
+        puntos:
+          type: array
+          items:
+            $ref: "#/components/schemas/PuntoReclamoDto"
+        recortado:
+          type: boolean
+          description: "true si había más de 1000 y se devolvieron solo los 1000 más nuevos"
+    PuntoReclamoDto:
+      type: object
+      properties:
+        numero:
+          type: integer
+          format: int32
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        tipo:
+          type: string
+        latitud:
+          type: number
+          format: double
+        longitud:
+          type: number
+          format: double
+    ResumenPanelDto:
+      type: object
+      properties:
+        porEstado:
+          type: object
+          description: "Cantidad de reclamos en cada estado (los cinco, con 0 si no hay)"
+          properties:
+            RECIBIDO:
+              type: integer
+              format: int64
+            ASIGNADO:
+              type: integer
+              format: int64
+            EN_REPARACION:
+              type: integer
+              format: int64
+            RESUELTO:
+              type: integer
+              format: int64
+            DESCARTADO:
+              type: integer
+              format: int64
+        total:
+          type: integer
+          format: int64
+        sinAsignar:
+          type: integer
+          format: int64
+          description: Reclamos en RECIBIDO de la comuna, sin filtros
+        sinAsignarMasAntiguo:
+          type:
+          - string
+          - "null"
+          format: date-time
+          description: Fecha de creación del reclamo sin asignar más viejo
+    AgenteDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+    ReclamoPanelDetalleDto:
+      type: object
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        descripcion:
+          type: string
+        referencia:
+          type:
+          - string
+          - "null"
+        direccion:
+          type:
+          - string
+          - "null"
+        latitud:
+          type:
+          - number
+          - "null"
+          format: double
+        longitud:
+          type:
+          - number
+          - "null"
+          format: double
+        creadoEn:
+          type: string
+          format: date-time
+        vecinoNombre:
+          type: string
+          description: Nombre del vecino que lo reportó (no se muestran su correo ni otros datos)
+        agente:
+          oneOf:
+          - $ref: "#/components/schemas/AgenteDto"
+          - type: "null"
+        fotos:
+          type: array
+          description: "Primero las del vecino y después las del trabajo, cada grupo en su orden"
+          items:
+            $ref: "#/components/schemas/FotoReclamoDto"
+        historial:
+          type: array
+          description: Del más viejo al más nuevo
+          items:
+            $ref: "#/components/schemas/CambioDeEstadoPanelDto"
+        descarte:
+          oneOf:
+          - $ref: "#/components/schemas/DescartePanelDto"
+          - type: "null"
+        trabajoRealizado:
+          type:
+          - string
+          - "null"
+        duplicados:
+          type: array
+          description: Números de los reclamos descartados como duplicados de este
+          items:
+            type: integer
+            format: int32
+    CambioDeEstadoPanelDto:
+      type: object
+      properties:
+        estadoAnterior:
+          oneOf:
+          - $ref: "#/components/schemas/EstadoReclamo"
+          - type: "null"
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        fecha:
+          type: string
+          format: date-time
+        usuarioNombre:
+          type:
+          - string
+          - "null"
+          description: "Quién hizo el cambio. Vacío si lo hizo el sistema; en el alta, el vecino"
+        observacion:
+          type:
+          - string
+          - "null"
+          description: Nota interna del cambio, si la hay. El vecino no la ve
+    DescartePanelDto:
+      type: object
+      properties:
+        motivo:
+          type: string
+          enum:
+          - DUPLICADO
+          - NO_ES_DE_LA_COMUNA
+          - NO_SE_PUEDE_ATENDER
+          - OTRO
+        observacion:
+          type:
+          - string
+          - "null"
+        numeroOriginal:
+          type:
+          - integer
+          - "null"
+          format: int32
+    CambioDeEstadoEnLoteRequest:
+      type: object
+      required:
+      - numeros
+      - estado
+      properties:
+        numeros:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: integer
+            format: int32
+            minimum: 1
+        estado:
+          type: string
+          enum:
+          - RECIBIDO
+          - ASIGNADO
+          - EN_REPARACION
+          - RESUELTO
+        idAgente:
+          type:
+          - integer
+          - "null"
+          format: int64
+          description: Obligatorio con ASIGNADO; no se acepta con otro estado
+    DescarteEnLoteRequest:
+      type: object
+      required:
+      - numeros
+      - motivo
+      properties:
+        numeros:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: integer
+            format: int32
+            minimum: 1
+        motivo:
+          type: string
+          enum:
+          - DUPLICADO
+          - NO_ES_DE_LA_COMUNA
+          - NO_SE_PUEDE_ATENDER
+          - OTRO
+        observacion:
+          type:
+          - string
+          - "null"
+          maxLength: 300
+          description: "Obligatoria salvo con DUPLICADO. El vecino la lee: no poner datos de otras personas"
+        numeroOriginal:
+          type:
+          - integer
+          - "null"
+          format: int32
+          description: Obligatorio con DUPLICADO; no se acepta con otro motivo
+    ResultadoEnLoteDto:
+      type: object
+      properties:
+        aplicados:
+          type: array
+          items:
+            type: integer
+            format: int32
+        omitidos:
+          type: array
+          items:
+            $ref: "#/components/schemas/OmitidoDto"
+    OmitidoDto:
+      type: object
+      properties:
+        numero:
+          type: integer
+          format: int32
+        codigo:
+          type: string
+          enum:
+          - NO_ENCONTRADO
+          - YA_ESTABA_EN_ESE_ESTADO
+          - TRANSICION_INVALIDA
+          - YA_CERRADO
+          - CONFLICTO
+          - AGENTE_INVALIDO
+          - ORIGINAL_INVALIDO
+          - ERROR
+        motivo:
+          type: string
+          description: "Texto para mostrar, por ejemplo \"El n.º 39 ya está cerrado\""
     UsuarioComunaDto:
       type: object
       description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.
@@ -1757,6 +2431,54 @@ components:
           - string
           - "null"
           description: "WhatsApp de la comuna, solo dígitos con código 54, listo para armar el enlace wa.me. Vacío si no lo cargó"
+  parameters:
+    FiltroEstado:
+      name: estado
+      in: query
+      required: false
+      description: Solo reclamos en este estado
+      schema:
+        $ref: "#/components/schemas/EstadoReclamo"
+    FiltroTipo:
+      name: tipo
+      in: query
+      required: false
+      description: Código del tipo de problema
+      schema:
+        type: string
+        enum:
+        - BACHE
+        - LUZ
+        - BASURA
+        - ARBOL
+        - AGUA
+        - OTRO
+    FiltroAgente:
+      name: agente
+      in: query
+      required: false
+      description: "Id del agente asignado. Un agente de otra comuna no da error: no encuentra nada"
+      schema:
+        type: integer
+        format: int64
+    FiltroBuscar:
+      name: buscar
+      in: query
+      required: false
+      description: "Un número (busca ese número de reclamo) o un texto de 2 a 100 caracteres\
+        \ (busca en la dirección y la referencia, sin distinguir mayúsculas ni tildes)"
+      schema:
+        type: string
+        maxLength: 100
+    NumeroReclamo:
+      name: numero
+      in: path
+      required: true
+      description: Número del reclamo dentro de la comuna
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
   securitySchemes:
     bearerAuth:
       type: http

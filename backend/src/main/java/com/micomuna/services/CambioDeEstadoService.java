@@ -8,6 +8,7 @@ import com.micomuna.entities.ReclamoEstado;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.enums.MotivoDescarte;
+import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
 import com.micomuna.exceptions.TransicionInvalidaException;
@@ -29,6 +30,8 @@ import lombok.RequiredArgsConstructor;
 public class CambioDeEstadoService {
 
 	public static final int OBSERVACION_MAXIMA = 500;
+	// El vecino lee la observación del descarte: se mantiene corta.
+	public static final int OBSERVACION_DESCARTE_MAXIMA = 300;
 	public static final int TRABAJO_MAXIMO = 1000;
 	// Tiempo máximo de la transacción, que incluye hasta 3 segundos de espera del bloqueo de la fila del reclamo.
 	static final int SEGUNDOS_MAXIMOS = 10;
@@ -71,14 +74,27 @@ public class CambioDeEstadoService {
 		Usuario quien = idUsuario == null ? null : usuarios.findByIdAndComunaId(idUsuario, comunaActual.id())
 				.orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese usuario."));
 
+		// Antes de tocar nada: el agente (si corresponde) tiene que ser válido.
+		Usuario agenteNuevo = validarAgente(nuevo, cambio.idAgente());
+
 		switch (nuevo) {
-			case DESCARTADO -> descartar(reclamo, cambio);
+			case DESCARTADO -> {
+				descartar(reclamo, cambio);
+				// Un reclamo descartado no queda a cargo de nadie.
+				reclamo.setAgente(null);
+			}
+			case ASIGNADO -> {
+				sinDatosDeDescarte(cambio);
+				reclamo.setAgente(agenteNuevo);
+			}
 			case RESUELTO -> {
 				sinDatosDeDescarte(cambio);
 				reclamo.setTrabajoRealizado(trabajoRealizado(cambio.trabajoRealizado()));
 			}
 			case RECIBIDO -> {
 				sinDatosDeDescarte(cambio);
+				// Volver a RECIBIDO quita el agente.
+				reclamo.setAgente(null);
 				// Reabrir un descartado: se borra todo lo del descarte.
 				limpiarDescarte(reclamo);
 			}
@@ -91,21 +107,59 @@ public class CambioDeEstadoService {
 	}
 
 	private void descartar(Reclamo reclamo, CambioDeEstado cambio) {
+		String observacion = validarDescarte(cambio);
+		Reclamo original = null;
+		if (cambio.motivo() == MotivoDescarte.DUPLICADO) {
+			original = originalValido(reclamo, cambio.numeroOriginal());
+		}
+		reclamo.setMotivoDescarte(cambio.motivo());
+		reclamo.setObservacionDescarte(observacion);
+		reclamo.setReclamoOriginal(original);
+	}
+
+	// Revisa los datos de un descarte sin mirar la base (las reglas que valen para cualquier reclamo) y devuelve la
+	// observación ya recortada. Lo usan este servicio y los descartes en lote, que lo hacen una vez antes de empezar.
+	//  - motivo obligatorio;
+	//  - DUPLICADO exige el número del original; con otro motivo no se acepta un original;
+	//  - la observación es obligatoria salvo con DUPLICADO, y de hasta 300 caracteres (el vecino la lee).
+	public static String validarDescarte(CambioDeEstado cambio) {
 		MotivoDescarte motivo = cambio.motivo();
 		if (motivo == null) {
 			throw new PeticionInvalidaException("MOTIVO_REQUERIDO", "Elegí el motivo del descarte.");
 		}
-		String observacion = textoOpcional(cambio.observacion(), OBSERVACION_MAXIMA, "La observación");
-		Reclamo original = null;
 		if (motivo == MotivoDescarte.DUPLICADO) {
-			original = originalValido(reclamo, cambio.numeroOriginal());
+			if (cambio.numeroOriginal() == null) {
+				throw new PeticionInvalidaException("ORIGINAL_REQUERIDO",
+						"Indicá el número del reclamo original del que es duplicado.");
+			}
 		} else if (cambio.numeroOriginal() != null) {
 			throw new PeticionInvalidaException("ORIGINAL_INVALIDO",
 					"Solo un reclamo duplicado se vincula con un reclamo original.");
 		}
-		reclamo.setMotivoDescarte(motivo);
-		reclamo.setObservacionDescarte(observacion);
-		reclamo.setReclamoOriginal(original);
+		String observacion = textoOpcional(cambio.observacion(), OBSERVACION_DESCARTE_MAXIMA, "La observación");
+		if (observacion == null && motivo != MotivoDescarte.DUPLICADO) {
+			throw new PeticionInvalidaException("OBSERVACION_REQUERIDA", "Escribí una observación para el vecino.");
+		}
+		return observacion;
+	}
+
+	// ASIGNADO exige un agente: un usuario activo con rol AGENTE de la comuna del token. Con otro estado no se acepta
+	// ningún agente. Un solo código (AGENTE_INVALIDO) para cualquier problema: no existe, es de otra comuna, no es
+	// agente o está inactivo.
+	public Usuario validarAgente(EstadoReclamo nuevo, Long idAgente) {
+		if (nuevo != EstadoReclamo.ASIGNADO) {
+			if (idAgente != null) {
+				throw new PeticionInvalidaException("AGENTE_INVALIDO", "Solo se elige un agente al asignar el reclamo.");
+			}
+			return null;
+		}
+		if (idAgente == null) {
+			throw new PeticionInvalidaException("AGENTE_INVALIDO", "Elegí el agente al que se asigna el reclamo.");
+		}
+		return usuarios.findByIdAndComunaId(idAgente, comunaActual.id())
+				.filter(u -> u.getRol() == Rol.AGENTE && u.isActivo() && u.getClaveHash() != null)
+				.orElseThrow(() -> new PeticionInvalidaException("AGENTE_INVALIDO",
+						"Elegí un agente activo de la comuna que ya haya ingresado."));
 	}
 
 	// El original: tiene que existir en la misma comuna, ser otro reclamo y no estar descartado (si no, el vecino

@@ -154,6 +154,7 @@ class CambioDeEstadoServiceTests {
 		return switch (destino) {
 			case DESCARTADO -> CambioDeEstado.descartar(MotivoDescarte.NO_SE_PUEDE_ATENDER, "No corresponde", null);
 			case RESUELTO -> CambioDeEstado.resolver("Se rellenó el pozo");
+			case ASIGNADO -> CambioDeEstado.asignar(agente.getId());
 			default -> CambioDeEstado.a(destino);
 		};
 	}
@@ -222,7 +223,7 @@ class CambioDeEstadoServiceTests {
 	void cambiarBloqueaLaFilaDelReclamo() {
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
 
-		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), agente.getId());
+		servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(agente.getId()), agente.getId());
 
 		verify(reclamos, atLeastOnce()).bloquearPorNumero(comunaA.getId(), r.getNumero());
 	}
@@ -232,7 +233,7 @@ class CambioDeEstadoServiceTests {
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
 		servicio.registrarAlta(r, r.getVecino());
 
-		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), agente.getId());
+		servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(agente.getId()), agente.getId());
 		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.EN_REPARACION), agente.getId());
 		servicio.cambiar(r.getNumero(), CambioDeEstado.resolver("Listo"), agente.getId());
 		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.EN_REPARACION), agente.getId());
@@ -250,7 +251,7 @@ class CambioDeEstadoServiceTests {
 	void laNotaInternaQuedaEnElHistorial() {
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
 
-		servicio.cambiar(r.getNumero(), new CambioDeEstado(EstadoReclamo.ASIGNADO, null, null, null, null, "  Para Pedro  "),
+		servicio.cambiar(r.getNumero(), new CambioDeEstado(EstadoReclamo.ASIGNADO, null, null, null, null, "  Para Pedro  ", agente.getId()),
 				agente.getId());
 
 		List<ReclamoEstado> historial = historialDe(r);
@@ -264,9 +265,9 @@ class CambioDeEstadoServiceTests {
 		Reclamo ajeno = reclamo(comunaB, EstadoReclamo.RECIBIDO);
 
 		// El agente es de la comuna A: el reclamo de la B no existe para él, aunque coincida el número.
-		assertThatThrownBy(() -> servicio.cambiar(ajeno.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), agente.getId()))
+		assertThatThrownBy(() -> servicio.cambiar(ajeno.getNumero(), CambioDeEstado.asignar(agente.getId()), agente.getId()))
 				.isInstanceOf(RecursoNoEncontradoException.class);
-		assertThatThrownBy(() -> servicio.cambiar(99999, CambioDeEstado.a(EstadoReclamo.ASIGNADO), agente.getId()))
+		assertThatThrownBy(() -> servicio.cambiar(99999, CambioDeEstado.asignar(agente.getId()), agente.getId()))
 				.isInstanceOf(RecursoNoEncontradoException.class);
 		assertThat(releido(ajeno).getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
 	}
@@ -413,7 +414,7 @@ class CambioDeEstadoServiceTests {
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
 
 		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(),
-				new CambioDeEstado(EstadoReclamo.ASIGNADO, MotivoDescarte.OTRO, null, null, null, null), agente.getId()))
+				new CambioDeEstado(EstadoReclamo.ASIGNADO, MotivoDescarte.OTRO, null, null, null, null, agente.getId()), agente.getId()))
 				.isInstanceOf(PeticionInvalidaException.class);
 		assertThat(releido(r).getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
 	}
@@ -468,10 +469,103 @@ class CambioDeEstadoServiceTests {
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
 		Usuario deOtraComuna = usuario(comunaB, "agente-65-b@mail.com", Rol.AGENTE);
 
-		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), deOtraComuna.getId()))
+		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(agente.getId()), deOtraComuna.getId()))
 				.isInstanceOf(RecursoNoEncontradoException.class);
-		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), 999999999L))
+		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(agente.getId()), 999999999L))
 				.isInstanceOf(RecursoNoEncontradoException.class);
 		assertThat(historialDe(r)).isEmpty();
+	}
+
+	// ---- Asignación (MC-18)
+
+	@Test
+	void asignarGuardaElAgenteYVolverARecibidoLoQuita() {
+		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
+
+		servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(agente.getId()), agente.getId());
+		assertThat(releido(r).getAgente().getId()).isEqualTo(agente.getId());
+
+		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.RECIBIDO), agente.getId());
+		assertThat(releido(r).getAgente()).isNull();
+	}
+
+	@Test
+	void reasignarDesdeEnReparacionCambiaDeAgente() {
+		Reclamo r = reclamo(comunaA, EstadoReclamo.EN_REPARACION);
+		Usuario otro = usuario(comunaA, "otro-agente-65@mail.com", Rol.AGENTE);
+
+		servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(otro.getId()), agente.getId());
+
+		assertThat(releido(r).getAgente().getId()).isEqualTo(otro.getId());
+	}
+
+	@Test
+	void asignarExigeUnAgenteActivoDeLaComunaYSinEseDatoNoSeToca() {
+		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
+		Usuario inactivo = usuario(comunaA, "inactivo-65@mail.com", Rol.AGENTE);
+		inactivo.setActivo(false);
+		usuarios.saveAndFlush(inactivo);
+		Usuario deOtraComuna = usuario(comunaB, "agente-b-65@mail.com", Rol.AGENTE);
+		Usuario vecino = usuario(comunaA, "vecino-no-agente-65@mail.com", Rol.VECINO);
+		Usuario admin = usuario(comunaA, "admin-65@mail.com", Rol.ADMIN_COMUNA);
+
+		for (Long idAgente : java.util.Arrays.asList(null, inactivo.getId(), deOtraComuna.getId(), vecino.getId(),
+				admin.getId(), 999999999L)) {
+			assertThatThrownBy(() -> servicio.cambiar(r.getNumero(), CambioDeEstado.asignar(idAgente), agente.getId()))
+					.as("agente " + idAgente)
+					.isInstanceOf(PeticionInvalidaException.class)
+					.satisfies(e -> assertThat(codigo(e)).isEqualTo("AGENTE_INVALIDO"));
+		}
+		Reclamo leido = releido(r);
+		assertThat(leido.getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
+		assertThat(leido.getAgente()).isNull();
+		assertThat(historialDe(r)).isEmpty();
+	}
+
+	@Test
+	void unAgenteConUnEstadoQueNoEsAsignadoSeRechaza() {
+		Reclamo r = reclamo(comunaA, EstadoReclamo.ASIGNADO);
+
+		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(),
+				new CambioDeEstado(EstadoReclamo.EN_REPARACION, null, null, null, null, null, agente.getId()), agente.getId()))
+				.isInstanceOf(PeticionInvalidaException.class)
+				.satisfies(e -> assertThat(codigo(e)).isEqualTo("AGENTE_INVALIDO"));
+		assertThat(releido(r).getEstado()).isEqualTo(EstadoReclamo.ASIGNADO);
+	}
+
+	// ---- Observación del descarte (MC-18)
+
+	@Test
+	void laObservacionDelDescarteEsObligatoriaSalvoConDuplicado() {
+		Reclamo original = reclamo(comunaA, EstadoReclamo.RECIBIDO);
+		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
+
+		for (MotivoDescarte motivo : List.of(MotivoDescarte.OTRO, MotivoDescarte.NO_ES_DE_LA_COMUNA,
+				MotivoDescarte.NO_SE_PUEDE_ATENDER)) {
+			for (String observacion : new String[] { null, "", "   " }) {
+				assertThatThrownBy(() -> servicio.cambiar(r.getNumero(),
+						CambioDeEstado.descartar(motivo, observacion, null), agente.getId()))
+						.isInstanceOf(PeticionInvalidaException.class)
+						.satisfies(e -> assertThat(codigo(e)).isEqualTo("OBSERVACION_REQUERIDA"));
+			}
+		}
+		assertThat(releido(r).getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
+
+		servicio.cambiar(r.getNumero(), CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, original.getNumero()),
+				agente.getId());
+		assertThat(releido(r).getObservacionDescarte()).isNull();
+	}
+
+	@Test
+	void laObservacionDelDescarteTieneTopeDe300() {
+		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
+
+		assertThatThrownBy(() -> servicio.cambiar(r.getNumero(),
+				CambioDeEstado.descartar(MotivoDescarte.OTRO, "x".repeat(301), null), agente.getId()))
+				.isInstanceOf(PeticionInvalidaException.class)
+				.satisfies(e -> assertThat(codigo(e)).isEqualTo("TEXTO_MUY_LARGO"));
+		servicio.cambiar(r.getNumero(), CambioDeEstado.descartar(MotivoDescarte.OTRO, "x".repeat(300), null),
+				agente.getId());
+		assertThat(releido(r).getObservacionDescarte()).hasSize(300);
 	}
 }

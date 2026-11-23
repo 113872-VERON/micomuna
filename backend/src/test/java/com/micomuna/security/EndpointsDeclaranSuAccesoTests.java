@@ -171,6 +171,31 @@ class EndpointsDeclaranSuAccesoTests {
 		}
 	}
 
+	// MC-18: el panel de reclamos es solo del personal administrativo y del administrador de la comuna.
+	private static final Set<String> SOLO_DEL_PERSONAL = Set.of(
+			"GET /api/panel/reclamos",
+			"GET /api/panel/reclamos/mapa",
+			"GET /api/panel/reclamos/resumen",
+			"GET /api/panel/reclamos/{numero}",
+			"GET /api/panel/reclamos/{numero}/fotos/{idFoto}",
+			"GET /api/panel/agentes",
+			"POST /api/panel/reclamos/cambios-de-estado",
+			"POST /api/panel/reclamos/descartes");
+
+	@Test
+	void losEndpointsDelPanelSonSoloDelPersonalAdministrativo() {
+		Map<String, HandlerMethod> endpoints = endpointsDeLaAplicacion();
+		for (String clave : SOLO_DEL_PERSONAL) {
+			assertThat(endpoints).as(clave).containsKey(clave);
+			PreAuthorize regla = preAuthorizeVigente(endpoints.get(clave));
+			assertThat(regla).as("@PreAuthorize de " + clave).isNotNull();
+			assertThat(regla.value()).as(clave).isEqualTo("hasAnyRole('ADMINISTRATIVO', 'ADMIN_COMUNA')");
+		}
+		// Y ningún otro endpoint bajo /api/panel quedó afuera de la lista.
+		assertThat(endpoints.keySet().stream().filter(k -> k.contains(" /api/panel/")).toList())
+				.containsExactlyInAnyOrderElementsOf(SOLO_DEL_PERSONAL);
+	}
+
 	@Test
 	void losControladoresDePruebaSeReconocenPorSuUbicacion() {
 		// Si la detección dejara de andar, los controladores de prueba aparecerían en la revisión (y la harían fallar);
