@@ -10,7 +10,9 @@ import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.enums.MotivoDescarte;
 import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.PeticionInvalidaException;
+import com.micomuna.exceptions.ReclamoCerradoException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
+import com.micomuna.exceptions.YaAsignadoException;
 import com.micomuna.exceptions.TransicionInvalidaException;
 import com.micomuna.models.CambioDeEstado;
 import com.micomuna.repositories.ReclamoEstadoRepository;
@@ -75,7 +77,7 @@ public class CambioDeEstadoService {
 				.orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese usuario."));
 
 		// Antes de tocar nada: el agente (si corresponde) tiene que ser válido.
-		Usuario agenteNuevo = validarAgente(nuevo, cambio.idAgente());
+		Usuario agenteNuevo = validarAgente(nuevo, cambio.idAgente(), true);
 
 		switch (nuevo) {
 			case DESCARTADO -> {
@@ -101,7 +103,37 @@ public class CambioDeEstadoService {
 			default -> sinDatosDeDescarte(cambio);
 		}
 		reclamo.setEstado(nuevo);
-		historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, nota));
+		// El agente se guarda solo en el cambio que asigna: ahí queda "quién quedó a cargo".
+		historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, nota, nuevo == EstadoReclamo.ASIGNADO ? agenteNuevo : null));
+		reclamos.saveAndFlush(reclamo);
+		return reclamo;
+	}
+
+	// Asigna o reasigna un reclamo a un agente (MC-19): RECIBIDO -> ASIGNADO; ASIGNADO o EN_REPARACION con otro agente ->
+	// queda ASIGNADO con el agente nuevo (el nuevo todavía no empezó). Una reasignación ASIGNADO -> ASIGNADO es una fila
+	// de historial válida: mismo estado, otro agente. Misma transacción y mismo bloqueo de fila que cambiar().
+	// Igual que cambiar(): NO controla roles; el endpoint exige el rol y pasa idUsuario del token.
+	// Errores: otra comuna o inexistente -> 404; RESUELTO o DESCARTADO -> ReclamoCerradoException (409 RECLAMO_CERRADO);
+	// agente inválido (no existe, otra comuna, no es AGENTE, inactivo o sin contraseña) -> 400 AGENTE_INVALIDO; mismo
+	// agente -> YaAsignadoException (409 YA_ASIGNADO); bloqueo vencido -> 409 CONFLICTO.
+	@Transactional(timeout = SEGUNDOS_MAXIMOS)
+	public Reclamo asignarAgente(Integer numero, Long idAgente, Long idUsuario) {
+		Reclamo reclamo = reclamos.bloquearPorNumero(comunaActual.id(), numero)
+				.orElseThrow(() -> new RecursoNoEncontradoException(NO_ENCONTRADO));
+		Usuario quien = idUsuario == null ? null : usuarios.findByIdAndComunaId(idUsuario, comunaActual.id())
+				.orElseThrow(() -> new RecursoNoEncontradoException("No encontramos ese usuario."));
+		EstadoReclamo anterior = reclamo.getEstado();
+		if (anterior == EstadoReclamo.RESUELTO || anterior == EstadoReclamo.DESCARTADO) {
+			throw new ReclamoCerradoException("Este reclamo ya está cerrado: no se puede asignar a un agente.");
+		}
+		Usuario agenteNuevo = validarAgente(EstadoReclamo.ASIGNADO, idAgente, true);
+		Usuario actual = reclamo.getAgente();
+		if (actual != null && actual.getId().equals(agenteNuevo.getId())) {
+			throw new YaAsignadoException("Este reclamo ya está asignado a " + agenteNuevo.getNombre() + ".");
+		}
+		reclamo.setAgente(agenteNuevo);
+		reclamo.setEstado(EstadoReclamo.ASIGNADO);
+		historial.save(new ReclamoEstado(reclamo, anterior, EstadoReclamo.ASIGNADO, quien, null, agenteNuevo));
 		reclamos.saveAndFlush(reclamo);
 		return reclamo;
 	}
@@ -147,6 +179,13 @@ public class CambioDeEstadoService {
 	// ningún agente. Un solo código (AGENTE_INVALIDO) para cualquier problema: no existe, es de otra comuna, no es
 	// agente o está inactivo.
 	public Usuario validarAgente(EstadoReclamo nuevo, Long idAgente) {
+		return validarAgente(nuevo, idAgente, false);
+	}
+
+	// Con bloquear=true (dentro de una transacción, después de bloquear el reclamo: siempre en el orden reclamo -> agente)
+	// la fila del agente queda bloqueada y rol, estado activo y clave se validan sobre esa fila: así no se puede desactivar
+	// o cambiar de rol al agente entre la validación y el guardado. Sin bloquear solo sirve para revisar antes de empezar.
+	private Usuario validarAgente(EstadoReclamo nuevo, Long idAgente, boolean bloquear) {
 		if (nuevo != EstadoReclamo.ASIGNADO) {
 			if (idAgente != null) {
 				throw new PeticionInvalidaException("AGENTE_INVALIDO", "Solo se elige un agente al asignar el reclamo.");
@@ -156,7 +195,8 @@ public class CambioDeEstadoService {
 		if (idAgente == null) {
 			throw new PeticionInvalidaException("AGENTE_INVALIDO", "Elegí el agente al que se asigna el reclamo.");
 		}
-		return usuarios.findByIdAndComunaId(idAgente, comunaActual.id())
+		return (bloquear ? usuarios.bloquearPorIdYComuna(idAgente, comunaActual.id())
+				: usuarios.findByIdAndComunaId(idAgente, comunaActual.id()))
 				.filter(u -> u.getRol() == Rol.AGENTE && u.isActivo() && u.getClaveHash() != null)
 				.orElseThrow(() -> new PeticionInvalidaException("AGENTE_INVALIDO",
 						"Elegí un agente activo de la comuna que ya haya ingresado."));

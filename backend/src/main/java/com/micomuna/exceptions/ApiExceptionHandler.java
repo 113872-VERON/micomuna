@@ -104,6 +104,16 @@ public class ApiExceptionHandler {
 		return problema;
 	}
 
+	@ExceptionHandler(ReclamoCerradoException.class)
+	ProblemDetail reclamoCerrado(ReclamoCerradoException e) {
+		return problema(HttpStatus.CONFLICT, "Conflicto", "RECLAMO_CERRADO", e.getMessage());
+	}
+
+	@ExceptionHandler(YaAsignadoException.class)
+	ProblemDetail yaAsignado(YaAsignadoException e) {
+		return problema(HttpStatus.CONFLICT, "Conflicto", "YA_ASIGNADO", e.getMessage());
+	}
+
 	// Un cambio de estado que las reglas no permiten (CambioDeEstadoService). 409: el pedido está bien armado, pero
 	// choca con el estado actual del reclamo.
 	@ExceptionHandler(TransicionInvalidaException.class)

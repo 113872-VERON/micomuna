@@ -10,12 +10,14 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.micomuna.dtos.AgenteDto;
+import com.micomuna.dtos.AgenteConCargaDto;
+import com.micomuna.dtos.AsignarAgenteRequest;
 import com.micomuna.dtos.CambioDeEstadoEnLoteRequest;
 import com.micomuna.dtos.DescarteEnLoteRequest;
 import com.micomuna.dtos.MapaReclamosDto;
@@ -25,6 +27,7 @@ import com.micomuna.dtos.ResultadoEnLoteDto;
 import com.micomuna.dtos.ResumenPanelDto;
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.security.UsuarioAutenticado;
+import com.micomuna.services.CambioDeEstadoService;
 import com.micomuna.services.CambiosEnLoteService;
 import com.micomuna.services.MisReclamosService;
 import com.micomuna.services.PanelReclamosService;
@@ -56,6 +59,7 @@ public class PanelReclamosController {
 
 	private final PanelReclamosService panel;
 	private final CambiosEnLoteService lotes;
+	private final CambioDeEstadoService cambios;
 
 	@Operation(operationId = "listarReclamosDelPanel", summary = "Reclamos de la comuna, con filtros")
 	@GetMapping("/reclamos")
@@ -109,9 +113,19 @@ public class PanelReclamosController {
 				.body(imagen.bytes());
 	}
 
+	@Operation(operationId = "asignarAgente", summary = "Asignar o reasignar un reclamo a un agente")
+	@PutMapping("/reclamos/{numero}/agente")
+	public ReclamoPanelDetalleDto asignarAgente(@PathVariable Integer numero,
+			@Valid @RequestBody AsignarAgenteRequest pedido,
+			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
+		// Quien asigna sale del token. La asignación se confirma en su propia transacción y el detalle se lee después.
+		cambios.asignarAgente(numero, pedido.idAgente(), usuario.id());
+		return panel.detalle(numero);
+	}
+
 	@Operation(operationId = "agentesDelPanel", summary = "Agentes de la comuna")
 	@GetMapping("/agentes")
-	public List<AgenteDto> agentes() {
+	public List<AgenteConCargaDto> agentes() {
 		return panel.agentes();
 	}
 
