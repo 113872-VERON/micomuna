@@ -283,10 +283,33 @@ describe('Ventanas del panel', () => {
       expect((el(f).querySelector('#observacion') as HTMLTextAreaElement).getAttribute('maxlength')).toBe('300');
     });
 
-    it('conDuplicadoPideElNumeroDelOriginalYLaObservacionEsOpcional', () => {
+    it('lasObservacionesEscritasAntesDeElegirDuplicadoNoSeMandan', () => {
+      const { f } = crear(UNO);
+      elegir(f, 'No le corresponde a la comuna');
+      escribir(f, '#observacion', 'Es ruta provincial');
+      elegir(f, 'Ya había un reclamo por el mismo problema');
+      escribir(f, '#original', '7');
+      boton(f, 'Descartar reclamo').click();
+
+      const pedido = http.expectOne(URL_DESCARTE);
+      expect(pedido.request.body).toEqual({ numeros: [12], motivo: 'DUPLICADO', observacion: null, numeroOriginal: 7 });
+      pedido.flush({ aplicados: [12], omitidos: [] });
+    });
+
+    it('conLosDemasMotivosElCampoDeObservacionSigueEstando', () => {
+      const { f } = crear(UNO);
+      for (const motivo of ['No le corresponde a la comuna', 'La comuna no lo puede atender', 'Otro motivo']) {
+        elegir(f, motivo);
+        expect(el(f).querySelector('#observacion')).not.toBeNull();
+        expect(texto(f)).not.toContain('no se escribe observación');
+      }
+    });
+
+    it('conDuplicadoPideElNumeroDelOriginalYNoHayCampoDeObservacion', () => {
       const { f } = crear(UNO);
       elegir(f, 'Ya había un reclamo por el mismo problema');
-      expect(texto(f)).toContain('Observación (opcional)');
+      expect(el(f).querySelector('#observacion')).toBeNull();
+      expect(texto(f)).toContain('Con este motivo no se escribe observación: el vecino ve que otro vecino ya avisó y sigue el avance, sin datos del otro reclamo.');
 
       boton(f, 'Descartar reclamo').click();
       f.detectChanges();

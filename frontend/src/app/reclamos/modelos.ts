@@ -81,8 +81,9 @@ export interface CambioDeEstadoDto {
 export interface DescarteDto {
   motivo: MotivoDescarte;
   observacion: string | null;
-  numeroOriginal: number | null;
+  // Solo con motivo DUPLICADO: cómo va el reclamo que sigue la comuna. Nunca trae su número ni datos de otro vecino.
   estadoOriginal: EstadoReclamo | null;
+  historialOriginal: CambioDeEstadoDto[];
 }
 
 export interface MiReclamoDetalleDto {

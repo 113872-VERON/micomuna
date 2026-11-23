@@ -79,8 +79,11 @@ export function textoDeAplicables(elegidos: readonly ReclamoElegido[]): string |
             </div>
           }
 
+          @if (motivo() === 'DUPLICADO') {
+            <p id="sin-observacion" class="ayuda sin-obs">Con este motivo no se escribe observación: el vecino ve que otro vecino ya avisó y sigue el avance, sin datos del otro reclamo.</p>
+          } @else {
           <div>
-            <label for="observacion">Observación{{ motivo() === 'DUPLICADO' ? ' (opcional)' : '' }}</label>
+            <label for="observacion">Observación</label>
             <textarea id="observacion" rows="4" [attr.maxlength]="maximo" [value]="observacion()" [attr.aria-invalid]="errorObservacion() ? 'true' : null"
               [attr.aria-describedby]="'ayuda-observacion' + (errorObservacion() ? ' error-observacion' : '')" (input)="escribirObservacion($event)"></textarea>
             <p id="ayuda-observacion" class="ayuda">
@@ -91,6 +94,7 @@ export function textoDeAplicables(elegidos: readonly ReclamoElegido[]): string |
               <p id="error-observacion" class="msg-error" role="alert">{{ m }}</p>
             }
           </div>
+          }
         }
 
         @if (errorEnvio(); as m) {
@@ -119,6 +123,7 @@ export function textoDeAplicables(elegidos: readonly ReclamoElegido[]): string |
     textarea { width: 100%; box-sizing: border-box; padding: 10px 14px; border: 2px solid var(--borde); border-radius: 12px; font: inherit; font-size: 18px; color: var(--tinta); resize: vertical; }
     [aria-invalid='true'] { border-color: var(--error); background: var(--error-fondo); }
     .ayuda { display: flex; justify-content: space-between; gap: 12px; margin-top: 6px; font-size: 15px; color: var(--sub); }
+    .sin-obs { display: block; margin: 0; }
     .contador { flex: none; font-variant-numeric: tabular-nums; }
     .contador.lleno { font-weight: 700; color: var(--tinta); }
     .msg-error { margin-top: 6px; color: var(--error); font-weight: 500; font-size: 16px; }
@@ -194,7 +199,8 @@ export class DialogoDescartar {
     if (this.enviando() || !motivo || this.aplicables().length === 0 || this.errorObservacion() || this.errorOriginal()) {
       return;
     }
-    const observacion = this.observacion().trim();
+    // Con DUPLICADO no se manda observación (el backend la rechaza): lo escrito antes de cambiar de motivo se descarta.
+    const observacion = motivo === 'DUPLICADO' ? '' : this.observacion().trim();
     this.enviando.set(true);
     this.errorEnvio.set(null);
     this.api

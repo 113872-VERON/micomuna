@@ -83,11 +83,21 @@ public class MisReclamosService {
 				datosDeFotos, cambios, descarte, trabajo);
 	}
 
-	// Del original solo se muestran su número y su estado: nada de su descripción, su vecino ni su historial.
-	private static DescarteDto descarteDe(Reclamo reclamo) {
+	// Del original solo se muestran su estado y sus cambios de estado (estado y fecha, sin reasignaciones, igual que el
+	// historial del vecino): nunca su número, su descripción, su vecino ni quién lo cambió.
+	// Con DUPLICADO el vecino no recibe ninguna observación (al descartar no se acepta; esto cubre las que pudieran haber quedado
+	// de antes): al vecino de un duplicado se le dice siempre lo mismo.
+	private static String observacionParaElVecino(Reclamo reclamo) {
+		return reclamo.getMotivoDescarte() == com.micomuna.enums.MotivoDescarte.DUPLICADO ? null : reclamo.getObservacionDescarte();
+	}
+
+	private DescarteDto descarteDe(Reclamo reclamo) {
 		Reclamo original = reclamo.getReclamoOriginal();
-		return new DescarteDto(reclamo.getMotivoDescarte(), reclamo.getObservacionDescarte(),
-				original == null ? null : original.getNumero(), original == null ? null : original.getEstado());
+		if (original == null) {
+			return new DescarteDto(reclamo.getMotivoDescarte(), observacionParaElVecino(reclamo), null, List.of());
+		}
+		return new DescarteDto(reclamo.getMotivoDescarte(), observacionParaElVecino(reclamo), original.getEstado(),
+				historial.historialDe(original.getId()));
 	}
 
 	// La foto tiene que ser de un reclamo del vecino, en su comuna (una sola consulta). El tipo es el que guardó el

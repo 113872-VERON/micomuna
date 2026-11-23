@@ -1,6 +1,7 @@
 package com.micomuna.controllers;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -142,14 +143,17 @@ class DescarteEnHistorialTests {
 		cambiar(3, CambioDeEstado.descartar(MotivoDescarte.OTRO, "Era una broma", null));
 		Reclamo duplicado = reclamo(5);
 		cambiar(5, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, 4));
-		Reclamo duplicadoConNota = reclamo(6);
-		cambiar(6, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, "Mismo pozo de la esquina", 4));
+		// Con duplicado no se acepta una observación: 400 VALIDACION y no cambia nada.
+		Reclamo conNota = reclamo(6);
+		assertThatThrownBy(() -> cambiar(6, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, "Mismo pozo de la esquina", 4)))
+				.isInstanceOf(com.micomuna.exceptions.PeticionInvalidaException.class)
+				.satisfies(e -> assertThat(((com.micomuna.exceptions.PeticionInvalidaException) e).getCodigo()).isEqualTo("VALIDACION"));
+		assertThat(conNota.getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
 
 		assertThat(observacionDelDescarte(a)).isEqualTo("No es de la comuna: Es de la comuna vecina");
 		assertThat(observacionDelDescarte(b)).isEqualTo("No se puede atender: Requiere una obra mayor");
 		assertThat(observacionDelDescarte(c)).isEqualTo("Otro motivo: Era una broma");
 		assertThat(observacionDelDescarte(duplicado)).isEqualTo("Duplicado del n.º 4");
-		assertThat(observacionDelDescarte(duplicadoConNota)).isEqualTo("Duplicado del n.º 4: Mismo pozo de la esquina");
 		assertThat(original.getEstado()).isEqualTo(EstadoReclamo.RECIBIDO);
 	}
 

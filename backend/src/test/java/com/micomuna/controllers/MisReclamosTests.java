@@ -439,13 +439,13 @@ class MisReclamosTests {
 	}
 
 	@Test
-	void elDetalleDeUnDuplicadoDescartadoTraeElMotivoYSoloElNumeroYEstadoDelOriginal() throws Exception {
+	void elDetalleDeUnDuplicadoDescartadoTraeElMotivoYSoloElEstadoYLosPasosDelOriginal() throws Exception {
 		Reclamo original = reclamo(comunaA, otroVecinoA, 1);
 		original.setDescripcion("Descripcion privada del original");
 		reclamos.saveAndFlush(original);
 		cambiar(original, CambioDeEstado.a(EstadoReclamo.ASIGNADO));
 		Reclamo duplicado = reclamo(comunaA, vecinoA, 2);
-		cambiar(duplicado, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, "Ya lo estamos atendiendo", 1));
+		cambiar(duplicado, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, 1));
 		// El original sigue su camino: el vecino ve su estado actual.
 		cambiar(original, CambioDeEstado.a(EstadoReclamo.EN_REPARACION));
 
@@ -453,29 +453,33 @@ class MisReclamosTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.estado").value("DESCARTADO"))
 				.andExpect(jsonPath("$.descarte.motivo").value("DUPLICADO"))
-				.andExpect(jsonPath("$.descarte.observacion").value("Ya lo estamos atendiendo"))
-				.andExpect(jsonPath("$.descarte.numeroOriginal").value(1))
+				.andExpect(jsonPath("$.descarte.observacion").value(nullValue()))
+				.andExpect(jsonPath("$.descarte.numeroOriginal").doesNotExist())
 				.andExpect(jsonPath("$.descarte.estadoOriginal").value("EN_REPARACION"))
+				.andExpect(jsonPath("$.descarte.historialOriginal[*].estado", contains("RECIBIDO", "ASIGNADO", "EN_REPARACION")))
+				.andExpect(jsonPath("$.descarte.historialOriginal[0].fecha").exists())
 				.andExpect(jsonPath("$.trabajoRealizado").value(nullValue()))
 				.andExpect(jsonPath("$.historial[*].estado", contains("RECIBIDO", "DESCARTADO")))
 				.andReturn().getResponse().getContentAsString();
 
 		// Del original no se filtra nada más (ni su descripción ni su vecino).
 		assertThat(cuerpo).doesNotContain("Descripcion privada del original").doesNotContain(otroVecinoA.getCorreo());
+		// Ni el número del original: el reclamo propio es el n.º 2 y el original, el 1.
+		assertThat(cuerpo).doesNotContain("numeroOriginal");
 		com.jayway.jsonpath.JsonPath.parse(cuerpo).read("$.descarte", java.util.Map.class)
-				.keySet().forEach(clave -> assertThat(clave).isIn("motivo", "observacion", "numeroOriginal", "estadoOriginal"));
+				.keySet().forEach(clave -> assertThat(clave).isIn("motivo", "observacion", "estadoOriginal", "historialOriginal"));
 	}
 
 	@Test
-	void elDetalleDeUnDescartadoSinOriginalNoTraeNumeroNiEstadoOriginal() throws Exception {
+	void elDetalleDeUnDescartadoSinOriginalNoTraeEstadoNiPasosDelOriginal() throws Exception {
 		Reclamo r = reclamo(comunaA, vecinoA, 1);
 		cambiar(r, CambioDeEstado.descartar(MotivoDescarte.NO_ES_DE_LA_COMUNA, "Es de la ruta", null));
 
 		pedir(RUTA + "/1")
 				.andExpect(jsonPath("$.descarte.motivo").value("NO_ES_DE_LA_COMUNA"))
 				.andExpect(jsonPath("$.descarte.observacion").value("Es de la ruta"))
-				.andExpect(jsonPath("$.descarte.numeroOriginal").value(nullValue()))
-				.andExpect(jsonPath("$.descarte.estadoOriginal").value(nullValue()));
+				.andExpect(jsonPath("$.descarte.estadoOriginal").value(nullValue()))
+				.andExpect(jsonPath("$.descarte.historialOriginal", hasSize(0)));
 	}
 
 	@Test

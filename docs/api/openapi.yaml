@@ -794,8 +794,9 @@ paths:
         \ de otro vecino, de otra comuna o no existe, responde 404 igual. Trae las\
         \ fotos (solo sus datos; la imagen se pide aparte), el historial de estados\
         \ (estado y fecha, sin quién lo cambió ni notas internas), y lo que corresponde\
-        \ al estado: el motivo del descarte y, si es un duplicado, el número del\
-        \ reclamo original; o lo que se hizo, si está resuelto."
+        \ al estado: el motivo del descarte y, si es un duplicado, el estado y los\
+        \ pasos del reclamo que sigue la comuna (sin su número ni datos de otro vecino);\
+        \ o lo que se hizo, si está resuelto."
       operationId: detalleDeMiReclamo
       parameters:
       - name: numero
@@ -1219,7 +1220,13 @@ paths:
         \ que uno que no existe. Si un reclamo falla por otro motivo sale en omitidos\
         \ (AGENTE_INVALIDO, ORIGINAL_INVALIDO o ERROR) y los ya cambiados quedan.\
         \ Tope de 30 segundos por lote: los que no se llegan a procesar salen como\
-        \ CONFLICTO. Solo se puede asignar a agentes que ya aceptaron la invitación."
+        \ CONFLICTO. Solo se puede asignar a agentes que ya aceptaron la invitación.\
+        \ Correos (MC-22 y MC-23): cada cambio de estado (de cualquier endpoint, también\
+        \ los del agente) le manda un correo al vecino después de guardarse, sin hacer\
+        \ esperar al pedido; si el envío falla, el cambio queda y el error se registra\
+        \ (sin reintentos). No avisan el alta ni una reasignación. Los vecinos de los\
+        \ reclamos descartados como duplicado de este también reciben un aviso, sin\
+        \ el número ni datos del original."
       operationId: cambiarEstadoDeReclamos
       requestBody:
         required: true
@@ -1259,11 +1266,14 @@ paths:
       summary: Descartar uno o varios reclamos
       description: "Personal administrativo y administrador de la comuna. Descarta\
         \ cada reclamo de la lista, de a uno y por separado, con el mismo motivo y\
-        \ observación. La observación (hasta 300 caracteres) es obligatoria salvo con\
-        \ motivo DUPLICADO, que en cambio exige numeroOriginal: un reclamo de la misma\
-        \ comuna, que no esté descartado y que no esté en la lista. El vecino lee la\
-        \ observación. Los reclamos RESUELTO o DESCARTADO no se descartan y salen\
-        \ en omitidos (YA_CERRADO)."
+        \ observación. La observación (hasta 300 caracteres) es obligatoria con los\
+        \ demás motivos y el vecino la lee. Con motivo DUPLICADO no se escribe observación\
+        \ (si viene, 400 VALIDACION, para que el vecino nunca vea el número del original)\
+        \ y en cambio se exige numeroOriginal: un reclamo de la misma comuna, que\
+        \ no esté descartado y que no esté en la lista. Los reclamos RESUELTO o DESCARTADO\
+        \ no se descartan y salen en omitidos (YA_CERRADO). Cada descarte le manda\
+        \ un correo al vecino después de guardarse (ver el detalle en la descripción\
+        \ de cambios-de-estado)."
       operationId: descartarReclamos
       requestBody:
         required: true
@@ -2090,18 +2100,17 @@ components:
           type:
           - string
           - "null"
-          description: Lo que escribió la comuna al descartarlo
-        numeroOriginal:
-          type:
-          - integer
-          - "null"
-          format: int32
-          description: "Solo con motivo DUPLICADO: el número del reclamo que sigue la comuna"
+          description: Lo que escribió la comuna al descartarlo. Vacío con motivo DUPLICADO
         estadoOriginal:
           oneOf:
           - $ref: "#/components/schemas/EstadoReclamo"
           - type: "null"
-          description: "Solo con motivo DUPLICADO: el estado actual del reclamo original. No trae ningún otro dato de ese reclamo ni de quién lo hizo"
+          description: "Solo con motivo DUPLICADO: el estado actual del reclamo que sigue la comuna. No se informa su número ni ningún dato de otro vecino"
+        historialOriginal:
+          type: array
+          description: "Solo con motivo DUPLICADO: los cambios de estado del reclamo que sigue la comuna (estado y fecha, sin reasignaciones), para mostrar su avance. Vacío en los demás motivos"
+          items:
+            $ref: "#/components/schemas/CambioDeEstadoDto"
     PaginaReclamosPanelDto:
       type: object
       properties:
@@ -2419,7 +2428,7 @@ components:
           - string
           - "null"
           maxLength: 300
-          description: "Obligatoria salvo con DUPLICADO. El vecino la lee: no poner datos de otras personas"
+          description: "Obligatoria con los demás motivos; con DUPLICADO no se manda (400 VALIDACION). El vecino la lee: no poner datos de otras personas"
         numeroOriginal:
           type:
           - integer

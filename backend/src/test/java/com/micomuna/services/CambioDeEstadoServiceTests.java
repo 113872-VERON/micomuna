@@ -397,7 +397,7 @@ class CambioDeEstadoServiceTests {
 	void reabrirUnDescartadoBorraMotivoObservacionYOriginal() {
 		Reclamo original = reclamo(comunaA, EstadoReclamo.ASIGNADO);
 		Reclamo r = reclamo(comunaA, EstadoReclamo.RECIBIDO);
-		servicio.cambiar(r.getNumero(), CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, "Ya estaba", original.getNumero()),
+		servicio.cambiar(r.getNumero(), CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, original.getNumero()),
 				agente.getId());
 
 		servicio.cambiar(r.getNumero(), CambioDeEstado.a(EstadoReclamo.RECIBIDO), agente.getId());
