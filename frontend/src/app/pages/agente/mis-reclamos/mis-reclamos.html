@@ -1,0 +1,119 @@
+<div class="titulo">
+  <h1>Mis reclamos</h1>
+  <button type="button" class="btn sec chico" [disabled]="carga() === 'cargando'" (click)="actualizar()">Actualizar</button>
+</div>
+
+<div class="pestanas" role="tablist" aria-label="Qué reclamos ver" (keydown)="teclaEnPestanas($event)">
+  <button type="button" role="tab" id="pestana-para-hacer" class="pestana" aria-controls="panel-reclamos" [attr.aria-selected]="paraHacer()"
+    [attr.tabindex]="paraHacer() ? 0 : -1" [class.on]="paraHacer()" (click)="elegirGrupo('PARA_HACER')">Para hacer</button>
+  <button type="button" role="tab" id="pestana-resueltos" class="pestana" aria-controls="panel-reclamos" [attr.aria-selected]="!paraHacer()"
+    [attr.tabindex]="!paraHacer() ? 0 : -1" [class.on]="!paraHacer()" (click)="elegirGrupo('RESUELTOS')">Resueltos</button>
+</div>
+
+<div id="panel-reclamos" role="tabpanel" [attr.aria-labelledby]="paraHacer() ? 'pestana-para-hacer' : 'pestana-resueltos'" class="panel">
+  @if (sinUbicacion()) {
+    <div class="aviso" role="status">
+      <p>
+        @if (estadoUbicacion() === 'permiso') {
+          No pudimos ver dónde estás porque no diste permiso de ubicación. Sin eso no mostramos las distancias y ordenamos por fecha, los más antiguos primero.
+        } @else {
+          No pudimos ver dónde estás. Sin eso no mostramos las distancias y ordenamos por fecha, los más antiguos primero.
+        }
+      </p>
+      <button type="button" class="btn sec chico" (click)="actualizarUbicacion()">Permitir ubicación</button>
+      @if (estadoUbicacion() === 'permiso') {
+        <p class="ayuda">Si el teléfono no te pregunta, activá la ubicación para este sitio en los ajustes del navegador.</p>
+      }
+    </div>
+  }
+
+  @if (paraHacer() && carga() === 'lista' && reclamos().length > 0) {
+    <div class="orden">
+      <button type="button" class="btn sec chico" aria-haspopup="dialog" (click)="hojaAbierta.set(true)">Ordenar por: {{ nombreDelOrden() }}</button>
+      @if (cayoAFecha()) {
+        <span class="ayuda">Sin tu ubicación se ordena por fecha.</span>
+      }
+    </div>
+  }
+
+  @switch (carga()) {
+    @case ('cargando') {
+      <p class="aviso-carga" role="status">Cargando tus reclamos…</p>
+    }
+    @case ('error') {
+      <div class="caja-error" role="alert">
+        <p>No pudimos cargar tus reclamos. Revisá tu conexión e intentá de nuevo.</p>
+        <button type="button" class="btn sec" (click)="reintentar()">Reintentar</button>
+      </div>
+    }
+    @case ('lista') {
+      @if (reclamos().length === 0) {
+        <section class="vacio">
+          @if (paraHacer()) {
+            <h2>No tenés reclamos para hacer</h2>
+            <p>Cuando la comuna te asigne uno, lo vas a ver acá.</p>
+          } @else {
+            <h2>Todavía no resolviste ningún reclamo</h2>
+            <p>Los que marques como resueltos van a aparecer acá.</p>
+          }
+        </section>
+      } @else {
+        @for (g of grupos(); track $index) {
+          <section [attr.aria-label]="g.titulo ?? null">
+            @if (g.titulo) {
+              <h2 class="grupo">{{ g.titulo }}</h2>
+            }
+            <ul class="lista">
+              @for (t of g.tarjetas; track t.reclamo.numero) {
+                <li>
+                  <a class="tarjeta" [routerLink]="['/', slug(), 'agente', 'reclamos', t.reclamo.numero]">
+                    <span class="fila">
+                      <b class="n">Reclamo n.º {{ t.reclamo.numero }}</b>
+                      <app-chip-estado [estado]="t.reclamo.estado" />
+                    </span>
+                    <span class="tipo"><app-icono-tipo [codigo]="t.reclamo.tipo" [tamano]="20" />{{ t.reclamo.tipoNombre }}</span>
+                    <span class="direccion">{{ t.reclamo.direccion || 'Sin dirección' }}</span>
+                    @if (distanciaDe(t.metros); as d) {
+                      <span class="distancia">{{ d }}</span>
+                    }
+                    <span class="fecha">
+                      @if (paraHacer()) {
+                        Reportado el {{ t.reclamo.creadoEn | date: 'd/M/yyyy' }}
+                      } @else {
+                        Resuelto el {{ t.reclamo.estadoCambiadoEn | date: 'd/M/yyyy' }}
+                      }
+                    </span>
+                  </a>
+                </li>
+              }
+            </ul>
+          </section>
+        }
+        @if (hayMas()) {
+          <button type="button" class="btn sec" [disabled]="cargandoMas()" (click)="verMas()">{{ cargandoMas() ? 'Cargando…' : 'Ver más' }}</button>
+        }
+        @if (errorMas()) {
+          <p class="error-mas" role="alert">No pudimos traer más reclamos. Probá de nuevo.</p>
+        }
+      }
+    }
+  }
+</div>
+
+@if (hojaAbierta()) {
+  <app-dialogo titulo="Ordenar por" (cerrar)="hojaAbierta.set(false)">
+    <fieldset class="opciones">
+      <legend class="solo-lectores">Cómo ordenar los reclamos</legend>
+      @for (o of opciones; track o.valor) {
+        <label class="opcion" [class.apagada]="o.valor === 'distancia' && !ubicacion()">
+          <input type="radio" name="orden" [value]="o.valor" [checked]="ordenEfectivo() === o.valor" [disabled]="o.valor === 'distancia' && !ubicacion()" (change)="elegirOrden(o.valor)" />
+          <span>
+            <b>{{ o.nombre }}</b>&ngsp;
+            <small>{{ o.explicacion }}@if (o.valor === 'distancia' && !ubicacion()) { Para usarla, permití la ubicación. }</small>
+          </span>
+        </label>
+      }
+    </fieldset>
+    <button type="button" class="btn sec" (click)="hojaAbierta.set(false)">Cerrar</button>
+  </app-dialogo>
+}

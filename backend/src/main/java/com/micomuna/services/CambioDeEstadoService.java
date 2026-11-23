@@ -59,15 +59,31 @@ public class CambioDeEstadoService {
 	// que dejó el primero. Si la espera pasa los 3 segundos, responde 409 (ver ApiExceptionHandler).
 	// Errores: reclamo inexistente o de otra comuna -> RecursoNoEncontradoException (404); transición no permitida ->
 	// TransicionInvalidaException (409); datos faltantes o inválidos -> PeticionInvalidaException (400).
+	// Lleva su propio @Transactional: la llamada a la sobrecarga de abajo es interna y no pasa por el proxy.
 	@Transactional(timeout = SEGUNDOS_MAXIMOS)
 	public Reclamo cambiar(Integer numero, CambioDeEstado cambio, Long idUsuario) {
+		return cambiar(numero, cambio, idUsuario, null, null);
+	}
+
+	// Igual que cambiar, para el agente de campo (MC-20): después de bloquear la fila exige que el reclamo sea de este
+	// agente (si no, 404 idéntico a uno inexistente, también si está DESCARTADO) y que esté en el estado `desde` (si no,
+	// TransicionInvalidaException). Con soloDelAgente y desde en null no exige nada.
+	@Transactional(timeout = SEGUNDOS_MAXIMOS)
+	public Reclamo cambiar(Integer numero, CambioDeEstado cambio, Long idUsuario, Long soloDelAgente, EstadoReclamo desde) {
 		if (cambio == null || cambio.nuevo() == null) {
 			throw new PeticionInvalidaException("ESTADO_REQUERIDO", "Elegí el estado al que pasa el reclamo.");
 		}
 		Reclamo reclamo = reclamos.bloquearPorNumero(comunaActual.id(), numero)
 				.orElseThrow(() -> new RecursoNoEncontradoException(NO_ENCONTRADO));
+		if (soloDelAgente != null && (reclamo.getAgente() == null || !soloDelAgente.equals(reclamo.getAgente().getId())
+				|| reclamo.getEstado() == EstadoReclamo.DESCARTADO)) {
+			throw new RecursoNoEncontradoException(NO_ENCONTRADO);
+		}
 		EstadoReclamo anterior = reclamo.getEstado();
 		EstadoReclamo nuevo = cambio.nuevo();
+		if (desde != null && anterior != desde) {
+			throw new TransicionInvalidaException(anterior, nuevo);
+		}
 		if (!anterior.puedePasarA(nuevo)) {
 			throw new TransicionInvalidaException(anterior, nuevo);
 		}

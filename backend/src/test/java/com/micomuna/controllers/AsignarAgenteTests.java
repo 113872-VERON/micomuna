@@ -456,11 +456,10 @@ class AsignarAgenteTests {
 		String cuerpo = mockMvc.perform(get("/api/reclamos/mios/1").header("Authorization", "Bearer " + jwt.generar(vecinoA)))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.estado").value("ASIGNADO"))
-				.andExpect(jsonPath("$.historial", hasSize(3)))
+				.andExpect(jsonPath("$.historial[*].estado", contains("RECIBIDO", "ASIGNADO")))
 				.andExpect(jsonPath("$.agente").doesNotExist())
 				.andExpect(jsonPath("$.historial[0].agente").doesNotExist())
 				.andExpect(jsonPath("$.historial[1].agente").doesNotExist())
-				.andExpect(jsonPath("$.historial[2].agenteAnterior").doesNotExist())
 				.andReturn().getResponse().getContentAsString();
 		assertThat(cuerpo).doesNotContain("Álvaro").doesNotContain("Zoe").doesNotContain("Admin Comuna")
 				.doesNotContain("agente").doesNotContain("usuarioNombre");

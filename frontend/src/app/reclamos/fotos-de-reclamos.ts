@@ -1,11 +1,12 @@
 import { Injectable, OnDestroy, effect, inject } from '@angular/core';
 import { Observable, map, shareReplay } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { ReclamosAgenteService } from '../agente/reclamos-agente.service';
 import { ReclamosPanelService } from '../panel/reclamos-panel.service';
 import { ReclamosService } from './reclamos.service';
 
-// De dónde se bajan las fotos: los reclamos del vecino (`mios`) o los de la comuna para el personal (`panel`).
-export type OrigenDeFotos = 'mios' | 'panel';
+// De dónde se bajan las fotos: los reclamos del vecino (`mios`), los de la comuna para el personal (`panel`) o los asignados al agente (`agente`).
+export type OrigenDeFotos = 'mios' | 'panel' | 'agente';
 
 // Memoria de las fotos ya bajadas mientras una pantalla está abierta. El servidor responde las fotos con
 // `Cache-Control: no-store`, así que el navegador no las guarda: sin esto, cada vez que una foto se vuelve
@@ -15,6 +16,7 @@ export type OrigenDeFotos = 'mios' | 'panel';
 export class FotosDeReclamos implements OnDestroy {
   private readonly api = inject(ReclamosService);
   private readonly panel = inject(ReclamosPanelService);
+  private readonly agente = inject(ReclamosAgenteService);
   private readonly auth = inject(AuthService);
   private entradas = new Map<string, Observable<string>>();
   private urls = new Set<string>();
@@ -35,7 +37,8 @@ export class FotosDeReclamos implements OnDestroy {
     let entrada = this.entradas.get(clave);
     if (!entrada) {
       const generacion = this.generacion;
-      const descarga = origen === 'panel' ? this.panel.foto(numero, idFoto) : this.api.fotoDeMiReclamo(numero, idFoto);
+      const descarga =
+        origen === 'panel' ? this.panel.foto(numero, idFoto) : origen === 'agente' ? this.agente.foto(numero, idFoto) : this.api.fotoDeMiReclamo(numero, idFoto);
       entrada = descarga.pipe(
         map((blob) => {
           if (generacion !== this.generacion) {

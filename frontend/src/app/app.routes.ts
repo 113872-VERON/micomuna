@@ -59,6 +59,16 @@ export const routes: Routes = [
           { path: '', pathMatch: 'full', redirectTo: 'reclamos' },
         ],
       },
+      // Mis reclamos del agente (MC-20): el mismo marco de una columna del vecino, para el celular.
+      {
+        path: 'agente',
+        canActivate: [rolGuard('AGENTE', loginDeLaComuna)],
+        loadComponent: () => import('./pages/vecino/marco-vecino').then((m) => m.MarcoVecino),
+        children: [
+          { path: '', pathMatch: 'full', loadComponent: () => import('./pages/agente/mis-reclamos/mis-reclamos').then((m) => m.MisReclamos) },
+          { path: 'reclamos/:numero', loadComponent: () => import('./pages/agente/detalle-agente/detalle-agente').then((m) => m.DetalleAgente) },
+        ],
+      },
       // Reportar un problema (MC-15): solo el vecino. Marco propio de una columna, un paso por dirección.
       {
         path: 'reportar',

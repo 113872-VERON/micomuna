@@ -113,7 +113,7 @@ describe('Login', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/panel/reclamos');
   });
 
-  it('elAgenteSigueYendoALaPantallaProvisoria', () => {
+  it('alAgenteLoLlevaAMisReclamos', () => {
     const f = crear();
     escribir(f, 'correo', 'juan@correo.com');
     escribir(f, 'clave', 'miclave123');
@@ -124,7 +124,7 @@ describe('Login', () => {
       usuario: { id: 3, nombre: 'Juan', correo: 'juan@correo.com', rol: 'AGENTE', comunaSlug: 'salsipuedes-cordoba' },
     });
 
-    expect(router.navigateByUrl).toHaveBeenLastCalledWith('/inicio');
+    expect(router.navigateByUrl).toHaveBeenLastCalledWith('/salsipuedes-cordoba/agente');
   });
 
   it('mostrarElErrorDeCredencialesIncorrectas', () => {

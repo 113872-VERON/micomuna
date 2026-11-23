@@ -201,7 +201,8 @@ public class ReclamoService {
 		});
 	}
 
-	private static ImagenUtil.Imagen prepararFoto(MultipartFile archivo, int numero) {
+	// También la usa el agente al resolver (AgenteReclamosService): una sola cadena de controles para todas las fotos.
+	static ImagenUtil.Imagen prepararFoto(MultipartFile archivo, int numero) {
 		if (archivo.isEmpty()) {
 			throw fotoInvalida(numero);
 		}

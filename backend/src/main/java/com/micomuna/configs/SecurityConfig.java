@@ -65,6 +65,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/api/reclamos/mios", "/api/reclamos/mios/**").hasRole("VECINO")
 						// El panel de reclamos (MC-18) es solo del personal administrativo y del administrador de la comuna.
 						.requestMatchers("/api/panel/**").hasAnyRole("ADMINISTRATIVO", "ADMIN_COMUNA")
+						// Los reclamos del agente de campo (MC-20) son solo del agente.
+						.requestMatchers("/api/agente/**").hasRole("AGENTE")
 						// Direccion de un punto: vecinos y personal de una comuna, no el superadmin. Por URL, para que el
 						// superadmin reciba 403 antes de que se validen los parametros.
 						.requestMatchers("/api/ubicacion/**").hasAnyRole("VECINO", "AGENTE", "ADMINISTRATIVO", "ADMIN_COMUNA")

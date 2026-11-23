@@ -22,6 +22,8 @@ tags:
   description: Reclamos de los vecinos de una comuna
 - name: Panel de reclamos
   description: El personal administrativo y el administrador de la comuna gestionan los reclamos
+- name: Agente
+  description: El agente de campo ve y resuelve los reclamos que tiene asignados
 - name: Salud
   description: Comprobación de que el backend responde
 paths:
@@ -1296,6 +1298,264 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/agente/reclamos:
+    get:
+      tags:
+      - Agente
+      summary: Mis reclamos asignados
+      description: "Solo el agente. Los reclamos de la comuna del token asignados al\
+        \ agente del token. PARA_HACER: los que están en ASIGNADO o EN_REPARACION,\
+        \ del más viejo al más nuevo. RESUELTOS: los que están en RESUELTO con este\
+        \ agente, del resuelto más reciente al más viejo. Trae latitud y longitud\
+        \ para que el teléfono calcule la distancia: la ubicación del agente nunca\
+        \ viaja al servidor. Paginado."
+      operationId: misReclamosDelAgente
+      parameters:
+      - name: grupo
+        in: query
+        required: false
+        schema:
+          type: string
+          enum:
+          - PARA_HACER
+          - RESUELTOS
+          default: PARA_HACER
+      - name: pagina
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 1000
+          default: 0
+      - name: tamanio
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 100
+          default: 50
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginaReclamosAgenteDto"
+        "400":
+          description: Grupo, página o tamaño inválidos (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/agente/reclamos/{numero}:
+    get:
+      tags:
+      - Agente
+      summary: Detalle de uno de mis reclamos
+      description: "Solo el agente. El reclamo tiene que ser de la comuna del token\
+        \ y estar asignado al agente del token (en cualquier estado salvo DESCARTADO).\
+        \ Si no, 404, igual que uno inexistente. No trae datos personales del vecino."
+      operationId: detalleDeReclamoDelAgente
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoAgenteDetalleDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "El reclamo no existe, es de otra comuna o no está asignado a vos (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/agente/reclamos/{numero}/fotos/{idFoto}:
+    get:
+      tags:
+      - Agente
+      summary: Una foto de uno de mis reclamos
+      description: "Solo el agente asignado. Mismas reglas que el detalle. Tipo guardado\
+        \ por el servidor (image/jpeg o image/png), con nosniff y sin que el navegador\
+        \ la guarde."
+      operationId: fotoDeReclamoDelAgente
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      - name: idFoto
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          description: La imagen en binario
+          headers:
+            Cache-Control:
+              description: no-store
+              schema:
+                type: string
+            X-Content-Type-Options:
+              description: nosniff
+              schema:
+                type: string
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "La foto o el reclamo no existen, o no son tuyos (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/agente/reclamos/{numero}/empezar:
+    post:
+      tags:
+      - Agente
+      summary: Empezar a trabajar
+      description: "Solo el agente asignado. Pasa el reclamo de ASIGNADO a EN_REPARACION\
+        \ y lo registra en el historial con quién y cuándo."
+      operationId: empezarReclamo
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      responses:
+        "200":
+          description: El detalle actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoAgenteDetalleDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "El reclamo no existe, es de otra comuna o no está asignado a vos (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo no está en ASIGNADO (TRANSICION_INVALIDA), o otra\
+            \ persona lo está cambiando en este momento (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/agente/reclamos/{numero}/resolver:
+    post:
+      tags:
+      - Agente
+      summary: Marcar como resuelto
+      description: "Solo el agente asignado. Pasa el reclamo de EN_REPARACION a RESUELTO,\
+        \ con una nota de lo que se hizo y una foto del trabajo, las dos opcionales.\
+        \ La nota la ve el vecino. La foto pasa por los mismos controles que las del\
+        \ vecino (JPG o PNG real, hasta 2 MB y 2560 px, sin datos ocultos) y se guarda\
+        \ como foto del trabajo. Si el reclamo ya tenía fotos del trabajo de una resolución\
+        \ anterior, se reemplazan."
+      operationId: resolverReclamo
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ResolverReclamoForm"
+            encoding:
+              foto:
+                contentType: "image/jpeg, image/png"
+      responses:
+        "200":
+          description: El detalle actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoAgenteDetalleDto"
+        "400":
+          description: "Nota de más de 1000 caracteres (VALIDACION), foto inválida (FOTO_INVALIDA)\
+            \ o pedido demasiado grande (ARCHIVO_MUY_GRANDE)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: "El reclamo no existe, es de otra comuna o no está asignado a vos (NO_ENCONTRADO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo no está en EN_REPARACION (TRANSICION_INVALIDA), o otra\
+            \ persona lo está cambiando en este momento (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "503":
+          description: "El servidor está procesando muchas fotos a la vez (OCUPADO). Probá\
+            \ de nuevo en unos segundos."
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/admin/comunas/{id}/limite:
     put:
       tags:
@@ -2142,6 +2402,117 @@ components:
         motivo:
           type: string
           description: "Texto para mostrar, por ejemplo \"El n.º 39 ya está cerrado\""
+    PaginaReclamosAgenteDto:
+      type: object
+      properties:
+        reclamos:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReclamoAgenteDto"
+        pagina:
+          type: integer
+          format: int32
+        tamanio:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    ReclamoAgenteDto:
+      type: object
+      description: Una tarjeta de la lista del agente.
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        direccion:
+          type:
+          - string
+          - "null"
+        referencia:
+          type:
+          - string
+          - "null"
+        latitud:
+          type:
+          - number
+          - "null"
+          format: double
+        longitud:
+          type:
+          - number
+          - "null"
+          format: double
+        creadoEn:
+          type: string
+          format: date-time
+        estadoCambiadoEn:
+          type: string
+          format: date-time
+          description: Fecha del último cambio de estado (en RESUELTOS, cuándo se resolvió)
+    ReclamoAgenteDetalleDto:
+      type: object
+      description: "Lo que el agente necesita para ir y resolver. Sin nombre ni datos del vecino."
+      properties:
+        numero:
+          type: integer
+          format: int32
+        tipo:
+          type: string
+        tipoNombre:
+          type: string
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        descripcion:
+          type: string
+        referencia:
+          type:
+          - string
+          - "null"
+        direccion:
+          type:
+          - string
+          - "null"
+        latitud:
+          type:
+          - number
+          - "null"
+          format: double
+        longitud:
+          type:
+          - number
+          - "null"
+          format: double
+        creadoEn:
+          type: string
+          format: date-time
+        fotos:
+          type: array
+          description: "Primero las del vecino y después las del trabajo"
+          items:
+            $ref: "#/components/schemas/FotoReclamoDto"
+        trabajoRealizado:
+          type:
+          - string
+          - "null"
+          description: Solo si está RESUELTO
+    ResolverReclamoForm:
+      type: object
+      properties:
+        nota:
+          type: string
+          maxLength: 1000
+          description: "Opcional. Lo que se hizo; lo ve el vecino"
+        foto:
+          type: string
+          format: binary
+          description: Opcional. Una foto del trabajo terminado
     UsuarioComunaDto:
       type: object
       description: Un usuario de la comuna, para el panel del administrador. Nunca trae la clave.

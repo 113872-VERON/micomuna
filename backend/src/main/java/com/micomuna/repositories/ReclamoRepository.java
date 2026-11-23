@@ -56,6 +56,54 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	Optional<Reclamo> buscarDelVecino(@Param("idComuna") Long idComuna, @Param("numero") Integer numero,
 			@Param("idVecino") Long idVecino);
 
+	// "Mis reclamos" del agente (MC-20), grupo PARA_HACER: los suyos en ASIGNADO o EN_REPARACION, del más viejo al más
+	// nuevo. Una sola consulta con la comuna y el agente; la fecha del último cambio sale de una subconsulta y no se lee
+	// ninguna imagen ni el vecino.
+	@Query(value = """
+			select new com.micomuna.dtos.ReclamoAgenteDto(r.numero, t.codigo, t.nombre, r.estado, r.direccion, r.referencia,
+				r.latitud, r.longitud, r.creadoEn,
+				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id), r.creadoEn))
+			from Reclamo r join r.tipo t
+			where r.comuna.id = :idComuna and r.agente.id = :idAgente
+				and r.estado in (com.micomuna.enums.EstadoReclamo.ASIGNADO, com.micomuna.enums.EstadoReclamo.EN_REPARACION)
+			order by r.creadoEn, r.id
+			""",
+			countQuery = """
+			select count(r) from Reclamo r where r.comuna.id = :idComuna and r.agente.id = :idAgente
+				and r.estado in (com.micomuna.enums.EstadoReclamo.ASIGNADO, com.micomuna.enums.EstadoReclamo.EN_REPARACION)
+			""")
+	Page<com.micomuna.dtos.ReclamoAgenteDto> paraHacerDelAgente(@Param("idComuna") Long idComuna,
+			@Param("idAgente") Long idAgente, Pageable pagina);
+
+	// Grupo RESUELTOS: los que este agente tiene en RESUELTO, del resuelto más reciente al más viejo. La fecha de
+	// resolución es la de la última fila del historial que pasó a RESUELTO (si se reabrió y se resolvió de nuevo, la más reciente).
+	@Query(value = """
+			select new com.micomuna.dtos.ReclamoAgenteDto(r.numero, t.codigo, t.nombre, r.estado, r.direccion, r.referencia,
+				r.latitud, r.longitud, r.creadoEn,
+				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id
+					and e.estado = com.micomuna.enums.EstadoReclamo.RESUELTO), r.creadoEn))
+			from Reclamo r join r.tipo t
+			where r.comuna.id = :idComuna and r.agente.id = :idAgente and r.estado = com.micomuna.enums.EstadoReclamo.RESUELTO
+			order by coalesce((select max(e2.cambiadoEn) from ReclamoEstado e2 where e2.reclamo.id = r.id
+					and e2.estado = com.micomuna.enums.EstadoReclamo.RESUELTO), r.creadoEn) desc, r.id desc
+			""",
+			countQuery = """
+			select count(r) from Reclamo r where r.comuna.id = :idComuna and r.agente.id = :idAgente
+				and r.estado = com.micomuna.enums.EstadoReclamo.RESUELTO
+			""")
+	Page<com.micomuna.dtos.ReclamoAgenteDto> resueltosDelAgente(@Param("idComuna") Long idComuna,
+			@Param("idAgente") Long idAgente, Pageable pagina);
+
+	// Un reclamo del agente por su número: comuna, número y agente en la misma consulta. De otro agente, de otra comuna,
+	// inexistente o DESCARTADO, el resultado es el mismo (vacío).
+	@Query("""
+			select r from Reclamo r join fetch r.tipo
+			where r.comuna.id = :idComuna and r.numero = :numero and r.agente.id = :idAgente
+				and r.estado <> com.micomuna.enums.EstadoReclamo.DESCARTADO
+			""")
+	Optional<Reclamo> buscarDelAgente(@Param("idComuna") Long idComuna, @Param("numero") Integer numero,
+			@Param("idAgente") Long idAgente);
+
 	// Para vincular un duplicado con su original: siempre dentro de la comuna.
 	Optional<Reclamo> findByComunaIdAndNumero(Long idComuna, Integer numero);
 
