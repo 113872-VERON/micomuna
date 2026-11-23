@@ -50,6 +50,12 @@ public class ReclamoEstado {
 	@JoinColumn(name = "id_usuario", updatable = false)
 	private Usuario usuario;
 
+	// Agente que quedó asignado con este cambio (V11). Solo se guarda en los cambios que asignan (ASIGNADO); en los demás
+	// queda vacío. El agente anterior de una reasignación no se guarda: sale de las filas previas (ver PanelReclamosRepository).
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "id_agente", updatable = false)
+	private Usuario agente;
+
 	@Column(updatable = false)
 	private String observacion;
 
@@ -67,6 +73,12 @@ public class ReclamoEstado {
 			String observacion) {
 		this(reclamo, estadoAnterior, estado, usuario);
 		this.observacion = observacion;
+	}
+
+	public ReclamoEstado(Reclamo reclamo, EstadoReclamo estadoAnterior, EstadoReclamo estado, Usuario usuario,
+			String observacion, Usuario agente) {
+		this(reclamo, estadoAnterior, estado, usuario, observacion);
+		this.agente = agente;
 	}
 
 	@PrePersist

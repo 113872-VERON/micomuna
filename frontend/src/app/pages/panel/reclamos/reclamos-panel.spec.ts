@@ -94,7 +94,7 @@ describe('Panel de reclamos', () => {
   // Abre la pantalla y contesta lo que pide al empezar (apoyos, lista, resumen y, si hay mapa, los puntos).
   async function abrir(query = '', datos: Datos = {}, conMapa = true): Promise<void> {
     await harness.navigateByUrl(BASE + query);
-    http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz' }, { id: 9, nombre: 'Lucía Paz' }]);
+    http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz', enCurso: 3 }, { id: 9, nombre: 'Lucía Paz', enCurso: 0 }]);
     http.expectOne('/api/tipos-reclamo').flush([
       { codigo: 'BACHE', nombre: 'Bache o calle rota', consejoFoto: '' },
       { codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' },
@@ -142,7 +142,7 @@ describe('Panel de reclamos', () => {
 
     it('losFiltrosDeLaUrlSeAplicanALaListaYAlMapaYElResumenNoLlevaElEstado', async () => {
       await harness.navigateByUrl(`${BASE}?estado=ASIGNADO&tipo=LUZ&agente=4&buscar=san%20mart%C3%ADn`);
-      http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz' }]);
+      http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz', enCurso: 3 }]);
       http.expectOne('/api/tipos-reclamo').flush([{ codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' }]);
       http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
 
@@ -696,7 +696,8 @@ describe('Panel de reclamos', () => {
       pedido.flush({ aplicados: [37], omitidos: [] });
       harness.detectChanges();
 
-      // La pantalla de atrás recarga su lista y su resumen; la ventana sigue mostrando el resultado.
+      // La pantalla de atrás recarga su lista, su resumen y los agentes (cambió su carga); la ventana sigue mostrando el resultado.
+      http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz', enCurso: 4 }]);
       lista().flush(pagina([fila(37, { estado: 'EN_REPARACION' })]));
       resumen().flush(RESUMEN);
       harness.detectChanges();

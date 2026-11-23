@@ -1118,8 +1118,9 @@ paths:
       - Panel de reclamos
       summary: Agentes de la comuna
       description: "Personal administrativo y administrador de la comuna. Los usuarios\
-        \ activos con rol AGENTE de la comuna del token, por nombre, para el filtro\
-        \ y para asignar."
+        \ activos con rol AGENTE de la comuna del token que ya aceptaron la invitación,\
+        \ por nombre, con cuántos reclamos en curso tiene cada uno (para el filtro\
+        \ y para asignar)."
       operationId: agentesDelPanel
       responses:
         "200":
@@ -1129,11 +1130,70 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/AgenteDto"
+                  $ref: "#/components/schemas/AgenteConCargaDto"
         "401":
           description: "Sin sesión, o el token venció o no es válido"
         "403":
           description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/{numero}/agente:
+    put:
+      tags:
+      - Panel de reclamos
+      summary: Asignar o reasignar un reclamo a un agente
+      description: "Personal administrativo y administrador de la comuna. Si el reclamo\
+        \ está RECIBIDO pasa a ASIGNADO con ese agente. Si ya tiene otro agente (ASIGNADO\
+        \ o EN_REPARACION), se reasigna y queda ASIGNADO: el agente nuevo todavía\
+        \ no empezó. Cada asignación o reasignación agrega una fila al historial con\
+        \ quién la hizo y el agente (y el anterior, si es una reasignación). El agente\
+        \ tiene que ser un AGENTE activo de la comuna que ya aceptó la invitación.\
+        \ Devuelve el detalle actualizado."
+      operationId: asignarAgente
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsignarAgenteRequest"
+      responses:
+        "200":
+          description: Asignado o reasignado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoPanelDetalleDto"
+        "400":
+          description: "Falta el agente (VALIDACION) o no es un agente activo de la comuna\
+            \ que aceptó la invitación (AGENTE_INVALIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El reclamo no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo está RESUELTO o DESCARTADO (RECLAMO_CERRADO), ya está\
+            \ asignado a ese mismo agente (YA_ASIGNADO), u otra persona lo está cambiando\
+            \ en este momento (CONFLICTO)"
           content:
             application/problem+json:
               schema:
@@ -1939,6 +1999,36 @@ components:
           - string
           - "null"
           description: Nota interna del cambio, si la hay. El vecino no la ve
+        agente:
+          oneOf:
+          - $ref: "#/components/schemas/AgenteDto"
+          - type: "null"
+          description: "El agente que quedó asignado con este cambio (vacío si el cambio no tiene agente, o en filas anteriores a MC-19)"
+        agenteAnterior:
+          oneOf:
+          - $ref: "#/components/schemas/AgenteDto"
+          - type: "null"
+          description: "En una reasignación, el agente que tenía antes. Vacío en los demás casos"
+    AgenteConCargaDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        enCurso:
+          type: integer
+          format: int32
+          description: Reclamos de la comuna que tiene en ASIGNADO o EN_REPARACION
+    AsignarAgenteRequest:
+      type: object
+      required:
+      - idAgente
+      properties:
+        idAgente:
+          type: integer
+          format: int64
     DescartePanelDto:
       type: object
       properties:

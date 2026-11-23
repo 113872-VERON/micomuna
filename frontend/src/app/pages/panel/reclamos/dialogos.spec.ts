@@ -1,13 +1,13 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AgenteDto, ReclamoElegido, ResultadoEnLoteDto } from '../../../reclamos/modelos-panel';
+import { AgenteConCargaDto, ReclamoElegido, ResultadoEnLoteDto } from '../../../reclamos/modelos-panel';
 import { DialogoCambiarEstado } from './dialogo-cambiar-estado';
 import { DialogoDescartar, textoDeAplicables } from './dialogo-descartar';
 
-const AGENTES: AgenteDto[] = [
-  { id: 4, nombre: 'Marcos Díaz' },
-  { id: 9, nombre: 'Lucía Paz' },
+const AGENTES: AgenteConCargaDto[] = [
+  { id: 4, nombre: 'Marcos Díaz', enCurso: 3 },
+  { id: 9, nombre: 'Lucía Paz', enCurso: 0 },
 ];
 const URL_ESTADO = '/api/panel/reclamos/cambios-de-estado';
 const URL_DESCARTE = '/api/panel/reclamos/descartes';
@@ -41,7 +41,7 @@ describe('Ventanas del panel', () => {
   afterEach(() => http.verify());
 
   describe('Cambiar estado', () => {
-    function crear(reclamos: ReclamoElegido[], agentes: AgenteDto[] = AGENTES) {
+    function crear(reclamos: ReclamoElegido[], agentes: AgenteConCargaDto[] = AGENTES) {
       const f = TestBed.createComponent(DialogoCambiarEstado);
       f.componentRef.setInput('reclamos', reclamos);
       f.componentRef.setInput('agentes', agentes);
@@ -145,12 +145,34 @@ describe('Ventanas del panel', () => {
       expect(texto(f)).toContain('3 reclamos: n.º 1, n.º 2, n.º 3');
     });
 
+    it('cadaAgenteMuestraCuantosReclamosTieneEnCurso', () => {
+      const { f } = crear([{ numero: 12, estado: 'RECIBIDO' }]);
+      elegir(f, 'Asignado');
+
+      const opciones = Array.from(el(f).querySelectorAll('#agente-nuevo option')).map((o) => o.textContent?.trim());
+      expect(opciones).toEqual(['Elegí un agente', 'Marcos Díaz, 3 en curso', 'Lucía Paz, 0 en curso']);
+    });
+
     it('sinAgentesActivosLoExplicaEnLugarDeUnDesplegableVacio', () => {
       const { f } = crear([{ numero: 12, estado: 'RECIBIDO' }], []);
       elegir(f, 'Asignado');
 
       expect(el(f).querySelector('#agente-nuevo')).toBeNull();
-      expect(texto(f)).toContain('No hay agentes activos');
+      expect(texto(f)).toContain('No hay agentes disponibles. Para aparecer acá, el agente tiene que estar activo y haber aceptado la invitación.');
+      expect(texto(f)).not.toContain('Podés revisarlo en Usuarios');
+    });
+
+    it('siLaListaDeAgentesFallaDiceQueNoSePudoCargarYOfreceReintentar', () => {
+      const { f } = crear([{ numero: 12, estado: 'RECIBIDO' }], []);
+      f.componentRef.setInput('agentesFallo', true);
+      const reintentar = vi.fn();
+      f.componentInstance.reintentarAgentes.subscribe(reintentar);
+      elegir(f, 'Asignado');
+
+      expect(texto(f)).toContain('No se pudo cargar la lista de agentes.');
+      expect(texto(f)).not.toContain('No hay agentes disponibles');
+      boton(f, 'Reintentar').click();
+      expect(reintentar).toHaveBeenCalled();
     });
 
     it('unErrorDelServidorSeMuestraYSePuedeReintentar', () => {

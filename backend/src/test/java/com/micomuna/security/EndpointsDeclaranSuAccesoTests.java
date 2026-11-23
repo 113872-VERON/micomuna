@@ -180,6 +180,7 @@ class EndpointsDeclaranSuAccesoTests {
 			"GET /api/panel/reclamos/{numero}/fotos/{idFoto}",
 			"GET /api/panel/agentes",
 			"POST /api/panel/reclamos/cambios-de-estado",
+			"PUT /api/panel/reclamos/{numero}/agente",
 			"POST /api/panel/reclamos/descartes");
 
 	@Test

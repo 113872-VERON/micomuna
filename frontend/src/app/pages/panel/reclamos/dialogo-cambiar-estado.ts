@@ -2,16 +2,17 @@ import { Component, computed, inject, input, output, signal } from '@angular/cor
 import { mensajeDeError } from '../../../auth/errores';
 import { Dialogo } from '../../../compartido/dialogo/dialogo';
 import { NOMBRE_ESTADO } from '../../../reclamos/seguimiento';
-import { AgenteDto, ESTADOS_DE_CAMBIO, EstadoDeCambio, ReclamoElegido, ResultadoEnLoteDto } from '../../../reclamos/modelos-panel';
+import { AgenteConCargaDto, ESTADOS_DE_CAMBIO, EstadoDeCambio, ReclamoElegido, ResultadoEnLoteDto, textoDeAgenteConCarga } from '../../../reclamos/modelos-panel';
 import { ReclamosPanelService } from '../../../panel/reclamos-panel.service';
 import { ResultadoLote } from './resultado-lote';
+import { SinAgentes } from './sin-agentes';
 
 // "Cambiar estado" de uno o de varios reclamos. Recibido, Asignado (pide el agente), En reparación y Resuelto:
 // Descartado no está acá porque exige una observación (tiene su propia ventana). Al terminar muestra
 // cuáles cambiaron y cuáles se omitieron, con el texto del servidor.
 @Component({
   selector: 'app-dialogo-cambiar-estado',
-  imports: [Dialogo, ResultadoLote],
+  imports: [Dialogo, ResultadoLote, SinAgentes],
   template: `
     <app-dialogo titulo="Cambiar estado" [bloqueado]="enviando()" (cerrar)="cerrar.emit()">
       @if (resultado(); as r) {
@@ -39,12 +40,12 @@ import { ResultadoLote } from './resultado-lote';
           <div>
             <label for="agente-nuevo">Agente</label>
             @if (agentes().length === 0) {
-              <p class="msg-error" role="alert">No hay agentes activos. Pedile al administrador que dé de alta uno en Usuarios.</p>
+              <app-sin-agentes [fallo]="agentesFallo()" [slug]="slug()" (reintentar)="reintentarAgentes.emit()" />
             } @else {
               <select id="agente-nuevo" [attr.aria-invalid]="errorAgente() ? 'true' : null" [attr.aria-describedby]="errorAgente() ? 'error-agente' : null" (change)="elegirAgente($event)">
                 <option value="" [selected]="idAgente() === null">Elegí un agente</option>
                 @for (a of agentes(); track a.id) {
-                  <option [value]="a.id" [selected]="idAgente() === a.id">{{ a.nombre }}</option>
+                  <option [value]="a.id" [selected]="idAgente() === a.id">{{ textoAgente(a) }}</option>
                 }
               </select>
             }
@@ -86,7 +87,12 @@ import { ResultadoLote } from './resultado-lote';
 })
 export class DialogoCambiarEstado {
   readonly reclamos = input.required<readonly ReclamoElegido[]>();
-  readonly agentes = input<readonly AgenteDto[]>([]);
+  protected readonly textoAgente = textoDeAgenteConCarga;
+  readonly agentes = input<readonly AgenteConCargaDto[]>([]);
+  // Si la lista de agentes no se pudo cargar (distinto de "no hay ninguno").
+  readonly agentesFallo = input(false);
+  readonly slug = input('');
+  readonly reintentarAgentes = output<void>();
   readonly cerrar = output<void>();
   // Se emitió el resultado: la pantalla de atrás recarga sus datos sin esperar a que se cierre la ventana.
   readonly aplicado = output<ResultadoEnLoteDto>();

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.micomuna.dtos.AgenteDto;
+import com.micomuna.dtos.AgenteConCargaDto;
 import com.micomuna.dtos.CambioDeEstadoPanelDto;
 import com.micomuna.dtos.DescartePanelDto;
 import com.micomuna.dtos.FotoReclamoDto;
@@ -128,7 +129,7 @@ public class PanelReclamosService {
 		List<FotoReclamoDto> datosDeFotos = fotos.datosDe(reclamo.getId()).stream()
 				.filter(f -> f.origen() == OrigenFoto.VECINO || resuelto)
 				.sorted(Comparator.comparing(FotoReclamoDto::origen)).toList();
-		List<CambioDeEstadoPanelDto> cambios = historial.historialParaElPersonal(reclamo.getId());
+		List<CambioDeEstadoPanelDto> cambios = panel.historialParaElPersonal(reclamo.getId(), reclamo.getComuna().getId());
 
 		DescartePanelDto descarte = null;
 		if (reclamo.getEstado() == EstadoReclamo.DESCARTADO) {
@@ -153,11 +154,10 @@ public class PanelReclamosService {
 
 	// Usuarios activos con rol AGENTE de la comuna, por nombre (sin distinguir mayúsculas ni tildes).
 	@Transactional(readOnly = true)
-	public List<AgenteDto> agentes() {
+	public List<AgenteConCargaDto> agentes() {
 		Collator orden = Collator.getInstance(Locale.forLanguageTag("es-AR"));
 		orden.setStrength(Collator.PRIMARY);
-		return usuarios.findByComunaIdAndRolAndActivoTrueAndClaveHashIsNotNull(comunaActual.id(), Rol.AGENTE).stream()
-				.sorted(Comparator.comparing(Usuario::getNombre, orden).thenComparing(Usuario::getId))
-				.map(AgenteDto::desde).toList();
+		return panel.agentesConCarga(comunaActual.id()).stream()
+				.sorted(Comparator.comparing(AgenteConCargaDto::nombre, orden).thenComparing(AgenteConCargaDto::id)).toList();
 	}
 }

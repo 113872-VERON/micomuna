@@ -11,6 +11,8 @@ import java.util.Optional;
 import org.springframework.stereotype.Repository;
 
 import com.micomuna.dtos.AgenteDto;
+import com.micomuna.dtos.AgenteConCargaDto;
+import com.micomuna.dtos.CambioDeEstadoPanelDto;
 import com.micomuna.dtos.PuntoReclamoDto;
 import com.micomuna.dtos.ReclamoPanelDto;
 import com.micomuna.entities.Reclamo;
@@ -191,5 +193,54 @@ public class PanelReclamosRepository {
 				select d.numero from Reclamo d where d.reclamoOriginal.id = :id
 					and d.estado = com.micomuna.enums.EstadoReclamo.DESCARTADO order by d.numero
 				""", Integer.class).setParameter("id", idOriginal).getResultList();
+	}
+
+	// Historial para el personal, del más viejo al más nuevo, con quién hizo cada cambio, la nota interna y el agente.
+	// El agente anterior de una reasignación NO está guardado: se deriva recorriendo las filas en orden y recordando
+	// quién estaba a cargo (la fila que asigna trae su agente; volver a RECIBIDO o descartar lo quita). Es lo más
+	// confiable porque sale de lo que quedó escrito y no de un dato calculado aparte que podría desfasarse. Si una fila
+	// vieja (anterior a MC-19) asignó sin guardar el agente, no hay "anterior" para mostrar en la siguiente.
+	public List<CambioDeEstadoPanelDto> historialParaElPersonal(Long idReclamo, Long comunaId) {
+		List<Object[]> filas = em.createQuery("""
+				select e.estadoAnterior, e.estado, e.cambiadoEn, u.nombre, e.observacion, a.id, a.nombre
+				from ReclamoEstado e left join e.usuario u left join e.agente a
+				where e.reclamo.id = :id and e.reclamo.comuna.id = :comuna order by e.cambiadoEn, e.id
+				""", Object[].class).setParameter("id", idReclamo).setParameter("comuna", comunaId).getResultList();
+		List<CambioDeEstadoPanelDto> historial = new ArrayList<>();
+		AgenteDto aCargo = null;
+		for (Object[] c : filas) {
+			EstadoReclamo estado = (EstadoReclamo) c[1];
+			AgenteDto agente = c[5] == null ? null : new AgenteDto((Long) c[5], (String) c[6]);
+			AgenteDto anterior = null;
+			if (agente != null) {
+				if (aCargo != null && !aCargo.id().equals(agente.id())) {
+					anterior = aCargo;
+				}
+				aCargo = agente;
+			} else if (estado == EstadoReclamo.RECIBIDO || estado == EstadoReclamo.DESCARTADO) {
+				aCargo = null;
+			}
+			historial.add(new CambioDeEstadoPanelDto((EstadoReclamo) c[0], estado, (Instant) c[2], (String) c[3],
+					(String) c[4], agente, anterior));
+		}
+		return historial;
+	}
+
+	// Agentes que se pueden asignar (activos, con contraseña) y cuántos reclamos tiene cada uno en curso (ASIGNADO o
+	// EN_REPARACION) en la comuna. Una sola consulta: el conteo sale del left join, no de una consulta por agente.
+	public List<AgenteConCargaDto> agentesConCarga(Long comunaId) {
+		List<Object[]> filas = em.createQuery("""
+				select u.id, u.nombre, count(r)
+				from Usuario u left join Reclamo r on r.agente.id = u.id and r.comuna.id = :comuna
+					and r.estado in (com.micomuna.enums.EstadoReclamo.ASIGNADO, com.micomuna.enums.EstadoReclamo.EN_REPARACION)
+				where u.comuna.id = :comuna and u.rol = com.micomuna.enums.Rol.AGENTE and u.activo = true
+					and u.claveHash is not null
+				group by u.id, u.nombre
+				""", Object[].class).setParameter("comuna", comunaId).getResultList();
+		List<AgenteConCargaDto> agentes = new ArrayList<>();
+		for (Object[] c : filas) {
+			agentes.add(new AgenteConCargaDto((Long) c[0], (String) c[1], ((Number) c[2]).intValue()));
+		}
+		return agentes;
 	}
 }

@@ -164,7 +164,7 @@ public class CambiosEnLoteService {
 			return omitido(numero, CodigoOmitido.YA_CERRADO, "El n.º " + numero + " ya está cerrado.");
 		}
 		if (desde == e.getHacia()) {
-			// Asignar a otro agente un reclamo que ya está asignado: se dice a quién (reasignar es de otra historia).
+			// Asignar a otro agente un reclamo que ya está asignado: se dice a quién (reasignar se hace desde el detalle del reclamo, MC-19).
 			if (desde == EstadoReclamo.ASIGNADO) {
 				Usuario actual = reclamos.agenteDe(comunaActual.id(), numero).orElse(null);
 				if (actual != null && !actual.getId().equals(cambio.idAgente())) {
