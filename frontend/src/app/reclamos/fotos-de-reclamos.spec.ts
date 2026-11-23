@@ -44,6 +44,16 @@ describe('FotosDeReclamos', () => {
     expect(creadas.length).toBe(1);
   });
 
+  it('lasFotosDelPanelSePidenAlEndpointDelPanelYNoSeMezclanConLasDelVecino', () => {
+    const urls: string[] = [];
+    fotos.url(12, 5, 'panel').subscribe((u) => urls.push(u));
+    http.expectOne('/api/panel/reclamos/12/fotos/5').flush(imagen());
+    fotos.url(12, 5).subscribe((u) => urls.push(u));
+    http.expectOne('/api/reclamos/mios/12/fotos/5').flush(imagen());
+
+    expect(urls).toEqual(['blob:1', 'blob:2']);
+  });
+
   it('dosPedidosAlMismoTiempoSeResuelvenConUnaSolaDescarga', () => {
     fotos.url(12, 5).subscribe();
     fotos.url(12, 5).subscribe();

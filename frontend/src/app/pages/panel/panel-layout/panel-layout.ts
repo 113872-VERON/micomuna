@@ -4,7 +4,7 @@ import { AuthService } from '../../../auth/auth.service';
 import { ComunaDto, NOMBRES_ROL, RolDeComuna } from '../../../auth/modelos';
 import { TemaComunaService } from '../../../tema/tema-comuna.service';
 
-// Marco del panel de una comuna: barra superior con el logo y el nombre de la comuna, el menú y quién ingresó.
+// Marco del panel de una comuna (administrativo y administrador): barra superior con el logo y el nombre de la comuna, el menú y quién ingresó.
 // Mismo esquema que el panel del superadmin, pero con la marca y el color de la comuna.
 @Component({
   selector: 'app-panel-layout',
@@ -18,7 +18,10 @@ import { TemaComunaService } from '../../../tema/tema-comuna.service';
         <div class="nombre"><small>Comuna de</small><b>{{ comuna().nombre }}</b></div>
       </div>
       <nav aria-label="Panel de la comuna">
-        <a [routerLink]="['/', slug(), 'panel', 'usuarios']" routerLinkActive="on" ariaCurrentWhenActive="page">Usuarios</a>
+        <a [routerLink]="['/', slug(), 'panel', 'reclamos']" routerLinkActive="on" ariaCurrentWhenActive="page">Reclamos</a>
+        @if (puedeVerUsuarios()) {
+          <a [routerLink]="['/', slug(), 'panel', 'usuarios']" routerLinkActive="on" ariaCurrentWhenActive="page">Usuarios</a>
+        }
       </nav>
       <div class="yo">
         <div class="av" aria-hidden="true">{{ inicial() }}</div>
@@ -67,6 +70,8 @@ export class PanelLayout {
   protected readonly logoFallo = signal(false);
   protected readonly mostrarLogo = computed(() => this.comuna().tieneLogo && !this.logoFallo());
   protected readonly urlLogo = computed(() => `/api/comunas/${encodeURIComponent(this.comuna().slug)}/logo`);
+  // Solo el administrador de la comuna maneja usuarios; el personal administrativo ve solo los reclamos.
+  protected readonly puedeVerUsuarios = computed(() => this.auth.usuario()?.rol === 'ADMIN_COMUNA');
   protected readonly nombreRol = computed(() => {
     const rol = this.auth.usuario()?.rol;
     return rol && rol !== 'SUPERADMIN' ? NOMBRES_ROL[rol as RolDeComuna] : '';

@@ -60,10 +60,10 @@ export class Login {
     });
   }
 
-  // El administrador de la comuna va a su panel, el vecino a su inicio; el resto, por ahora, a la pantalla provisoria.
+  // El personal administrativo y el administrador van al panel de reclamos, el vecino a su inicio; el resto, por ahora, a la pantalla provisoria.
   private destinoDespuesDeEntrar(usuario: UsuarioDto): string {
-    if (usuario.rol === 'ADMIN_COMUNA') {
-      return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/panel/usuarios`;
+    if (usuario.rol === 'ADMIN_COMUNA' || usuario.rol === 'ADMINISTRATIVO') {
+      return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/panel/reclamos`;
     }
     if (usuario.rol === 'VECINO') {
       return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/inicio`;

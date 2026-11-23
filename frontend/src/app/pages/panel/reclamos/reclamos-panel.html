@@ -1,0 +1,210 @@
+<div class="enc">
+  <h1>Reclamos</h1>
+  <div class="vistas" role="group" aria-label="Cómo ver los reclamos">
+    <button type="button" class="vista" [class.on]="vista() === 'mapa'" [attr.aria-pressed]="vista() === 'mapa'" (click)="cambiarVista('mapa')">Lista y mapa</button>
+    <button type="button" class="vista" [class.on]="vista() === 'lista'" [attr.aria-pressed]="vista() === 'lista'" (click)="cambiarVista('lista')">Solo lista</button>
+  </div>
+</div>
+
+@if (aviso(); as texto) {
+  <div class="aviso alerta" role="status">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.5" /><path d="M12 11v6M12 7.5v.5" /></svg>
+    <span class="texto-aviso">{{ texto }}</span>
+    <button type="button" class="cerrar" aria-label="Cerrar este aviso" (click)="avisoCerrado.set(true)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+    </button>
+  </div>
+}
+
+<div class="filtros" role="search" aria-label="Filtrar reclamos">
+  <div class="f-estado">
+    <label for="filtro-estado">Estado</label>
+    <select id="filtro-estado" (change)="cambiarFiltro('estado', $event)">
+      <option value="" [selected]="!filtros().estado">Todos{{ resumen() ? ' ' + resumen()!.total : '' }}</option>
+      @for (e of estados; track e) {
+        <option [value]="e" [selected]="filtros().estado === e">{{ nombres[e] }}{{ resumen() ? ' ' + cantidadDeEstado(e) : '' }}</option>
+      }
+    </select>
+  </div>
+  <div class="f-buscar">
+    <label for="filtro-buscar">Buscar por número o dirección</label>
+    <input id="filtro-buscar" type="search" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search" placeholder="Por ejemplo 42 o San Martín"
+      [attr.maxlength]="maxBuscar" [value]="busqueda()" [attr.aria-describedby]="busquedaCorta() ? 'ayuda-buscar' : null" (input)="escribirBusqueda($event)" (keydown.enter)="buscar()" />
+    @if (busquedaCorta(); as t) {
+      <p id="ayuda-buscar" class="ayuda-c">{{ t }}</p>
+    }
+  </div>
+  <div class="f-tipo">
+    <label for="filtro-tipo">Tipo</label>
+    <select id="filtro-tipo" (change)="cambiarFiltro('tipo', $event)">
+      <option value="" [selected]="!filtros().tipo">Todos los tipos</option>
+      @for (t of tipos(); track t.codigo) {
+        <option [value]="t.codigo" [selected]="filtros().tipo === t.codigo">{{ t.nombre }}</option>
+      }
+    </select>
+  </div>
+  <div class="f-agente">
+    <label for="filtro-agente">Agente</label>
+    <select id="filtro-agente" (change)="cambiarFiltro('agente', $event)">
+      <option value="" [selected]="filtros().agente === null">Todos los agentes</option>
+      @for (a of agentes(); track a.id) {
+        <option [value]="a.id" [selected]="filtros().agente === a.id">{{ a.nombre }}</option>
+      }
+    </select>
+  </div>
+</div>
+
+@if (vista() === 'lista') {
+<div class="reserva-barra">
+@if (seleccionados().length > 0) {
+  <div class="barra-acciones" role="region" aria-label="Acciones para los reclamos elegidos">
+    <b>{{ seleccionados().length === 1 ? '1 reclamo elegido' : seleccionados().length + ' reclamos elegidos' }}</b>
+    <button type="button" class="btn pri chico" (click)="abrirEstado(seleccionados())">Cambiar estado</button>
+    <button type="button" class="btn sec chico peligro" (click)="abrirDescarte(seleccionados())">Descartar</button>
+    <button type="button" class="btn texto chico" (click)="quitarSeleccion()">Quitar la selección</button>
+    @if (avisoDeAplicables(); as t) {
+      <span class="aplican">{{ t }}</span>
+    }
+  </div>
+}
+</div>
+}
+
+<div class="cuerpo" [class.con-mapa]="mostrarMapa()">
+  <section class="lista" aria-label="Lista de reclamos" [attr.aria-busy]="cargando()">
+    @if (errorLista()) {
+      <div class="caja-error" role="alert">
+        <p>No pudimos cargar los reclamos.</p>
+        <button type="button" class="btn sec chico" (click)="alAplicar()">Reintentar</button>
+      </div>
+    } @else if (cargando() && !datos()) {
+      <p class="estado-vacio" role="status">Cargando los reclamos…</p>
+    } @else if (reclamos().length === 0) {
+      <div class="estado-vacio">
+        @if (conFiltros()) {
+          <p><b>No hay reclamos con esos filtros</b></p>
+          <p>Probá con otra búsqueda o sacá los filtros.</p>
+          <button type="button" class="btn sec chico" (click)="limpiarFiltros()">Quitar los filtros</button>
+        } @else {
+          <p><b>Todavía no hay reclamos</b></p>
+          <p>Cuando un vecino reporte un problema, lo vas a ver acá.</p>
+        }
+      </div>
+    } @else {
+      <p class="cantidad" aria-live="polite">{{ datos()?.total === 1 ? '1 reclamo' : datos()?.total + ' reclamos' }}</p>
+
+      @if (vista() === 'lista') {
+        <div class="tarjeta">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col" class="c-check">
+                  <input type="checkbox" [checked]="todosElegidos()" [indeterminate]="algunosElegidos()" aria-label="Elegir todos los reclamos de esta página" (change)="alternarTodos()" />
+                </th>
+                <th scope="col">N.º</th>
+                <th scope="col">Tipo</th>
+                <th scope="col">Dirección</th>
+                <th scope="col">Estado</th>
+                <th scope="col">Agente</th>
+                <th scope="col">Fecha</th>
+                <th scope="col">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of reclamos(); track r.numero) {
+                <tr [id]="'fila-' + r.numero" [class.activa]="filaActiva() === r.numero" [class.elegida]="estaElegido(r.numero)">
+                  <td class="c-check">
+                    <input type="checkbox" [checked]="estaElegido(r.numero)" [attr.aria-label]="'Elegir el reclamo n.º ' + r.numero" (change)="alternar(r.numero)" />
+                  </td>
+                  <td class="c-num"><b>{{ r.numero }}</b></td>
+                  <td class="c-tipo"><span class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="22" />{{ r.tipoNombre }}</span></td>
+                  <td class="c-dir">
+                    {{ r.direccion || 'Sin dirección' }}
+                    @if (textoDuplicado(r); as d) {
+                      <small>{{ d }}</small>
+                    }
+                  </td>
+                  <td><app-chip-estado [estado]="r.estado" /></td>
+                  <td class="c-agente">{{ r.agente?.nombre || 'Sin asignar' }}</td>
+                  <td class="c-fecha">{{ r.creadoEn | date: 'd/M/yyyy' }}</td>
+                  <td>
+                    <div class="iconos">
+                      <a class="icono" [routerLink]="['/', slug(), 'panel', 'reclamos', r.numero]" appAyuda="Ver detalle" [appAyudaDescribe]="false" [attr.aria-label]="'Ver detalle del reclamo n.º ' + r.numero">
+                        <span class="material-symbols-outlined" aria-hidden="true">visibility</span>
+                      </a>
+                      <button type="button" class="icono" appAyuda="Cambiar estado" [appAyudaDescribe]="false" [attr.aria-label]="'Cambiar el estado del reclamo n.º ' + r.numero" (click)="abrirEstado([elegido(r)])">
+                        <span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span>
+                      </button>
+                      <button type="button" class="icono peligro" [attr.aria-disabled]="motivoSinDescarte(r) ? 'true' : null"
+                        [appAyuda]="motivoSinDescarte(r) || 'Descartar'" [appAyudaDescribe]="false"
+                        [attr.aria-label]="motivoSinDescarte(r) ? 'Descartar el reclamo n.º ' + r.numero + ' (no disponible: ' + motivoSinDescarte(r)!.replace('No se puede descartar: ', '') + ')' : 'Descartar el reclamo n.º ' + r.numero" (click)="descartarFila(r)">
+                        <span class="material-symbols-outlined" aria-hidden="true">block</span>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <ul class="filas">
+          @for (r of reclamos(); track r.numero) {
+            <li [id]="'fila-' + r.numero" [class.activa]="filaActiva() === r.numero" [attr.aria-current]="filaActiva() === r.numero ? 'true' : null">
+              <div class="fila-datos">
+                <div class="fila-arriba">
+                  <b class="num">N.º {{ r.numero }}</b>
+                  <app-chip-estado [estado]="r.estado" />
+                </div>
+                <span class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="20" />{{ r.tipoNombre }}</span>
+                <span class="dir">{{ r.direccion || 'Sin dirección' }}</span>
+                <span class="meta">{{ r.agente?.nombre || 'Sin asignar' }} · {{ r.creadoEn | date: 'd/M/yyyy' }}</span>
+                @if (textoDuplicado(r); as d) {
+                  <span class="meta">{{ d }}</span>
+                }
+              </div>
+              <a class="icono" [routerLink]="['/', slug(), 'panel', 'reclamos', r.numero]" appAyuda="Ver detalle" [appAyudaDescribe]="false" [attr.aria-label]="'Ver detalle del reclamo n.º ' + r.numero">
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+              </a>
+            </li>
+          }
+        </ul>
+      }
+
+      @if (totalPaginas() > 1) {
+        <nav class="paginas" aria-label="Páginas de reclamos">
+          <button type="button" class="btn sec chico" [disabled]="pagina() === 0" (click)="irAPagina(pagina() - 1)">Anterior</button>
+          <span aria-live="polite">Página {{ pagina() + 1 }} de {{ totalPaginas() }}</span>
+          <button type="button" class="btn sec chico" [disabled]="pagina() + 1 >= totalPaginas()" (click)="irAPagina(pagina() + 1)">Siguiente</button>
+        </nav>
+      }
+    }
+  </section>
+
+  @if (mostrarMapa()) {
+    <section class="mapa" aria-label="Mapa de reclamos">
+      @if (recortado()) {
+        <div class="aviso alerta" role="status">Hay más de 1000 reclamos con estos filtros: el mapa muestra los 1000 más nuevos. Usá los filtros para ver el resto.</div>
+      }
+      @if (errorMapa()) {
+        <div class="caja-error" role="alert">
+          <p>No pudimos cargar los puntos del mapa.</p>
+          <button type="button" class="btn sec chico" (click)="alAplicar()">Reintentar</button>
+        </div>
+      }
+      <app-mapa-reclamos [puntos]="puntos()" [limite]="limite()" [resaltado]="filaActiva()" altura="560px" (elegido)="alElegirPin($event)" (falla)="sinMapa.set(true)" />
+      @if (puntos().length === 0 && !errorMapa()) {
+        <p class="ayuda-c">No hay reclamos con ubicación para mostrar con estos filtros.</p>
+      }
+    </section>
+  } @else if (vista() === 'mapa' && sinMapa()) {
+    <p class="ayuda-c">No pudimos mostrar el mapa. La lista funciona igual.</p>
+  }
+</div>
+
+@if (dialogo() === 'estado') {
+  <app-dialogo-cambiar-estado [reclamos]="elegidosEnDialogo()" [agentes]="agentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+}
+@if (dialogo() === 'descarte') {
+  <app-dialogo-descartar [reclamos]="elegidosEnDialogo()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+}

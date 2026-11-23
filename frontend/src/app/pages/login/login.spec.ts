@@ -85,7 +85,7 @@ describe('Login', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/inicio');
   });
 
-  it('elAdministradorDeLaComunaVaASuPanelDeUsuarios', () => {
+  it('elAdministradorDeLaComunaVaASuPanelDeReclamos', () => {
     const f = crear();
     escribir(f, 'correo', 'sergio@correo.com');
     escribir(f, 'clave', 'miclave123');
@@ -96,24 +96,35 @@ describe('Login', () => {
       usuario: { id: 1, nombre: 'Sergio', correo: 'sergio@correo.com', rol: 'ADMIN_COMUNA', comunaSlug: 'salsipuedes-cordoba' },
     });
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/panel/usuarios');
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/panel/reclamos');
   });
 
-  it('elPersonalQueNoEsAdministradorSigueYendoAInicio', () => {
-    for (const rol of ['ADMINISTRATIVO', 'AGENTE'] as const) {
-      const f = crear();
-      escribir(f, 'correo', 'marta@correo.com');
-      escribir(f, 'clave', 'miclave123');
-      enviar(f);
+  it('elPersonalAdministrativoVaAlPanelDeReclamos', () => {
+    const f = crear();
+    escribir(f, 'correo', 'marta@correo.com');
+    escribir(f, 'clave', 'miclave123');
+    enviar(f);
 
-      http.expectOne(URL_LOGIN).flush({
-        token: 'tk',
-        usuario: { id: 2, nombre: 'Marta', correo: 'marta@correo.com', rol, comunaSlug: 'salsipuedes-cordoba' },
-      });
+    http.expectOne(URL_LOGIN).flush({
+      token: 'tk',
+      usuario: { id: 2, nombre: 'Marta', correo: 'marta@correo.com', rol: 'ADMINISTRATIVO', comunaSlug: 'salsipuedes-cordoba' },
+    });
 
-      expect(router.navigateByUrl).toHaveBeenLastCalledWith('/inicio');
-      f.destroy();
-    }
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/panel/reclamos');
+  });
+
+  it('elAgenteSigueYendoALaPantallaProvisoria', () => {
+    const f = crear();
+    escribir(f, 'correo', 'juan@correo.com');
+    escribir(f, 'clave', 'miclave123');
+    enviar(f);
+
+    http.expectOne(URL_LOGIN).flush({
+      token: 'tk',
+      usuario: { id: 3, nombre: 'Juan', correo: 'juan@correo.com', rol: 'AGENTE', comunaSlug: 'salsipuedes-cordoba' },
+    });
+
+    expect(router.navigateByUrl).toHaveBeenLastCalledWith('/inicio');
   });
 
   it('mostrarElErrorDeCredencialesIncorrectas', () => {

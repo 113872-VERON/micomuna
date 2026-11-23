@@ -1,0 +1,122 @@
+// Modelos del panel de reclamos del personal (MC-18), según docs/api/openapi.yaml ("Panel de reclamos").
+import { EstadoReclamo, FotoReclamoDto, MotivoDescarte } from './modelos';
+
+export interface AgenteDto {
+  id: number;
+  nombre: string;
+}
+
+export interface ReclamoPanelDto {
+  numero: number;
+  tipo: string;
+  tipoNombre: string;
+  estado: EstadoReclamo;
+  descripcion: string;
+  direccion: string | null;
+  referencia: string | null;
+  creadoEn: string;
+  agente: AgenteDto | null;
+  numeroOriginal: number | null;
+  cantidadDuplicados: number;
+}
+
+export interface PaginaReclamosPanelDto {
+  reclamos: ReclamoPanelDto[];
+  pagina: number;
+  tamanio: number;
+  total: number;
+}
+
+export interface PuntoReclamoDto {
+  numero: number;
+  estado: EstadoReclamo;
+  tipo: string;
+  latitud: number;
+  longitud: number;
+}
+
+export interface MapaReclamosDto {
+  puntos: PuntoReclamoDto[];
+  recortado: boolean;
+}
+
+export interface ResumenPanelDto {
+  porEstado: Record<EstadoReclamo, number>;
+  total: number;
+  sinAsignar: number;
+  sinAsignarMasAntiguo: string | null;
+}
+
+export interface CambioDeEstadoPanelDto {
+  estadoAnterior: EstadoReclamo | null;
+  estado: EstadoReclamo;
+  fecha: string;
+  usuarioNombre: string | null;
+  observacion: string | null;
+}
+
+export interface DescartePanelDto {
+  motivo: MotivoDescarte;
+  observacion: string | null;
+  numeroOriginal: number | null;
+}
+
+export interface ReclamoPanelDetalleDto {
+  numero: number;
+  tipo: string;
+  tipoNombre: string;
+  estado: EstadoReclamo;
+  descripcion: string;
+  referencia: string | null;
+  direccion: string | null;
+  latitud: number | null;
+  longitud: number | null;
+  creadoEn: string;
+  vecinoNombre: string;
+  agente: AgenteDto | null;
+  fotos: FotoReclamoDto[];
+  historial: CambioDeEstadoPanelDto[];
+  descarte: DescartePanelDto | null;
+  trabajoRealizado: string | null;
+  duplicados: number[];
+}
+
+export type EstadoDeCambio = Exclude<EstadoReclamo, 'DESCARTADO'>;
+
+export interface CambioDeEstadoEnLoteRequest {
+  numeros: number[];
+  estado: EstadoDeCambio;
+  idAgente?: number | null;
+}
+
+export interface DescarteEnLoteRequest {
+  numeros: number[];
+  motivo: MotivoDescarte;
+  observacion?: string | null;
+  numeroOriginal?: number | null;
+}
+
+export interface OmitidoDto {
+  numero: number;
+  // El servidor puede sumar códigos nuevos: se muestra el `motivo` sea cual sea el código.
+  codigo: string;
+  motivo: string;
+}
+
+export interface ResultadoEnLoteDto {
+  aplicados: number[];
+  omitidos: OmitidoDto[];
+}
+
+// Lo mínimo que necesitan las ventanas de cambiar estado y descartar de cada reclamo.
+export interface ReclamoElegido {
+  numero: number;
+  estado: EstadoReclamo;
+}
+
+export const MAX_OBSERVACION = 300;
+export const ESTADOS_CERRADOS: readonly EstadoReclamo[] = ['RESUELTO', 'DESCARTADO'];
+// Un reclamo en reparación tampoco se descarta (regla del servidor): primero se resuelve.
+export const ESTADOS_NO_DESCARTABLES: readonly EstadoReclamo[] = ['EN_REPARACION', 'RESUELTO', 'DESCARTADO'];
+export const sePuedeDescartar = (estado: EstadoReclamo): boolean => !ESTADOS_NO_DESCARTABLES.includes(estado);
+export const ESTADOS_DE_CAMBIO: readonly EstadoDeCambio[] = ['RECIBIDO', 'ASIGNADO', 'EN_REPARACION', 'RESUELTO'];

@@ -111,18 +111,73 @@ describe('Rutas de la aplicación', () => {
   });
 
   describe('panel de la comuna', () => {
+    // La pantalla de reclamos pide varias cosas al abrirse: se contestan todas vacías.
+    function responderPanelDeReclamos() {
+      http.match('/api/panel/agentes').forEach((p) => p.flush([]));
+      http.match('/api/tipos-reclamo').forEach((p) => p.flush([]));
+      http.match('/api/mi-comuna/limite').forEach((p) => p.flush(null, { status: 204, statusText: 'No Content' }));
+      http.match((p) => p.url === '/api/panel/reclamos').forEach((p) => p.flush({ reclamos: [], pagina: 0, tamanio: 25, total: 0 }));
+      http.match('/api/panel/reclamos/mapa').forEach((p) => p.flush({ puntos: [], recortado: false }));
+      http
+        .match('/api/panel/reclamos/resumen')
+        .forEach((p) =>
+          p.flush({ porEstado: { RECIBIDO: 0, ASIGNADO: 0, EN_REPARACION: 0, RESUELTO: 0, DESCARTADO: 0 }, total: 0, sinAsignar: 0, sinAsignarMasAntiguo: null }),
+        );
+    }
+
+    async function irAlPanel(url: string) {
+      const navegacion = harness.navigateByUrl(url);
+      await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));
+      await navegacion;
+      responderPanelDeReclamos();
+      harness.detectChanges();
+    }
+
+    it('elAdministradorDeLaComunaEntraAlPanelYVaALosReclamos', async () => {
+      entrar('ADMIN_COMUNA');
+      await irAlPanel('/salsipuedes-cordoba/panel');
+
+      expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/panel/reclamos');
+      const texto = (harness.fixture.nativeElement as HTMLElement).textContent ?? '';
+      expect(texto).toContain('Salsipuedes');
+      const menu = Array.from((harness.fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map((a) => a.textContent?.trim());
+      expect(menu).toEqual(['Reclamos', 'Usuarios']);
+    });
+
+    it('elPersonalAdministrativoVeSoloReclamosEnElMenu', async () => {
+      entrar('ADMINISTRATIVO');
+      await irAlPanel('/salsipuedes-cordoba/panel');
+
+      expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/panel/reclamos');
+      const menu = Array.from((harness.fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map((a) => a.textContent?.trim());
+      expect(menu).toEqual(['Reclamos']);
+    });
+
     it('elAdministradorDeLaComunaEntraALaPantallaDeUsuarios', async () => {
       entrar('ADMIN_COMUNA');
-      const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/panel');
+      const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/panel/usuarios');
       await vi.waitFor(() => http.expectOne('/api/comunas/salsipuedes-cordoba').flush(comuna));
       await vi.waitFor(() => http.expectOne('/api/usuarios').flush([]));
       await navegacion;
       harness.detectChanges();
 
       expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/panel/usuarios');
-      const texto = (harness.fixture.nativeElement as HTMLElement).textContent ?? '';
-      expect(texto).toContain('Salsipuedes');
-      expect(texto).toContain('Usuarios');
+    });
+
+    it('elPersonalAdministrativoNoEntraAUsuariosYNoSePidenLosUsuarios', async () => {
+      entrar('ADMINISTRATIVO');
+      await harness.navigateByUrl('/salsipuedes-cordoba/panel/usuarios');
+
+      expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+      http.expectNone('/api/usuarios');
+    });
+
+    it('elDetalleDeUnReclamoEsDelPersonalYUnAgenteNoEntra', async () => {
+      entrar('AGENTE');
+      await harness.navigateByUrl('/salsipuedes-cordoba/panel/reclamos/12');
+
+      expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+      http.expectNone('/api/panel/reclamos/12');
     });
 
     it('unVecinoVaASinPermisoSinPedirLosUsuarios', async () => {
@@ -134,7 +189,7 @@ describe('Rutas de la aplicación', () => {
       expect(TestBed.inject(AuthService).estaAutenticado()).toBe(true);
     });
 
-    it('losDemasRolesDeLaComunaTambienVanASinPermiso', async () => {
+    it('losDemasRolesNoVenUsuarios', async () => {
       for (const rol of ['ADMINISTRATIVO', 'AGENTE'] as Rol[]) {
         entrar(rol);
         await harness.navigateByUrl('/salsipuedes-cordoba/panel/usuarios');
