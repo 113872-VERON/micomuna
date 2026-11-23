@@ -31,9 +31,9 @@ describe('inicioDelVecinoGuard', () => {
     }
   });
 
-  it('alAgenteLoDejaVerLaPantallaProvisoria', () => {
+  it('alAgenteLoLlevaAMisReclamos', () => {
     entrar('AGENTE', 'salsipuedes-cordoba');
-    expect(evaluar()).toBe(true);
+    expect(TestBed.inject(Router).serializeUrl(evaluar() as UrlTree)).toBe('/salsipuedes-cordoba/agente');
   });
 
   it('alSuperadminSinComunaLoDejaPasar', () => {

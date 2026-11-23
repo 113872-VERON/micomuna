@@ -60,13 +60,16 @@ export class Login {
     });
   }
 
-  // El personal administrativo y el administrador van al panel de reclamos, el vecino a su inicio; el resto, por ahora, a la pantalla provisoria.
+  // El personal administrativo y el administrador van al panel de reclamos, el vecino a su inicio y el agente a Mis reclamos; el resto (el superadmin), a la pantalla provisoria.
   private destinoDespuesDeEntrar(usuario: UsuarioDto): string {
     if (usuario.rol === 'ADMIN_COMUNA' || usuario.rol === 'ADMINISTRATIVO') {
       return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/panel/reclamos`;
     }
     if (usuario.rol === 'VECINO') {
       return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/inicio`;
+    }
+    if (usuario.rol === 'AGENTE') {
+      return `/${encodeURIComponent(usuario.comunaSlug ?? this.slug())}/agente`;
     }
     return '/inicio';
   }

@@ -1,0 +1,96 @@
+<a class="volver" [routerLink]="['/', slug(), 'agente']">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  Volver a mis reclamos
+</a>
+
+@switch (carga()) {
+  @case ('cargando') {
+    <p class="aviso-carga" role="status">Cargando el reclamo…</p>
+  }
+  @case ('noEncontrado') {
+    <section class="vacio">
+      <h1>No encontramos ese reclamo</h1>
+      <p>Puede que el número esté mal escrito o que no esté asignado a vos.</p>
+      <a class="btn pri" [routerLink]="['/', slug(), 'agente']">Volver a mis reclamos</a>
+    </section>
+  }
+  @case ('error') {
+    <div class="caja-error" role="alert">
+      <p>No pudimos cargar el reclamo. Revisá tu conexión e intentá de nuevo.</p>
+      <button type="button" class="btn sec" (click)="reintentar()">Reintentar</button>
+    </div>
+  }
+  @case ('lista') {
+    @if (reclamo(); as r) {
+      <header class="titulo">
+        <h1>Reclamo n.º {{ r.numero }}</h1>
+        <app-chip-estado [estado]="r.estado" />
+      </header>
+
+      @if (errorAccion(); as m) {
+        <div class="caja-error" role="alert">{{ m }}</div>
+      }
+
+      @if (r.estado === 'ASIGNADO') {
+        <button type="button" class="btn pri accion" [disabled]="empezando()" (click)="empezar()">{{ empezando() ? 'Guardando…' : 'Empezar a trabajar' }}</button>
+      } @else if (r.estado === 'EN_REPARACION') {
+        <button type="button" class="btn pri accion" (click)="resolviendo.set(true)">Marcar como resuelto</button>
+      }
+
+      <section class="bloque" aria-labelledby="t-datos">
+        <h2 id="t-datos">Qué pasa</h2>
+        <p class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="24" />{{ r.tipoNombre }}</p>
+        <p class="texto">{{ r.descripcion }}</p>
+        @if (r.referencia) {
+          <p class="dato"><span class="rotulo">Referencia</span>{{ r.referencia }}</p>
+        }
+        <p class="dato"><span class="rotulo">Dirección</span>{{ r.direccion || 'Sin dirección' }}</p>
+        <p class="dato"><span class="rotulo">Reportado el</span>{{ r.creadoEn | date: 'd/M/yyyy H:mm' }}</p>
+        @if (vistaMapa(); as vista) {
+          <div class="mapa">
+            <app-mapa-ubicacion [vista]="vista" [interactivo]="false" altura="190px" etiqueta="Mapa con el lugar del reclamo" (falla)="sinMapa.set(true)" />
+          </div>
+        }
+        @if (sinCoordenadas()) {
+          <p class="ayuda">Sin ubicación en el mapa: guiate por la dirección y la referencia.</p>
+        }
+        @if (comoLlegar(); as enlace) {
+          <a class="btn sec" [href]="enlace" target="_blank" rel="noopener noreferrer">Cómo llegar<span class="solo-lectores"> (se abre en otra pestaña)</span></a>
+        }
+      </section>
+
+      @if (fotosDelVecino().length > 0) {
+        <section class="bloque" aria-labelledby="t-fotos">
+          <h2 id="t-fotos">Fotos del vecino</h2>
+          <ul class="fotos">
+            @for (f of fotosDelVecino(); track f.id) {
+              <li><app-foto-reclamo class="foto" origen="agente" [numero]="r.numero" [idFoto]="f.id" [alt]="'Foto ' + f.orden + ' que subió el vecino'" /></li>
+            }
+          </ul>
+        </section>
+      }
+
+      @if (r.estado === 'RESUELTO') {
+        <section class="bloque" aria-labelledby="t-trabajo">
+          <h2 id="t-trabajo">Lo que se hizo</h2>
+          @if (r.trabajoRealizado) {
+            <p class="texto">{{ r.trabajoRealizado }}</p>
+          } @else {
+            <p class="ayuda">Sin nota.</p>
+          }
+          @if (fotosDelTrabajo().length > 0) {
+            <ul class="fotos">
+              @for (f of fotosDelTrabajo(); track f.id) {
+                <li><app-foto-reclamo class="foto" origen="agente" [numero]="r.numero" [idFoto]="f.id" [alt]="'Foto ' + f.orden + ' del trabajo'" /></li>
+              }
+            </ul>
+          }
+        </section>
+      }
+
+      @if (resolviendo()) {
+        <app-dialogo-resolver [numero]="r.numero" (cerrar)="resolviendo.set(false)" (resuelto)="alResolver($event)" (desactualizado)="reintentar()" />
+      }
+    }
+  }
+}
