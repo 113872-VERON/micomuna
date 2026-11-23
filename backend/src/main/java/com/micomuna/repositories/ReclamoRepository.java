@@ -1,6 +1,7 @@
 package com.micomuna.repositories;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -103,6 +104,17 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 			""")
 	Optional<Reclamo> buscarDelAgente(@Param("idComuna") Long idComuna, @Param("numero") Integer numero,
 			@Param("idAgente") Long idAgente);
+
+	// Los vecinos de los reclamos descartados como DUPLICADO de este (MC-22): id, correo, nombre y número de cada uno, para
+	// avisarles cuando el original cambia de estado.
+	@Query("""
+			select v.id, v.correo, v.nombre, r.numero from Reclamo r join r.vecino v
+			where r.comuna.id = :idComuna and r.reclamoOriginal.id = :idOriginal and v.activo = true
+				and r.estado = com.micomuna.enums.EstadoReclamo.DESCARTADO
+				and r.motivoDescarte = com.micomuna.enums.MotivoDescarte.DUPLICADO
+			order by r.numero
+			""")
+	List<Object[]> duplicadosDe(@Param("idComuna") Long idComuna, @Param("idOriginal") Long idOriginal);
 
 	// Para vincular un duplicado con su original: siempre dentro de la comuna.
 	Optional<Reclamo> findByComunaIdAndNumero(Long idComuna, Integer numero);

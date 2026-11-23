@@ -1,5 +1,12 @@
 package com.micomuna.services;
 
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +22,8 @@ import com.micomuna.exceptions.RecursoNoEncontradoException;
 import com.micomuna.exceptions.YaAsignadoException;
 import com.micomuna.exceptions.TransicionInvalidaException;
 import com.micomuna.models.CambioDeEstado;
+import com.micomuna.models.CambioDeEstadoRegistrado;
+import com.micomuna.models.CambioDeEstadoRegistrado.VecinoDeDuplicados;
 import com.micomuna.repositories.ReclamoEstadoRepository;
 import com.micomuna.repositories.ReclamoRepository;
 import com.micomuna.repositories.UsuarioRepository;
@@ -44,6 +53,7 @@ public class CambioDeEstadoService {
 	private final ReclamoEstadoRepository historial;
 	private final UsuarioRepository usuarios;
 	private final ComunaActual comunaActual;
+	private final ApplicationEventPublisher eventos;
 
 	// Deja la primera fila del historial de un reclamo recién creado: RECIBIDO, sin estado anterior, con el vecino
 	// que lo reportó. La llama el alta, dentro de su propia transacción.
@@ -123,8 +133,9 @@ public class CambioDeEstadoService {
 		// Un descarte deja en la fila del historial un resumen de por qué (interno: el vecino no ve la observación), para que
 		// si el reclamo se reabre quede el motivo.
 		String observacion = nuevo == EstadoReclamo.DESCARTADO ? resumenDelDescarte(cambio) : nota;
-		historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, observacion, nuevo == EstadoReclamo.ASIGNADO ? agenteNuevo : null));
+		ReclamoEstado fila = historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, observacion, nuevo == EstadoReclamo.ASIGNADO ? agenteNuevo : null));
 		reclamos.saveAndFlush(reclamo);
+		avisarElCambio(reclamo, fila);
 		return reclamo;
 	}
 
@@ -152,8 +163,12 @@ public class CambioDeEstadoService {
 		}
 		reclamo.setAgente(agenteNuevo);
 		reclamo.setEstado(EstadoReclamo.ASIGNADO);
-		historial.save(new ReclamoEstado(reclamo, anterior, EstadoReclamo.ASIGNADO, quien, null, agenteNuevo));
+		ReclamoEstado fila = historial.save(new ReclamoEstado(reclamo, anterior, EstadoReclamo.ASIGNADO, quien, null, agenteNuevo));
 		reclamos.saveAndFlush(reclamo);
+		// Una reasignación (ya estaba ASIGNADO) no es un cambio de estado para el vecino: no se le avisa.
+		if (anterior != EstadoReclamo.ASIGNADO) {
+			avisarElCambio(reclamo, fila);
+		}
 		return reclamo;
 	}
 
@@ -180,6 +195,30 @@ public class CambioDeEstadoService {
 		return limpio.length() <= OBSERVACION_MAXIMA ? limpio : limpio.substring(0, OBSERVACION_MAXIMA - 1) + "…";
 	}
 
+	// Publica el aviso de que el reclamo cambió de estado (MC-22). Se atiende después del commit (AvisosDeReclamoService), así que
+	// acá se juntan los datos sueltos: cuando se mande el correo la transacción ya terminó. También van los vecinos de los
+	// reclamos descartados como duplicado de este, salvo el propio vecino del reclamo (ya recibe el suyo): nadie recibe dos correos.
+	private void avisarElCambio(Reclamo reclamo, ReclamoEstado cambioGuardado) {
+		// La fecha del correo es la de la fila de historial de este cambio (la misma que ve quien mira el historial).
+		Instant fecha = cambioGuardado != null && cambioGuardado.getCambiadoEn() != null ? cambioGuardado.getCambiadoEn() : Instant.now();
+		Usuario vecino = reclamo.getVecino();
+		Map<Long, VecinoDeDuplicados> porVecino = new LinkedHashMap<>();
+		for (Object[] fila : reclamos.duplicadosDe(reclamo.getComuna().getId(), reclamo.getId())) {
+			Long idVecino = (Long) fila[0];
+			if (idVecino.equals(vecino.getId())) {
+				continue;
+			}
+			porVecino.computeIfAbsent(idVecino, k -> new VecinoDeDuplicados((String) fila[1], (String) fila[2], new ArrayList<>()))
+					.numeros().add((Integer) fila[3]);
+		}
+		boolean resuelto = reclamo.getEstado() == EstadoReclamo.RESUELTO;
+		eventos.publishEvent(new CambioDeEstadoRegistrado(reclamo.getComuna().getNombre(), reclamo.getComuna().getSlug(),
+				reclamo.getComuna().getTelefono(), reclamo.getComuna().getWhatsapp(),
+				reclamo.getNumero(), vecino.getCorreo(), vecino.getNombre(), reclamo.getEstado(), fecha,
+				reclamo.getMotivoDescarte(), reclamo.getObservacionDescarte(), resuelto ? reclamo.getTrabajoRealizado() : null,
+				List.copyOf(porVecino.values())));
+	}
+
 	private void descartar(Reclamo reclamo, CambioDeEstado cambio) {
 		String observacion = validarDescarte(cambio);
 		Reclamo original = null;
@@ -195,7 +234,7 @@ public class CambioDeEstadoService {
 	// observación ya recortada. Lo usan este servicio y los descartes en lote, que lo hacen una vez antes de empezar.
 	//  - motivo obligatorio;
 	//  - DUPLICADO exige el número del original; con otro motivo no se acepta un original;
-	//  - la observación es obligatoria salvo con DUPLICADO, y de hasta 300 caracteres (el vecino la lee).
+	//  - la observación es obligatoria y de hasta 300 caracteres (el vecino la lee); con DUPLICADO no se acepta ninguna (400 VALIDACION).
 	public static String validarDescarte(CambioDeEstado cambio) {
 		MotivoDescarte motivo = cambio.motivo();
 		if (motivo == null) {
@@ -211,6 +250,10 @@ public class CambioDeEstadoService {
 					"Solo un reclamo duplicado se vincula con un reclamo original.");
 		}
 		String observacion = textoOpcional(cambio.observacion(), OBSERVACION_DESCARTE_MAXIMA, "La observación");
+		if (motivo == MotivoDescarte.DUPLICADO && observacion != null) {
+			// Al vecino de un duplicado se le dice siempre lo mismo: no se escribe una observación a mano.
+			throw new PeticionInvalidaException("VALIDACION", "Con duplicado no se escribe observación.");
+		}
 		if (observacion == null && motivo != MotivoDescarte.DUPLICADO) {
 			throw new PeticionInvalidaException("OBSERVACION_REQUERIDA", "Escribí una observación para el vecino.");
 		}

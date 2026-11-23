@@ -564,7 +564,7 @@ class PanelReclamosTests {
 		foto(original, OrigenFoto.VECINO, 1, "image/jpeg");
 		cambiar(original, new CambioDeEstado(EstadoReclamo.ASIGNADO, null, null, null, null, "nota interna", agenteA.getId()));
 		Reclamo duplicado = reclamo(2);
-		cambiar(duplicado, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, "Ya lo tenemos", 1));
+		cambiar(duplicado, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, 1));
 		Reclamo otroDuplicado = reclamo(3);
 		cambiar(otroDuplicado, CambioDeEstado.descartar(MotivoDescarte.DUPLICADO, null, 1));
 
@@ -590,7 +590,7 @@ class PanelReclamosTests {
 
 		get(RUTA + "/2").andExpect(jsonPath("$.estado").value("DESCARTADO"))
 				.andExpect(jsonPath("$.descarte.motivo").value("DUPLICADO"))
-				.andExpect(jsonPath("$.descarte.observacion").value("Ya lo tenemos"))
+				.andExpect(jsonPath("$.descarte.observacion").value(nullValue()))
 				.andExpect(jsonPath("$.descarte.numeroOriginal").value(1))
 				.andExpect(jsonPath("$.duplicados", hasSize(0)));
 		get(RUTA).andExpect(jsonPath("$.reclamos[?(@.numero==2)].numeroOriginal", contains(1)))
@@ -855,6 +855,16 @@ class PanelReclamosTests {
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("ORIGINAL_REQUERIDO"));
 		enviar(RUTA + "/descartes", "{\"numeros\":[2],\"motivo\":\"OTRO\",\"observacion\":\"x\",\"numeroOriginal\":1}")
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("ORIGINAL_INVALIDO"));
+		get(RUTA + "/2").andExpect(jsonPath("$.estado").value("RECIBIDO"));
+	}
+
+	@Test
+	void unDuplicadoNoAceptaObservacionYNoSeDescartaNada() throws Exception {
+		reclamo(1);
+		reclamo(2);
+
+		enviar(RUTA + "/descartes", "{\"numeros\":[2],\"motivo\":\"DUPLICADO\",\"numeroOriginal\":1,\"observacion\":\"Mismo pozo\"}")
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.codigo").value("VALIDACION"));
 		get(RUTA + "/2").andExpect(jsonPath("$.estado").value("RECIBIDO"));
 	}
 
