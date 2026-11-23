@@ -43,17 +43,17 @@ describe('PanelLayout', () => {
     expect(texto).toContain('Sergio Vera');
     expect(texto).toContain('Administrador');
     const enlaces = Array.from(el(f).querySelectorAll('nav a')).map((a) => a.getAttribute('href'));
-    expect(enlaces).toEqual(['/salsipuedes-cordoba/panel/reclamos', '/salsipuedes-cordoba/panel/usuarios']);
+    expect(enlaces).toEqual(['/salsipuedes-cordoba/panel/reclamos', '/salsipuedes-cordoba/panel/metricas', '/salsipuedes-cordoba/panel/usuarios']);
   });
 
-  it('elPersonalAdministrativoVeSoloElMenuDeReclamos', () => {
+  it('elPersonalAdministrativoVeReclamosYMetricasPeroNoUsuarios', () => {
     TestBed.inject(AuthService).guardarSesion({
       token: 'tk',
       usuario: { id: 2, nombre: 'Marta Gil', correo: 'marta@correo.com', rol: 'ADMINISTRATIVO', comunaSlug: 'salsipuedes-cordoba' },
     });
     const f = crear();
 
-    expect(Array.from(el(f).querySelectorAll('nav a')).map((a) => a.textContent?.trim())).toEqual(['Reclamos']);
+    expect(Array.from(el(f).querySelectorAll('nav a')).map((a) => a.textContent?.trim())).toEqual(['Reclamos', 'Métricas']);
     expect(el(f).textContent).toContain('Personal administrativo');
   });
 

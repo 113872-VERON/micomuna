@@ -7,6 +7,7 @@ import {
   CambioDeEstadoEnLoteRequest,
   DescarteEnLoteRequest,
   MapaReclamosDto,
+  MetricasDto,
   PaginaReclamosPanelDto,
   ReclamoPanelDetalleDto,
   ResultadoEnLoteDto,
@@ -40,6 +41,11 @@ export class ReclamosPanelService {
   // La imagen pide el token: se baja como blob y la pantalla arma la URL de objeto.
   foto(numero: number, idFoto: number): Observable<Blob> {
     return this.http.get(`${BASE}/reclamos/${numero}/fotos/${idFoto}`, { responseType: 'blob' });
+  }
+
+  // Sin fechas, el servidor toma los últimos 30 días. Si se manda una, van las dos.
+  metricas(desde?: string, hasta?: string): Observable<MetricasDto> {
+    return this.http.get<MetricasDto>(`${BASE}/metricas`, { params: desde && hasta ? { desde, hasta } : {} });
   }
 
   agentes(): Observable<AgenteConCargaDto[]> {

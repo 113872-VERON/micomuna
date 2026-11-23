@@ -59,6 +59,25 @@ describe('ReclamosPanelService', () => {
     http.expectOne('/api/panel/agentes').flush([]);
   });
 
+  it('lasMetricasPidenLasFechasSoloSiVienenLasDos', () => {
+    servicio.metricas().subscribe();
+    const a = http.expectOne((r) => r.url === '/api/panel/metricas');
+    expect(a.request.method).toBe('GET');
+    expect(a.request.params.keys()).toEqual([]);
+    a.flush({});
+
+    servicio.metricas('2026-10-01').subscribe();
+    const b = http.expectOne((r) => r.url === '/api/panel/metricas');
+    expect(b.request.params.keys()).toEqual([]);
+    b.flush({});
+
+    servicio.metricas('2026-10-01', '2026-11-03').subscribe();
+    const c = http.expectOne((r) => r.url === '/api/panel/metricas');
+    expect(c.request.params.get('desde')).toBe('2026-10-01');
+    expect(c.request.params.get('hasta')).toBe('2026-11-03');
+    c.flush({});
+  });
+
   it('cambiaElEstadoYDescartaConPostSinMandarLaComuna', () => {
     servicio.cambiarEstado({ numeros: [1, 2], estado: 'ASIGNADO', idAgente: 9 }).subscribe();
     const c = http.expectOne('/api/panel/reclamos/cambios-de-estado');

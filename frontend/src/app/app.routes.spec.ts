@@ -141,16 +141,43 @@ describe('Rutas de la aplicación', () => {
       const texto = (harness.fixture.nativeElement as HTMLElement).textContent ?? '';
       expect(texto).toContain('Salsipuedes');
       const menu = Array.from((harness.fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map((a) => a.textContent?.trim());
-      expect(menu).toEqual(['Reclamos', 'Usuarios']);
+      expect(menu).toEqual(['Reclamos', 'Métricas', 'Usuarios']);
     });
 
-    it('elPersonalAdministrativoVeSoloReclamosEnElMenu', async () => {
+    it('elPersonalAdministrativoVeReclamosYMetricasEnElMenu', async () => {
       entrar('ADMINISTRATIVO');
       await irAlPanel('/salsipuedes-cordoba/panel');
 
       expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/panel/reclamos');
       const menu = Array.from((harness.fixture.nativeElement as HTMLElement).querySelectorAll('nav a')).map((a) => a.textContent?.trim());
-      expect(menu).toEqual(['Reclamos']);
+      expect(menu).toEqual(['Reclamos', 'Métricas']);
+    });
+
+    it('elAdministradorYElAdministrativoEntranALasMetricasConLaRutaDeSuComuna', async () => {
+      for (const rol of ['ADMIN_COMUNA', 'ADMINISTRATIVO'] as Rol[]) {
+        await harness.navigateByUrl('/sin-permiso');
+        entrar(rol);
+        const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/panel/metricas');
+        await vi.waitFor(() => { http.match('/api/comunas/salsipuedes-cordoba').forEach((c) => c.flush(comuna)); http.expectOne('/api/panel/metricas').flush({ desde: '2026-10-05', hasta: '2026-11-03', dias: 30, reclamosDelPeriodo: 0, resueltos: 0, tiempoPromedioResolucionHoras: null, sinAsignar: 0, porTipo: [], porSemana: [] }); });
+        await navegacion;
+        harness.detectChanges();
+
+        expect(TestBed.inject(Router).url).toBe('/salsipuedes-cordoba/panel/metricas');
+        expect((harness.fixture.nativeElement as HTMLElement).textContent).toContain('Mostrando del 5/10/2026 al 3/11/2026 (30 días)');
+      }
+    });
+
+    it('elVecinoYElAgenteNoEntranALasMetricas', async () => {
+      for (const rol of ['VECINO', 'AGENTE'] as Rol[]) {
+        await harness.navigateByUrl('/sin-permiso');
+        entrar(rol);
+        const navegacion = harness.navigateByUrl('/salsipuedes-cordoba/panel/metricas');
+        await navegacion;
+        http.match('/api/comunas/salsipuedes-cordoba').forEach((x) => x.flush(comuna));
+
+        expect(TestBed.inject(Router).url).toBe('/sin-permiso');
+        http.expectNone('/api/panel/metricas');
+      }
     });
 
     it('elAdministradorDeLaComunaEntraALaPantallaDeUsuarios', async () => {

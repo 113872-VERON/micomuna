@@ -142,7 +142,7 @@
                 <app-chip-estado [estado]="c.estado" />&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
               </div>&ngsp;@if (textoDeAgente(c); as ag) {<span class="h-agente">{{ ag }}</span>&ngsp;}<span class="h-quien">{{ $first ? 'Lo envió ' : 'Lo cambió ' }}{{ c.usuarioNombre || 'el sistema' }}</span>
               @if (c.observacion) {
-                &ngsp;<span class="h-obs"><span class="rotulo">Observación</span>&ngsp;{{ c.observacion }}</span>
+                &ngsp;<span class="h-obs"><span class="rotulo">{{ c.estado === 'DESCARTADO' ? 'Motivo del descarte (interno)' : 'Observación (interna)' }}</span>&ngsp;{{ c.observacion }}</span>
               }
             </li>
           }

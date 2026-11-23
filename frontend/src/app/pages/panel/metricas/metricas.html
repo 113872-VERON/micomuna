@@ -1,0 +1,117 @@
+<h1>Métricas</h1>
+
+<form class="filtro" (submit)="aplicar($event)" novalidate aria-label="Período de las métricas">
+  <div class="campo">
+    <label for="desde">Desde</label>
+    <input id="desde" type="date" [value]="desdeEscrita()" [attr.aria-invalid]="errorFechas() ? 'true' : null" [attr.aria-describedby]="errorFechas() ? 'error-fechas' : null" (input)="escribirDesde($event)" />
+  </div>
+  <div class="campo">
+    <label for="hasta">Hasta</label>
+    <input id="hasta" type="date" [value]="hastaEscrita()" [attr.aria-invalid]="errorFechas() ? 'true' : null" [attr.aria-describedby]="errorFechas() ? 'error-fechas' : null" (input)="escribirHasta($event)" />
+  </div>
+  <button type="submit" class="btn pri">Ver métricas</button>
+  <div class="atajos" role="group" aria-label="Períodos rápidos">
+    @for (a of atajos; track a.dias) {
+      <button type="button" class="btn sec" [attr.aria-pressed]="atajoActivo(a.dias)" [class.on]="atajoActivo(a.dias)" (click)="usarAtajo(a.dias)">{{ a.nombre }}</button>
+    }
+  </div>
+</form>
+
+@if (errorFechas(); as m) {
+  <p id="error-fechas" class="msg-error" role="alert">{{ m }}</p>
+}
+
+@if (errorServidor(); as m) {
+  <div class="caja-error" role="alert"><p>{{ m }}</p></div>
+}
+
+@if (fallo()) {
+  <div class="caja-error" role="alert">
+    <p>No pudimos cargar las métricas. Revisá tu conexión e intentá de nuevo.</p>
+    <button type="button" class="btn sec" (click)="reintentar()">Reintentar</button>
+  </div>
+}
+
+@if (cargando() && !datos()) {
+  <p class="aviso-carga" role="status">Cargando las métricas…</p>
+}
+
+@if (datos(); as d) {
+  <p class="periodo" aria-live="polite">{{ periodo() }}</p>
+
+  <dl class="numeros">
+    <div class="numero">
+      <dt class="rotulo">Reclamos del período</dt>
+      <dd class="valor">{{ numero(d.reclamosDelPeriodo) }}</dd>
+      <dd class="explicacion">Los que se crearon en estas fechas, en cualquier estado.</dd>
+    </div>
+    <div class="numero">
+      <dt class="rotulo">Resueltos</dt>
+      <dd class="valor">{{ numero(d.resueltos) }}</dd>
+      <dd class="explicacion">Los que se resolvieron en estas fechas, aunque se hayan creado antes.</dd>
+    </div>
+    <div class="numero">
+      <dt class="rotulo">Tiempo promedio de resolución</dt>
+      <dd class="valor" [class.chico]="d.tiempoPromedioResolucionHoras === null">{{ tiempo() }}</dd>
+      <dd class="explicacion">Desde que se creó el reclamo hasta que se resolvió, entre los resueltos.</dd>
+    </div>
+    <div class="numero">
+      <dt class="rotulo">Sin asignar (de estas fechas)</dt>
+      <dd class="valor">{{ numero(d.sinAsignar) }}</dd>
+      <dd class="explicacion">De los reclamos de estas fechas, los que siguen en Recibido, sin agente.</dd>
+    </div>
+  </dl>
+
+  @if (vacio()) {
+    <section class="vacio">
+      <h2>No hubo reclamos en este período</h2>
+      <p>Probá con otras fechas o con un período más largo.</p>
+    </section>
+  } @else {
+    <div class="graficos">
+      <section class="grafico" aria-labelledby="t-tipo">
+        <h2 id="t-tipo">Reclamos por tipo</h2>
+        <ul class="barras" aria-hidden="true">
+          @for (t of d.porTipo; track t.tipo) {
+            <li>
+              <span class="nombre">{{ t.tipoNombre }}</span>
+              <span class="pista"><span class="barra" [style.width.%]="ancho(t.cantidad, maximoTipo())"></span></span>
+              <span class="cant">{{ numero(t.cantidad) }}</span>
+            </li>
+          }
+        </ul>
+        <table class="solo-lectores">
+          <caption>Reclamos por tipo</caption>
+          <thead><tr><th scope="col">Tipo</th><th scope="col">Reclamos</th></tr></thead>
+          <tbody>
+            @for (t of d.porTipo; track t.tipo) {
+              <tr><th scope="row">{{ t.tipoNombre }}</th><td>{{ t.cantidad }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </section>
+
+      <section class="grafico" aria-labelledby="t-semana">
+        <h2 id="t-semana">Reclamos por semana</h2>
+        <ul class="barras" aria-hidden="true">
+          @for (s of d.porSemana; track s.desde) {
+            <li>
+              <span class="nombre">{{ semana(s.desde, s.hasta) }}</span>
+              <span class="pista"><span class="barra" [style.width.%]="ancho(s.cantidad, maximoSemana())"></span></span>
+              <span class="cant">{{ numero(s.cantidad) }}</span>
+            </li>
+          }
+        </ul>
+        <table class="solo-lectores">
+          <caption>Reclamos por semana</caption>
+          <thead><tr><th scope="col">Semana</th><th scope="col">Reclamos</th></tr></thead>
+          <tbody>
+            @for (s of d.porSemana; track s.desde) {
+              <tr><th scope="row">{{ semana(s.desde, s.hasta) }}</th><td>{{ s.cantidad }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    </div>
+  }
+}
