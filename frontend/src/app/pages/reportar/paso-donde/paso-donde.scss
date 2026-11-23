@@ -5,24 +5,78 @@
 
 .estado { display: flex; flex-direction: column; }
 // Vacío no suma el espacio entre elementos, pero sigue en la página para anunciar los cambios.
-.estado:empty { margin-top: -16px; }
+.estado:empty { display: none; }
 
+// El mapa alto, con el botón de ubicación flotando abajo a la derecha y el estado arriba (compacto).
+.mapa-caja { position: relative; }
+.sobre-mapa {
+  position: absolute;
+  top: 12px;
+  left: 66px;
+  right: 12px;
+  z-index: 1200;
+  display: flex;
+  justify-content: flex-start;
+  pointer-events: none;
+  .estado { pointer-events: auto; max-width: 100%; }
+}
 .guardada {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   align-items: center;
-  padding: 10px 8px 10px 14px;
+  padding: 2px 4px 2px 12px;
   border-radius: 14px;
-  background: var(--ayuda);
-  font-size: 18px;
-  svg { flex: none; color: var(--p); }
-  span { flex: 1; min-width: 0; }
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  font-size: 16px;
+  color: var(--tinta);
+  span { min-width: 0; }
+}
+.flotante {
+  position: absolute;
+  right: 12px;
+  bottom: 36px;
+  z-index: 1200;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--p);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  &:active { transform: scale(0.94); }
+  &:focus-visible { outline: 3px solid var(--p); outline-offset: 2px; }
+  &:disabled { opacity: 0.7; cursor: default; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .flotante:hover:not(:disabled) { background: var(--ayuda); }
+}
+
+// El aviso de "fuera de la comuna" va pegado al mapa: sin separación y con el mismo borde.
+.fuera {
+  margin: -6px 0 0;
+  padding: 10px 14px;
+  border: 3px solid var(--error);
+  border-radius: 0 0 16px 16px;
+  background: var(--error-fondo);
+  color: var(--error);
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .quitar {
   flex: none;
   min-height: 48px;
   padding: 0 10px;
+  -webkit-tap-highlight-color: transparent;
   border: 0;
   background: transparent;
   color: var(--p);
@@ -38,7 +92,7 @@
 .campo.error { border-width: 3px; }
 .cuenta { margin: 4px 0 0; text-align: right; font-size: 16px; color: var(--sub); }
 
-.cargando, .aviso-sin-mapa, .nota-mapa {
+.cargando, .aviso-sin-mapa {
   display: flex;
   gap: 10px;
   align-items: flex-start;
@@ -51,8 +105,7 @@
 }
 // El lugar del mapa ya tiene su alto mientras carga: la pantalla no salta cuando aparece.
 .cargando { min-height: 120px; align-items: center; justify-content: center; }
-.nota-mapa { margin-top: -4px; }
-.es-aca { height: 60px; }
+.es-aca { height: 60px; width: 100%; touch-action: manipulation; }
 
 .direccion {
   display: flex;

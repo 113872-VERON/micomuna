@@ -24,7 +24,10 @@ import {
   URL_OSM,
   ZOOM_MAXIMO,
 } from '../capas-base';
-import { bordesParaDibujar } from '../geo';
+import { anillosExterioresParaMascara, bordesParaDibujar } from '../geo';
+
+// Un anillo que cubre todo el mundo: con el borde de la comuna como agujero, queda gris lo de afuera.
+const MUNDO: L.LatLngTuple[] = [[-90, -180], [-90, 180], [90, 180], [90, -180]];
 
 // Dónde y a qué altura mira el mapa.
 export interface VistaMapa {
@@ -58,6 +61,7 @@ export class MapaUbicacion {
   private readonly lienzo = viewChild.required<ElementRef<HTMLElement>>('lienzo');
   private mapa: L.Map | null = null;
   private lineas: L.LayerGroup | null = null;
+  private mascara: L.Polygon | null = null;
   // Último punto conocido: el que se pidió desde afuera o el último que informó el mapa.
   private conocido: Coordenadas | null = null;
   // Mientras la pantalla mueve el mapa por su cuenta, el fin del movimiento no es cosa del vecino.
@@ -161,11 +165,16 @@ export class MapaUbicacion {
       return;
     }
     this.lineas?.remove();
+    this.mascara?.remove();
     const anillos = bordesParaDibujar(figura);
     if (anillos.length === 0) {
       this.lineas = null;
+      this.mascara = null;
       return;
     }
+    // La máscara va primero: queda debajo de la línea punteada y no recibe toques.
+    const huecos = anillosExterioresParaMascara(figura).map((a) => a.map((p): L.LatLngTuple => [p.lat, p.lng]));
+    this.mascara = L.polygon([MUNDO, ...huecos], { stroke: false, fillColor: '#4b5563', fillOpacity: 0.45, fillRule: 'evenodd', interactive: false, className: 'mascara-fuera' }).addTo(this.mapa);
     const color = getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#1d6aa8';
     this.lineas = L.layerGroup(
       anillos.map((anillo) =>

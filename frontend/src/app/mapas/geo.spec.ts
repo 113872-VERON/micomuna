@@ -1,4 +1,4 @@
-import { bordesParaDibujar, centroDelLimite, poligonosDe, puntoDentroDelLimite } from './geo';
+import { anillosExterioresParaMascara, bordesParaDibujar, centroDelLimite, poligonosDe, puntoDentroDelLimite } from './geo';
 
 // Un cuadrado de (-64.31, -31.13) a (-64.29, -31.11) con un hueco al medio.
 const CUADRADO = {
@@ -84,5 +84,14 @@ describe('bordesParaDibujar', () => {
     expect(bordesParaDibujar(CON_HUECO).length).toBe(2);
     expect(bordesParaDibujar(DOS_ISLAS).length).toBe(2);
     expect(poligonosDe(DOS_ISLAS).length).toBe(2);
+  });
+});
+
+describe('anillosExterioresParaMascara', () => {
+  it('devuelveSoloElAnilloExteriorDeCadaPoligonoYNingunoSinLimite', () => {
+    expect(anillosExterioresParaMascara(CON_HUECO).length).toBe(1);
+    expect(anillosExterioresParaMascara(CON_HUECO)[0][0]).toEqual({ lat: -31.13, lng: -64.31 });
+    expect(anillosExterioresParaMascara({ type: 'MultiPolygon', coordinates: [CUADRADO.coordinates, CUADRADO.coordinates] }).length).toBe(2);
+    expect(anillosExterioresParaMascara(null)).toEqual([]);
   });
 });

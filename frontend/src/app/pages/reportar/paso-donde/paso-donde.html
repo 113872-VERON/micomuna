@@ -8,21 +8,47 @@
     }
   </p>
 
+  <!-- Siempre presente: así el lector de pantalla anuncia cuando se tomó la ubicación. -->
+  <ng-template #estadoUbicacion>
+    <div class="estado" role="status">
+      @if (b.ubicacion() && b.origenUbicacion() === 'gps') {
+        <div class="guardada">
+          <span><b>Tomamos tu ubicación.</b></span>
+          <button type="button" class="quitar" aria-label="Quitar la ubicación" (click)="quitarUbicacion()">Quitar</button>
+        </div>
+      }
+    </div>
+  </ng-template>
+
   @if (hayMapa() && vista(); as vistaActual) {
-    <app-mapa-ubicacion
-      #mapa
-      [vista]="vistaActual"
-      [limite]="b.limite()"
-      etiqueta="Mapa para marcar el lugar. Se mueve con el dedo o con las flechas del teclado, y el pin queda fijo al centro."
-      (detenido)="alDetenerse($event)"
-      (falla)="sinMapa()"
-    />
-    <button type="button" class="btn sec es-aca" aria-label="Es acá: marcar el lugar donde está el pin" (click)="esAca()">Es acá</button>
-    @if (b.limite()) {
-      <p class="nota-mapa">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.5" /></svg>
-        <span>Solo podés reportar problemas de {{ b.comunaNombre() || 'tu comuna' }}. El área está marcada con la línea punteada.</span>
-      </p>
+    <div class="mapa-caja">
+      <app-mapa-ubicacion
+        #mapa
+        [vista]="vistaActual"
+        [limite]="b.limite()"
+        altura="min(62dvh, 560px)"
+        etiqueta="Mapa para marcar el lugar. Se mueve con el dedo o con las flechas del teclado, y el pin queda fijo al centro."
+        (detenido)="alDetenerse($event)"
+        (falla)="sinMapa()"
+      />
+      <div class="sobre-mapa">
+        <ng-container *ngTemplateOutlet="estadoUbicacion" />
+      </div>
+      <button
+        type="button"
+        id="usar-ubicacion"
+        class="flotante"
+        [disabled]="b.buscandoUbicacion()"
+        [attr.aria-busy]="b.buscandoUbicacion()"
+        [attr.aria-label]="textoUbicar()"
+        [attr.title]="textoUbicar()"
+        (click)="b.usarMiUbicacion()"
+      >
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+      </button>
+    </div>
+    @if (b.fueraDeComuna()) {
+      <p class="fuera" id="error-fuera" role="alert">Ese lugar está fuera de {{ b.comunaNombre() || 'tu comuna' }}. Mové el mapa hasta la zona marcada.</p>
     }
   } @else if (cargandoMapa()) {
     <p class="cargando" role="status">Cargando el mapa…</p>
@@ -31,13 +57,18 @@
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.5" /></svg>
       No pudimos mostrar el mapa. Tocá «Usar mi ubicación» para marcar el lugar. Si no funciona, probá de nuevo en un rato o desde otro celular.
     </p>
-  }
-
-  @if (b.fueraDeComuna()) {
-    <p class="msg-error caja-error" id="error-fuera" role="alert">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
-      Ese lugar está fuera de {{ b.comunaNombre() || 'tu comuna' }}. Solo podés reportar problemas de tu comuna. Mové el mapa hasta adentro de la línea punteada.
-    </p>
+    <button
+      type="button"
+      id="usar-ubicacion"
+      class="btn sec ubicar"
+      [disabled]="b.buscandoUbicacion()"
+      [attr.aria-busy]="b.buscandoUbicacion()"
+      (click)="b.usarMiUbicacion()"
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
+      {{ textoUbicar() }}
+    </button>
+    <ng-container *ngTemplateOutlet="estadoUbicacion" />
   }
 
   @if (b.direccion(); as direccion) {
@@ -47,28 +78,9 @@
     </p>
   }
 
-  <button
-    type="button"
-    id="usar-ubicacion"
-    class="btn sec ubicar"
-    [disabled]="b.buscandoUbicacion()"
-    [attr.aria-busy]="b.buscandoUbicacion()"
-    (click)="b.usarMiUbicacion()"
-  >
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3.5" /><circle cx="12" cy="12" r="8" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></svg>
-    {{ b.buscandoUbicacion() ? 'Buscando dónde estás…' : b.ubicacion() && b.origenUbicacion() === 'gps' ? 'Volver a tomar mi ubicación' : 'Usar mi ubicación' }}
-  </button>
-
-  <!-- Siempre presente: así el lector de pantalla anuncia cuando se tomó la ubicación. -->
-  <div class="estado" role="status">
-    @if (b.ubicacion() && b.origenUbicacion() === 'gps') {
-      <div class="guardada">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-        <span><b>Tomamos tu ubicación.</b> Es el lugar donde estás ahora.</span>
-        <button type="button" class="quitar" aria-label="Quitar la ubicación" (click)="b.quitarUbicacion()">Quitar</button>
-      </div>
-    }
-  </div>
+  @if (hayMapa() && vista()) {
+    <button type="button" class="btn pri es-aca" aria-label="Es acá: marcar el lugar donde está el pin" (click)="esAca()">Es acá</button>
+  }
 
   @if (b.errorUbicacion(); as mensaje) {
     <p class="msg-error caja-error" role="alert">
