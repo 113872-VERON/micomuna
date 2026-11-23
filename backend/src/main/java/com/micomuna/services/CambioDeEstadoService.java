@@ -120,7 +120,10 @@ public class CambioDeEstadoService {
 		}
 		reclamo.setEstado(nuevo);
 		// El agente se guarda solo en el cambio que asigna: ahí queda "quién quedó a cargo".
-		historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, nota, nuevo == EstadoReclamo.ASIGNADO ? agenteNuevo : null));
+		// Un descarte deja en la fila del historial un resumen de por qué (interno: el vecino no ve la observación), para que
+		// si el reclamo se reabre quede el motivo.
+		String observacion = nuevo == EstadoReclamo.DESCARTADO ? resumenDelDescarte(cambio) : nota;
+		historial.save(new ReclamoEstado(reclamo, anterior, nuevo, quien, observacion, nuevo == EstadoReclamo.ASIGNADO ? agenteNuevo : null));
 		reclamos.saveAndFlush(reclamo);
 		return reclamo;
 	}
@@ -152,6 +155,29 @@ public class CambioDeEstadoService {
 		historial.save(new ReclamoEstado(reclamo, anterior, EstadoReclamo.ASIGNADO, quien, null, agenteNuevo));
 		reclamos.saveAndFlush(reclamo);
 		return reclamo;
+	}
+
+	// "Duplicado del n.º N" (más ": <observación>" si la hay) o "<Motivo legible>: <observación>". Ya validado por
+	// validarDescarte. Se recorta a lo que admite la columna.
+	public static String resumenDelDescarte(CambioDeEstado cambio) {
+		String observacion = textoOpcional(cambio.observacion(), OBSERVACION_DESCARTE_MAXIMA, "La observación");
+		String motivo = switch (cambio.motivo()) {
+			case DUPLICADO -> "Duplicado del n.º " + cambio.numeroOriginal();
+			case NO_ES_DE_LA_COMUNA -> "No es de la comuna";
+			case NO_SE_PUEDE_ATENDER -> "No se puede atender";
+			case OTRO -> "Otro motivo";
+		};
+		return recortarParaElHistorial(observacion == null ? motivo : motivo + ": " + observacion);
+	}
+
+	// La columna observacion del historial admite 500 caracteres: si el texto es más largo se corta con puntos suspensivos.
+	// Un texto vacío o en blanco queda en null.
+	public static String recortarParaElHistorial(String texto) {
+		if (texto == null || texto.isBlank()) {
+			return null;
+		}
+		String limpio = texto.strip();
+		return limpio.length() <= OBSERVACION_MAXIMA ? limpio : limpio.substring(0, OBSERVACION_MAXIMA - 1) + "…";
 	}
 
 	private void descartar(Reclamo reclamo, CambioDeEstado cambio) {
