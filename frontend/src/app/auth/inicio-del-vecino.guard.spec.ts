@@ -24,8 +24,20 @@ describe('inicioDelVecinoGuard', () => {
     expect(TestBed.inject(Router).serializeUrl(destino)).toBe('/salsipuedes-cordoba/inicio');
   });
 
-  it('alRestoDelPersonalLoDejaVerLaPantallaProvisoria', () => {
+  it('alPersonalAdministrativoYAlAdministradorLosLlevaAlPanelDeReclamos', () => {
+    for (const rol of ['ADMINISTRATIVO', 'ADMIN_COMUNA'] as Rol[]) {
+      entrar(rol, 'salsipuedes-cordoba');
+      expect(TestBed.inject(Router).serializeUrl(evaluar() as UrlTree)).toBe('/salsipuedes-cordoba/panel/reclamos');
+    }
+  });
+
+  it('alAgenteLoDejaVerLaPantallaProvisoria', () => {
     entrar('AGENTE', 'salsipuedes-cordoba');
+    expect(evaluar()).toBe(true);
+  });
+
+  it('alSuperadminSinComunaLoDejaPasar', () => {
+    entrar('SUPERADMIN', null);
     expect(evaluar()).toBe(true);
   });
 });

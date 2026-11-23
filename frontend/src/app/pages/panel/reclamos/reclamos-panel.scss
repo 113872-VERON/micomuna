@@ -1,0 +1,80 @@
+:host { display: flex; flex-direction: column; gap: 16px; }
+
+.enc { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; }
+
+// Las dos vistas: un par de botones donde el activo va relleno (y marcado con aria-pressed).
+.vistas { display: inline-flex; border: 2px solid var(--p); border-radius: 14px; overflow: hidden; }
+.vista {
+  min-height: 44px; padding: 0 18px; border: 0; background: #fff; color: var(--p); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  &.on { background: var(--p); color: #fff; }
+}
+
+.aviso { align-items: center; }
+.aviso .texto-aviso { flex: 1; min-width: 0; }
+.cerrar {
+  flex: none; width: 44px; height: 44px; margin: -6px -8px -6px 0; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 12px; background: transparent; color: inherit; cursor: pointer; touch-action: manipulation;
+}
+
+// Todos los filtros en un solo renglón; en pantallas chicas pasan a una columna.
+.filtros { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 2.4fr) minmax(170px, 1fr) minmax(170px, 1fr); gap: 12px; align-items: start; }
+.f-estado, .f-buscar, .f-tipo, .f-agente { min-width: 0; }
+.f-buscar input { height: 56px; font-size: 19px; }
+.ayuda-c { margin-top: 6px; font-size: 15px; color: var(--sub); }
+@media (max-width: 900px) { .filtros { grid-template-columns: 1fr 1fr; } .f-buscar { grid-column: 1 / -1; order: -1; } }
+@media (max-width: 520px) { .filtros { grid-template-columns: 1fr; } }
+
+// El lugar de la barra está siempre reservado: al elegir un reclamo la barra aparece encima de ese lugar y la tabla
+// no se mueve (si hacía falta más alto, se superpone a las filas en vez de empujarlas).
+.reserva-barra { position: relative; min-height: 64px; }
+.barra-acciones {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 14px; border: 2px solid var(--p); border-radius: 14px; background: var(--ayuda);
+  position: absolute; top: 0; left: 0; right: 0; z-index: 5; box-shadow: 0 4px 14px rgb(0 0 0 / 14%);
+}
+.aplican { flex: 1 1 100%; font-size: 16px; color: var(--tinta); }
+
+// Lista y mapa lado a lado; en pantallas angostas, una debajo de la otra.
+.cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
+.cuerpo.con-mapa { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+@media (max-width: 1000px) { .cuerpo.con-mapa { grid-template-columns: minmax(0, 1fr); } }
+.lista, .mapa { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+.mapa { position: sticky; top: 8px; }
+@media (max-width: 1000px) { .mapa { position: static; } }
+
+.cantidad { color: var(--sub); font-size: 16px; }
+.estado-vacio { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 20px; border: 2px dashed #cbd2d9; border-radius: 16px; background: #fff; }
+
+.tarjeta { background: #fff; border: 2px solid #cbd2d9; border-radius: 16px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 17px; }
+th { text-align: left; font-size: 15px; color: var(--sub); padding: 12px 14px; border-bottom: 2px solid #cbd2d9; background: #f5f7fa; white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid #cbd2d9; vertical-align: middle; }
+td small { display: block; color: var(--sub); font-size: 15px; margin-top: 2px; }
+.c-check { width: 28px; padding-right: 0; }
+.c-check input { width: 22px; height: 22px; margin: 0; accent-color: var(--p); }
+.c-num { white-space: nowrap; }
+.c-tipo { min-width: 150px; }
+.c-dir { min-width: 160px; overflow-wrap: anywhere; }
+.c-agente { min-width: 120px; overflow-wrap: anywhere; }
+.c-fecha { white-space: nowrap; }
+.tipo { display: inline-flex; align-items: center; gap: 8px; overflow-wrap: anywhere; app-icono-tipo { flex: none; color: var(--p); } }
+tr.elegida td { background: var(--ayuda); }
+tr.activa td { box-shadow: inset 0 2px 0 var(--p), inset 0 -2px 0 var(--p); }
+
+.filas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.filas li {
+  display: flex; align-items: center; gap: 8px; padding: 10px 8px 10px 14px; background: #fff; border: 2px solid #cbd2d9; border-radius: 14px;
+  &.activa { border-color: var(--p); box-shadow: 0 0 0 3px color-mix(in srgb, var(--p) 25%, white); }
+}
+.fila-datos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fila-arriba { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.num { font-size: 18px; }
+.dir { overflow-wrap: anywhere; }
+.meta { font-size: 15px; color: var(--sub); overflow-wrap: anywhere; }
+
+.paginas { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 4px 0; }
+
+.btn.texto { background: transparent; color: var(--p); text-decoration: underline; }
+
+@media (max-width: 700px) {
+  th, td { padding: 10px; }
+}

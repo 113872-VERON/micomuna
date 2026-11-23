@@ -1,0 +1,137 @@
+<a class="volver" [routerLink]="['/', slug(), 'panel', 'reclamos']">
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
+  Volver a los reclamos
+</a>
+
+@if (reclamo(); as r) {
+  <header class="titulo">
+    <h1>Reclamo n.º {{ r.numero }}</h1>
+    <app-chip-estado [estado]="r.estado" />
+    <div class="acciones">
+      <button type="button" class="btn pri chico" (click)="dialogo.set('estado')">Cambiar estado</button>
+      <button type="button" class="btn sec chico peligro" [disabled]="sinDescarte() !== null" [attr.title]="sinDescarte()" (click)="dialogo.set('descarte')">Descartar</button>
+    </div>
+  </header>
+
+  <div class="columnas">
+    <div class="col">
+      <section class="bloque" aria-labelledby="t-reclamo">
+        <h2 id="t-reclamo">Qué reportó el vecino</h2>
+        <p class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="24" />{{ r.tipoNombre }}</p>
+        <p class="texto">{{ r.descripcion }}</p>
+        @if (r.referencia) {
+          <p class="dato"><span class="rotulo">Referencia</span>&ngsp;{{ r.referencia }}</p>
+        }
+        <p class="dato"><span class="rotulo">Dirección</span>&ngsp;{{ r.direccion || 'Sin dirección' }}</p>
+        <p class="dato"><span class="rotulo">Agente</span>&ngsp;{{ r.agente?.nombre || 'Sin asignar' }}</p>
+      </section>
+
+      <section class="bloque" aria-labelledby="t-fotos">
+        <h2 id="t-fotos">Fotos y lugar</h2>
+        @if (fotosDelVecino().length > 0) {
+          <ul class="fotos">
+            @for (f of fotosDelVecino(); track f.id; let primera = $first) {
+              <li [class.grande]="primera">
+                <app-foto-reclamo class="foto" origen="panel" [numero]="r.numero" [idFoto]="f.id" [alt]="'Foto ' + f.orden + ' que subió el vecino'" />
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="ayuda-c">El vecino no subió fotos.</p>
+        }
+        @if (vistaMapa(); as vista) {
+          <div class="mapa">
+            <app-mapa-ubicacion [vista]="vista" [interactivo]="false" altura="220px" etiqueta="Mapa con el lugar del reclamo" (falla)="sinMapa.set(true)" />
+          </div>
+        }
+      </section>
+
+      @if (fotosDelTrabajo().length > 0) {
+        <section class="bloque" aria-labelledby="t-trabajo-fotos">
+          <h2 id="t-trabajo-fotos">Fotos del trabajo</h2>
+          <ul class="fotos">
+            @for (f of fotosDelTrabajo(); track f.id) {
+              <li><app-foto-reclamo class="foto" origen="panel" [numero]="r.numero" [idFoto]="f.id" [alt]="'Foto ' + f.orden + ' del trabajo'" /></li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+
+    <div class="col">
+      @if (r.descarte; as d) {
+        <section class="bloque descartado" aria-labelledby="t-descarte">
+          <h2 id="t-descarte">Descartado</h2>
+          <p>{{ motivo() }}</p>
+          @if (d.numeroOriginal) {
+            <p>Duplicado del <a [routerLink]="['/', slug(), 'panel', 'reclamos', d.numeroOriginal]">reclamo n.º {{ d.numeroOriginal }}</a></p>
+          }
+          @if (d.observacion) {
+            <p class="texto"><span class="rotulo">Observación (la lee el vecino)</span>&ngsp;{{ d.observacion }}</p>
+          }
+        </section>
+      }
+
+      @if (r.trabajoRealizado) {
+        <section class="bloque" aria-labelledby="t-trabajo">
+          <h2 id="t-trabajo">Lo que se hizo</h2>
+          <p class="texto">{{ r.trabajoRealizado }}</p>
+        </section>
+      }
+
+      @if (r.duplicados.length > 0) {
+        <section class="bloque" aria-labelledby="t-duplicados">
+          <h2 id="t-duplicados">Reclamos vinculados ({{ r.duplicados.length }})</h2>
+          <p class="ayuda-c">Se descartaron como duplicados de este.</p>
+          <ul class="vinculados">
+            @for (n of r.duplicados; track n) {
+              <li><a [routerLink]="['/', slug(), 'panel', 'reclamos', n]">Reclamo n.º {{ n }}</a></li>
+            }
+          </ul>
+        </section>
+      }
+
+      <section class="bloque" aria-labelledby="t-historial">
+        <h2 id="t-historial">Historial</h2>
+        <ol class="historial">
+          @for (c of r.historial; track $index) {
+            <li>
+              <div class="h-arriba">
+                <app-chip-estado [estado]="c.estado" />&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
+              </div>&ngsp;<span class="h-quien">{{ $first ? 'Lo envió ' : 'Lo cambió ' }}{{ c.usuarioNombre || 'el sistema' }}</span>
+              @if (c.observacion) {
+                &ngsp;<span class="h-obs"><span class="rotulo">Observación</span>&ngsp;{{ c.observacion }}</span>
+              }
+            </li>
+          }
+        </ol>
+      </section>
+    </div>
+  </div>
+} @else {
+  @switch (carga()) {
+    @case ('cargando') {
+      <p class="estado-vacio" role="status">Cargando el reclamo…</p>
+    }
+    @case ('noEncontrado') {
+      <section class="bloque">
+        <h1>No encontramos ese reclamo</h1>
+        <p>Puede que el número esté mal escrito o que sea de otra comuna.</p>
+        <a class="btn pri" [routerLink]="['/', slug(), 'panel', 'reclamos']">Volver a los reclamos</a>
+      </section>
+    }
+    @case ('error') {
+      <div class="caja-error" role="alert">
+        <p>No pudimos cargar el reclamo. Revisá tu conexión e intentá de nuevo.</p>
+        <button type="button" class="btn sec chico" (click)="reintentar()">Reintentar</button>
+      </div>
+    }
+  }
+}
+
+@if (dialogo() === 'estado') {
+  <app-dialogo-cambiar-estado [reclamos]="elegido()" [agentes]="agentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+}
+@if (dialogo() === 'descarte') {
+  <app-dialogo-descartar [reclamos]="elegido()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+}

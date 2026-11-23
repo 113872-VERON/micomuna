@@ -137,7 +137,7 @@ class CambioDeEstadoConcurrenciaTests {
 	}
 
 	private void asignar() {
-		servicio.cambiar(reclamo.getNumero(), CambioDeEstado.a(EstadoReclamo.ASIGNADO), agente.getId());
+		servicio.cambiar(reclamo.getNumero(), CambioDeEstado.asignar(agente.getId()), agente.getId());
 	}
 
 	private String estadoEnBase() {

@@ -40,12 +40,23 @@ export const routes: Routes = [
       // en lugar de la cabecera grande de las pantallas de entrada (ahí no entra una tabla).
       {
         path: 'panel',
-        canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],
+        // El personal administrativo y el administrador ven los reclamos; "Usuarios" es solo del administrador.
+        canActivate: [rolGuard(['ADMINISTRATIVO', 'ADMIN_COMUNA'], loginDeLaComuna)],
         loadComponent: () => import('./pages/panel/panel-layout/panel-layout').then((m) => m.PanelLayout),
         children: [
-          { path: 'usuarios', loadComponent: () => import('./pages/panel/usuarios/usuarios').then((m) => m.Usuarios) },
-          { path: 'usuarios/nuevo', loadComponent: () => import('./pages/panel/usuarios/nuevo-usuario/nuevo-usuario').then((m) => m.NuevoUsuario) },
-          { path: '', pathMatch: 'full', redirectTo: 'usuarios' },
+          { path: 'reclamos', loadComponent: () => import('./pages/panel/reclamos/reclamos-panel').then((m) => m.ReclamosPanel) },
+          { path: 'reclamos/:numero', loadComponent: () => import('./pages/panel/reclamos/detalle-panel').then((m) => m.DetallePanel) },
+          {
+            path: 'usuarios',
+            canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],
+            loadComponent: () => import('./pages/panel/usuarios/usuarios').then((m) => m.Usuarios),
+          },
+          {
+            path: 'usuarios/nuevo',
+            canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],
+            loadComponent: () => import('./pages/panel/usuarios/nuevo-usuario/nuevo-usuario').then((m) => m.NuevoUsuario),
+          },
+          { path: '', pathMatch: 'full', redirectTo: 'reclamos' },
         ],
       },
       // Reportar un problema (MC-15): solo el vecino. Marco propio de una columna, un paso por dirección.

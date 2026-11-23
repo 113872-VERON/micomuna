@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
-import { FotosDeReclamos } from '../../reclamos/fotos-de-reclamos';
+import { FotosDeReclamos, OrigenDeFotos } from '../../reclamos/fotos-de-reclamos';
 
 // Una foto de un reclamo del vecino. La API pide el token, así que no sirve un <img src> directo:
 // `FotosDeReclamos` la baja con HttpClient como blob (una sola vez por pantalla) y entrega una URL de
@@ -27,6 +27,8 @@ export class FotoReclamo {
   readonly numero = input.required<number>();
   readonly idFoto = input.required<number>();
   readonly alt = input('Foto del reclamo');
+  // Del vecino (por defecto) o del panel del personal.
+  readonly origen = input<OrigenDeFotos>('mios');
 
   protected readonly url = signal<string | null>(null);
   protected readonly fallo = signal(false);
@@ -37,7 +39,7 @@ export class FotoReclamo {
     effect((alLimpiar) => {
       this.url.set(null);
       this.fallo.set(false);
-      const sub = this.fotos.url(this.numero(), this.idFoto()).subscribe({
+      const sub = this.fotos.url(this.numero(), this.idFoto(), this.origen()).subscribe({
         next: (u) => this.url.set(u),
         error: () => this.fallo.set(true),
       });

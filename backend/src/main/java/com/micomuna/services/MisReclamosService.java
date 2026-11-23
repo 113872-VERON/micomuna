@@ -96,6 +96,12 @@ public class MisReclamosService {
 	public Imagen foto(Integer numero, Long idFoto, UsuarioAutenticado vecino) {
 		ReclamoFoto foto = fotos.buscarDelVecino(idFoto, numero, comunaActual.id(), vecino.id())
 				.orElseThrow(() -> new RecursoNoEncontradoException(NO_ENCONTRADO));
+		return paraServir(foto);
+	}
+
+	// Solo se sirve lo que guarda ImagenUtil.limpiar (image/jpeg o image/png); cualquier otro tipo, aunque estuviera
+	// guardado, responde 404. También lo usa el panel del personal.
+	static Imagen paraServir(ReclamoFoto foto) {
 		if (!TIPOS_DE_IMAGEN.contains(foto.getImagenTipo())) {
 			log.warn("La foto {} tiene un tipo que no se sirve: {}", foto.getId(), foto.getImagenTipo());
 			throw new RecursoNoEncontradoException(NO_ENCONTRADO);
