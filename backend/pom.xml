@@ -83,6 +83,13 @@
 			<artifactId>jts-core</artifactId>
 			<version>1.20.0</version>
 		</dependency>
+		<!-- SDK oficial de Anthropic para el proveedor Claude de la IA (MC-24). 3.6.0: publicada el 05/11/2026, mas de dos
+		     semanas antes de elegirla. -->
+		<dependency>
+			<groupId>com.anthropic</groupId>
+			<artifactId>anthropic-java</artifactId>
+			<version>3.6.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>

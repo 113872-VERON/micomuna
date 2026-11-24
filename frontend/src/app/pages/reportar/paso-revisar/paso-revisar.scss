@@ -53,3 +53,6 @@
   touch-action: manipulation;
   &:disabled { opacity: 0.6; cursor: default; }
 }
+
+// Solo informativo: no pide consentimiento ni bloquea el envío.
+.aviso-ia { margin: 0; font-size: 16px; line-height: 1.4; color: var(--sub); }

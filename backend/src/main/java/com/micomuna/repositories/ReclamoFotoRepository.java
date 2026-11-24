@@ -21,6 +21,11 @@ public interface ReclamoFotoRepository extends Repository<ReclamoFoto, Long> {
 			+ "where f.reclamo.id = :idReclamo order by f.orden")
 	List<FotoReclamoDto> datosDe(@Param("idReclamo") Long idReclamo);
 
+	// Las fotos que subió el vecino al reportar, en orden, con los bytes: las lee el análisis de la IA (MC-24) dentro de una
+	// transacción de lectura y las convierte enseguida. No existe un método que las traiga junto con el reclamo.
+	@Query("select f from ReclamoFoto f where f.reclamo.id = :idReclamo and f.origen = com.micomuna.enums.OrigenFoto.VECINO order by f.orden")
+	List<ReclamoFoto> delVecinoDe(@Param("idReclamo") Long idReclamo);
+
 	// Las fotos del TRABAJO solo se entregan si el reclamo está RESUELTO.
 	// La imagen, solo si la foto pertenece a ese reclamo Y el reclamo es de ese vecino en esa comuna: una sola consulta
 	// con las cuatro condiciones, así que una foto ajena, de otra comuna o inexistente dan el mismo resultado (vacío).

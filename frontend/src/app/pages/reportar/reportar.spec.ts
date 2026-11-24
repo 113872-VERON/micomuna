@@ -1486,6 +1486,16 @@ describe('Reportar un problema', () => {
         expect(mini.limite()).toEqual(LIMITE);
       });
 
+      it('avisaQueLasFotosYLaDescripcionPuedenAnalizarseConIaSinBloquearElEnvio', async () => {
+        await llegarConMapa();
+
+        const aviso = el().querySelector('.aviso-ia') as HTMLElement;
+        expect(aviso.textContent?.trim()).toBe('Las fotos y la descripción pueden analizarse con inteligencia artificial para ayudar a la comuna a clasificar el reclamo.');
+        // Solo informativo: no hay casilla ni se bloquea el botón.
+        expect(el().querySelector('input[type="checkbox"]')).toBeNull();
+        expect(boton('Enviar reclamo').disabled).toBe(false);
+      });
+
       it('elEnvioLlevaLatitudLongitudDireccionYReferencia', async () => {
         await llegarConMapa();
 
