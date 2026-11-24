@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -31,6 +32,7 @@ import com.micomuna.exceptions.ConflictoException;
 import com.micomuna.exceptions.LimiteSuperadoException;
 import com.micomuna.exceptions.PeticionInvalidaException;
 import com.micomuna.exceptions.RecursoNoEncontradoException;
+import com.micomuna.models.ReclamoRegistrado;
 import com.micomuna.repositories.ComunaRepository;
 import com.micomuna.repositories.ReclamoFotoRepository;
 import com.micomuna.repositories.ReclamoRepository;
@@ -76,13 +78,15 @@ public class ReclamoService {
 	private final ComunaActual comunaActual;
 	private final LimiteDeComuna limiteDeComuna;
 	private final TurnosDeFotos turnos;
+	private final ApplicationEventPublisher eventos;
 	// Propia de este servicio (no el TransactionTemplate compartido): lleva el tiempo máximo del alta.
 	private final TransactionTemplate transaccion;
 
 	public ReclamoService(TipoReclamoRepository tipos, ReclamoRepository reclamos, ReclamoFotoRepository fotos,
 			CambioDeEstadoService cambiosDeEstado, ComunaRepository comunas, UsuarioRepository usuarios,
 			ComunaActual comunaActual, LimiteDeComuna limiteDeComuna, TurnosDeFotos turnos,
-			PlatformTransactionManager transacciones) {
+			PlatformTransactionManager transacciones, ApplicationEventPublisher eventos) {
+		this.eventos = eventos;
 		this.tipos = tipos;
 		this.reclamos = reclamos;
 		this.fotos = fotos;
@@ -179,6 +183,10 @@ public class ReclamoService {
 			fotos.save(new ReclamoFoto(reclamo, OrigenFoto.VECINO, i + 1, foto.bytes(), foto.tipo()));
 		}
 		reclamos.flush();
+		// MC-24: el análisis de la IA se pide recién después del commit (AnalisisIaService) y en otro hilo: el alta no lo espera.
+		// El aviso lleva solo datos sueltos, nada del vecino.
+		eventos.publishEvent(new ReclamoRegistrado(comunaId, comuna.getSlug(), reclamo.getId(), numero, tipo.getCodigo(),
+				form.descripcion()));
 		return ReclamoCreadoDto.desde(reclamo, limpias.size());
 	}
 
