@@ -26,6 +26,84 @@
         <p class="dato"><span class="rotulo">Agente</span>&ngsp;{{ r.agente?.nombre || 'Sin asignar' }}</p>
       </section>
 
+      @if (sugerencia(); as s) {
+        <section class="bloque ia" aria-labelledby="t-ia">
+          <h2 id="t-ia">Sugerencia de la IA</h2>
+          @switch (s.estado) {
+            @case ('HECHA') {
+              @if (s.decision === 'ACEPTADA') {
+                <p class="ia-linea">{{ s.decididaPor || 'El personal' }} aceptó la sugerencia de la IA el {{ s.decididaEn | date: 'd/M/yyyy H:mm' }}: {{ s.tipoDecididoNombre || s.tipoSugeridoNombre }}.</p>
+              } @else if (s.decision === 'CORREGIDA') {
+                <p class="ia-linea">La IA sugería {{ s.tipoSugeridoNombre }}; {{ s.decididaPor || 'el personal' }} dejó {{ s.tipoDecididoNombre }} el {{ s.decididaEn | date: 'd/M/yyyy H:mm' }}.</p>
+              } @else if (s.coincide) {
+                <p class="ia-linea">La IA coincide con el tipo elegido: {{ s.tipoSugeridoNombre }}.</p>
+              } @else {
+                <p class="ia-linea">La IA sugiere: {{ s.tipoSugeridoNombre }}</p>
+              }
+              @if (s.justificacion) {
+                <p class="ia-just">{{ s.justificacion }}</p>
+              }
+            }
+            @case ('NO_DISPONIBLE') {
+              <p class="ia-linea">La IA no pudo analizar este reclamo.</p>
+            }
+            @default {
+              <p class="ia-linea">Todavía no hay sugerencia de la IA.</p>
+              @if (!estaCerrado()) {
+                <div class="botones">
+                  <button type="button" class="btn sec chico" [disabled]="actualizandoSugerencia()" (click)="actualizarSugerencia()">
+                    {{ actualizandoSugerencia() ? 'Actualizando…' : 'Actualizar' }}
+                  </button>
+                </div>
+              }
+            }
+          }
+
+          @if (!estaCerrado()) {
+            @if (pendiente() && !eligiendoTipo()) {
+              <div class="botones">
+                <button type="button" class="btn pri" [disabled]="guardandoTipo()" (click)="aceptarSugerencia()">
+                  {{ guardandoTipo() ? 'Guardando…' : 'Aceptar ' + s.tipoSugeridoNombre }}
+                </button>
+                <button type="button" class="btn sec" [disabled]="guardandoTipo()" (click)="mantenerTipo()">Mantener {{ r.tipoNombre }}</button>
+                <button type="button" class="btn sec" [disabled]="guardandoTipo()" (click)="abrirElegirTipo()">Elegir otro tipo</button>
+              </div>
+            } @else if (eligiendoTipo()) {
+              <div class="elegir-tipo">
+                @if (errorTipos()) {
+                  <p class="msg-error" role="alert">No pudimos cargar los tipos.</p>
+                  <button type="button" class="btn sec chico" (click)="cargarTipos()">Reintentar</button>
+                } @else {
+                  <label for="tipo-ia">Tipo de problema</label>
+                  <select id="tipo-ia" [attr.aria-invalid]="errorTipoElegido() ? 'true' : null"
+                    [attr.aria-describedby]="errorTipoElegido() ? 'error-tipo-ia' : null" (change)="elegirTipo($event)">
+                    <option value="" [selected]="!tipoElegido()">Elegí un tipo</option>
+                    @for (t of tipos(); track t.codigo) {
+                      <option [value]="t.codigo" [selected]="tipoElegido() === t.codigo">{{ t.nombre }}</option>
+                    }
+                  </select>
+                  @if (errorTipoElegido(); as m) {
+                    <p id="error-tipo-ia" class="msg-error" role="alert">{{ m }}</p>
+                  }
+                  <div class="botones">
+                    <button type="button" class="btn pri" [disabled]="guardandoTipo()" (click)="guardarTipoElegido()">{{ guardandoTipo() ? 'Guardando…' : 'Guardar' }}</button>
+                    <button type="button" class="btn sec" [disabled]="guardandoTipo()" (click)="cancelarElegirTipo()">Cancelar</button>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="botones">
+                <button type="button" class="btn sec chico" [disabled]="guardandoTipo()" (click)="abrirElegirTipo()">Cambiar tipo</button>
+              </div>
+            }
+            @if (errorTipo(); as m) {
+              <div class="caja-error" role="alert">{{ m }}</div>
+            }
+          }
+          <p class="ia-aviso">La IA solo sugiere: el tipo lo decide la comuna.</p>
+        </section>
+      }
+
       <section class="bloque" aria-labelledby="t-fotos">
         <h2 id="t-fotos">Fotos y lugar</h2>
         @if (fotosDelVecino().length > 0) {
@@ -137,6 +215,16 @@
         <h2 id="t-historial">Historial</h2>
         <ol class="historial">
           @for (c of r.historial; track $index) {
+            @if (esCambioDeTipo(c)) {
+              <li class="h-tipo">
+                <div class="h-arriba">
+                  <strong>Cambio de tipo</strong>&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
+                </div>&ngsp;<span class="h-quien">Lo cambió {{ c.usuarioNombre || 'el sistema' }}</span>
+                @if (c.observacion) {
+                  &ngsp;<span class="h-obs">{{ c.observacion }}</span>
+                }
+              </li>
+            } @else {
             <li>
               <div class="h-arriba">
                 <app-chip-estado [estado]="c.estado" />&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
@@ -145,6 +233,7 @@
                 &ngsp;<span class="h-obs"><span class="rotulo">{{ c.estado === 'DESCARTADO' ? 'Motivo del descarte (interno)' : 'Observación (interna)' }}</span>&ngsp;{{ c.observacion }}</span>
               }
             </li>
+            }
           }
         </ol>
       </section>

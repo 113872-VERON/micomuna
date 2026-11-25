@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.micomuna.dtos.AgenteConCargaDto;
 import com.micomuna.dtos.AsignarAgenteRequest;
+import com.micomuna.dtos.CambiarTipoRequest;
 import com.micomuna.dtos.CambioDeEstadoEnLoteRequest;
 import com.micomuna.dtos.DescarteEnLoteRequest;
 import com.micomuna.dtos.MapaReclamosDto;
@@ -29,6 +30,7 @@ import com.micomuna.dtos.ResumenPanelDto;
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.security.UsuarioAutenticado;
 import com.micomuna.services.CambioDeEstadoService;
+import com.micomuna.services.CambioDeTipoService;
 import com.micomuna.services.CambiosEnLoteService;
 import com.micomuna.services.MisReclamosService;
 import com.micomuna.services.MetricasService;
@@ -62,6 +64,7 @@ public class PanelReclamosController {
 	private final PanelReclamosService panel;
 	private final CambiosEnLoteService lotes;
 	private final CambioDeEstadoService cambios;
+	private final CambioDeTipoService tipoDelReclamo;
 	private final MetricasService metricasService;
 
 	@Operation(operationId = "metricasDelPanel", summary = "Métricas simples de la comuna")
@@ -131,6 +134,15 @@ public class PanelReclamosController {
 			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
 		// Quien asigna sale del token. La asignación se confirma en su propia transacción y el detalle se lee después.
 		cambios.asignarAgente(numero, pedido.idAgente(), usuario.id());
+		return panel.detalle(numero);
+	}
+
+	@Operation(operationId = "cambiarTipo", summary = "Cambiar el tipo de un reclamo (aceptar o corregir la sugerencia de la IA)")
+	@PutMapping("/reclamos/{numero}/tipo")
+	public ReclamoPanelDetalleDto cambiarTipo(@PathVariable Integer numero, @Valid @RequestBody CambiarTipoRequest pedido,
+			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
+		// Quien decide sale del token. El cambio se confirma en su propia transacción y el detalle se lee después.
+		tipoDelReclamo.cambiarTipo(numero, pedido.tipo(), usuario.id());
 		return panel.detalle(numero);
 	}
 

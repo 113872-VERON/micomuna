@@ -83,6 +83,36 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.paths['/api/tipos-reclamo'].get.responses['403']").exists());
 	}
 
+	// MC-25: lo nuevo coincide con docs/api/openapi.yaml: cambiar el tipo (aceptar o corregir la sugerencia de la IA) y la
+	// sugerencia dentro del detalle del panel.
+	@Test
+	void cambiarElTipoYLaSugerenciaDeLaIaCoincidenConElContrato() throws Exception {
+		String tipo = "$.paths['/api/panel/reclamos/{numero}/tipo'].put";
+		String sugerencia = "$.components.schemas.SugerenciaIaDto.properties";
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(tipo + ".operationId").value("cambiarTipo"))
+				.andExpect(jsonPath(tipo + ".tags[0]").value("Panel de reclamos"))
+				.andExpect(jsonPath(tipo + ".requestBody.content['application/json'].schema['$ref']")
+						.value("#/components/schemas/CambiarTipoRequest"))
+				.andExpect(jsonPath(tipo + ".responses['200'].content['*/*'].schema['$ref']")
+						.value("#/components/schemas/ReclamoPanelDetalleDto"))
+				.andExpect(jsonPath(tipo + ".responses['401']").exists())
+				.andExpect(jsonPath(tipo + ".responses['403'].description").value(org.hamcrest.Matchers.containsString("ACCESO_DENEGADO")))
+				.andExpect(jsonPath("$.components.schemas.CambiarTipoRequest.required").value(org.hamcrest.Matchers.contains("tipo")))
+				.andExpect(jsonPath("$.components.schemas.ReclamoPanelDetalleDto.properties.sugerenciaIa['$ref']")
+						.value("#/components/schemas/SugerenciaIaDto"))
+				.andExpect(jsonPath(sugerencia + ".estado.enum")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("HECHA", "NO_DISPONIBLE", "SIN_ANALIZAR")))
+				.andExpect(jsonPath(sugerencia + ".decision.enum")
+						.value(org.hamcrest.Matchers.hasItems("ACEPTADA", "CORREGIDA")))
+				.andExpect(jsonPath(sugerencia + ".coincide.type").value("boolean"))
+				.andExpect(jsonPath("$.components.schemas.SugerenciaIaDto.properties.keys()")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("estado", "tipoSugerido", "tipoSugeridoNombre",
+								"justificacion", "coincide", "decision", "tipoDecidido", "tipoDecididoNombre", "decididaPor",
+								"decididaEn")));
+	}
+
 	@Test
 	void losEndpointsPublicosNoDocumentan401() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))

@@ -2,6 +2,7 @@ package com.micomuna.entities;
 
 import java.time.Instant;
 
+import com.micomuna.enums.DecisionSugerenciaIa;
 import com.micomuna.enums.EstadoSugerenciaIa;
 import com.micomuna.enums.PrioridadIa;
 import com.micomuna.enums.ProveedorIa;
@@ -24,6 +25,8 @@ import lombok.NoArgsConstructor;
 // La IA solo sugiere: nada de esto cambia el reclamo. La base exige la coherencia (ck_sugerencia_ia_hecha): HECHA trae tipo,
 // prioridad y justificación; ERROR y OMITIDA no traen ninguno. Una fila no se modifica: se crea una nueva.
 // La comuna y el reclamo van como ids sueltos (la clave foránea de dos columnas la controla la base).
+// Lo único que cambia de una fila es la decisión del personal (V13, MC-25): aceptó o corrigió lo que sugirió la IA. Va todo junto
+// (decisión, tipo decidido, quién y cuándo) y solo sobre una HECHA; ck_sugerencia_ia_decision_coherente lo exige en la base.
 @Entity
 @Table(name = "reclamo_sugerencia_ia")
 @Getter
@@ -75,6 +78,21 @@ public class SugerenciaIa {
 	@Column(name = "creada_en", nullable = false, updatable = false)
 	private Instant creadaEn;
 
+	// ACEPTADA: el personal dejó el tipo sugerido. CORREGIDA: dejó otro (incluido el que había elegido el vecino).
+	@Enumerated(EnumType.STRING)
+	private DecisionSugerenciaIa decision;
+
+	// Código de tipo_reclamo que quedó decidido (clave foránea a tipo_reclamo.codigo).
+	@Column(name = "tipo_decidido")
+	private String tipoDecidido;
+
+	// Quién decidió: id suelto (la clave foránea de dos columnas con id_comuna la controla la base).
+	@Column(name = "id_usuario_decision")
+	private Long idUsuarioDecision;
+
+	@Column(name = "decidida_en")
+	private Instant decididaEn;
+
 	private SugerenciaIa(Long idComuna, Long idReclamo, EstadoSugerenciaIa estado, ProveedorIa proveedor, String modelo) {
 		this.idComuna = idComuna;
 		this.idReclamo = idReclamo;
@@ -106,6 +124,18 @@ public class SugerenciaIa {
 	// No se llamó a nadie: proveedor NINGUNO y sin modelo.
 	public static SugerenciaIa omitida(Long idComuna, Long idReclamo) {
 		return new SugerenciaIa(idComuna, idReclamo, EstadoSugerenciaIa.OMITIDA, ProveedorIa.NINGUNO, null);
+	}
+
+	// Registra (o reemplaza) la decisión del personal. Solo una HECHA se decide. ACEPTADA si el tipo decidido es el sugerido;
+	// si no, CORREGIDA.
+	public void decidir(String tipoDecidido, Long idUsuario, Instant cuando) {
+		if (estado != EstadoSugerenciaIa.HECHA) {
+			throw new IllegalStateException("Solo se decide sobre una sugerencia HECHA.");
+		}
+		this.decision = tipoDecidido.equals(tipoSugerido) ? DecisionSugerenciaIa.ACEPTADA : DecisionSugerenciaIa.CORREGIDA;
+		this.tipoDecidido = tipoDecidido;
+		this.idUsuarioDecision = idUsuario;
+		this.decididaEn = cuando;
 	}
 
 	@PrePersist

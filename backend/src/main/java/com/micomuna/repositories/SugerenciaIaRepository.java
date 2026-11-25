@@ -2,6 +2,7 @@ package com.micomuna.repositories;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.Repository;
@@ -9,13 +10,16 @@ import org.springframework.data.repository.query.Param;
 
 import com.micomuna.entities.SugerenciaIa;
 
-// Las sugerencias de la IA se crean y no se cambian (MC-24). Mostrarlas es de MC-25 y MC-27.
+// Las sugerencias de la IA se crean y no se cambian (MC-24); lo único que se agrega después es la decisión del personal (MC-25).
 public interface SugerenciaIaRepository extends Repository<SugerenciaIa, Long> {
 
 	SugerenciaIa save(SugerenciaIa sugerencia);
 
 	// Las filas de un reclamo, de la más nueva a la más vieja (la vigente es la primera).
 	List<SugerenciaIa> findByIdReclamoOrderByCreadaEnDescIdDesc(Long idReclamo);
+
+	// La sugerencia vigente de un reclamo: la fila más nueva (vacío si todavía no hay ninguna).
+	Optional<SugerenciaIa> findFirstByIdReclamoOrderByCreadaEnDescIdDesc(Long idReclamo);
 
 	// Tope diario: los análisis de la comuna desde `desde` (el comienzo del día argentino). Cuentan los que llamaron al
 	// proveedor (HECHA y ERROR, que son los que cuestan); las OMITIDA no. Usa el índice (id_comuna, creada_en).

@@ -35,7 +35,7 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@Query(value = """
 			select new com.micomuna.dtos.MiReclamoResumenDto(r.numero, t.codigo, t.nombre, r.estado, r.descripcion,
 				r.direccion, r.creadoEn,
-				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id), r.creadoEn),
+				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id and (e.estadoAnterior is null or e.estadoAnterior <> e.estado)), r.creadoEn),
 				(select f.id from ReclamoFoto f where f.reclamo.id = r.id
 					and f.origen = com.micomuna.enums.OrigenFoto.VECINO
 					and f.orden = (select min(f2.orden) from ReclamoFoto f2
@@ -63,7 +63,7 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@Query(value = """
 			select new com.micomuna.dtos.ReclamoAgenteDto(r.numero, t.codigo, t.nombre, r.estado, r.direccion, r.referencia,
 				r.latitud, r.longitud, r.creadoEn,
-				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id), r.creadoEn))
+				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id and (e.estadoAnterior is null or e.estadoAnterior <> e.estado)), r.creadoEn))
 			from Reclamo r join r.tipo t
 			where r.comuna.id = :idComuna and r.agente.id = :idAgente
 				and r.estado in (com.micomuna.enums.EstadoReclamo.ASIGNADO, com.micomuna.enums.EstadoReclamo.EN_REPARACION)

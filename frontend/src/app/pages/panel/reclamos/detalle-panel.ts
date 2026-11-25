@@ -10,6 +10,8 @@ import { IconoTipo } from '../../../compartido/icono-tipo/icono-tipo';
 import { MapaUbicacion, VistaMapa } from '../../../mapas/mapa-ubicacion/mapa-ubicacion';
 import { ReclamosPanelService } from '../../../panel/reclamos-panel.service';
 import { FotosDeReclamos } from '../../../reclamos/fotos-de-reclamos';
+import { TipoReclamoDto } from '../../../reclamos/modelos';
+import { ReclamosService } from '../../../reclamos/reclamos.service';
 import { AgenteConCargaDto, CambioDeEstadoPanelDto, ReclamoElegido, ReclamoPanelDetalleDto, sePuedeDescartar, textoDeAgenteConCarga } from '../../../reclamos/modelos-panel';
 import { textoDeMotivo } from '../../../reclamos/seguimiento';
 import { DialogoCambiarEstado } from './dialogo-cambiar-estado';
@@ -26,6 +28,21 @@ function mensajeDeAsignar(e: unknown, codigo: string | undefined): string {
       return 'Otra persona está cambiando este reclamo en este momento. Esperá un instante y probá de nuevo.';
     case 'AGENTE_INVALIDO':
       return 'Ese agente ya no está disponible. Elegí otro de la lista.';
+    default:
+      return mensajeDeError(e);
+  }
+}
+
+function mensajeDeTipo(e: unknown, codigo: string | undefined): string {
+  switch (codigo) {
+    case 'RECLAMO_CERRADO':
+      return 'El reclamo ya está cerrado: no se puede cambiar el tipo.';
+    case 'MISMO_TIPO':
+      return 'El reclamo ya tiene ese tipo. Elegí otro si querés cambiarlo.';
+    case 'TIPO_INVALIDO':
+      return 'Ese tipo ya no está disponible. Elegí otro de la lista.';
+    case 'CONFLICTO':
+      return 'Otra persona está cambiando este reclamo. Probá de nuevo.';
     default:
       return mensajeDeError(e);
   }
@@ -48,6 +65,7 @@ export class DetallePanel {
   readonly numero = input.required<string>();
 
   private readonly api = inject(ReclamosPanelService);
+  private readonly reclamosApi = inject(ReclamosService);
 
   protected readonly carga = signal<'cargando' | 'lista' | 'noEncontrado' | 'error'>('cargando');
   protected readonly reclamo = signal<ReclamoPanelDetalleDto | null>(null);
@@ -57,6 +75,123 @@ export class DetallePanel {
   protected readonly sinMapa = signal(false);
   protected readonly dialogo = signal<'estado' | 'descarte' | null>(null);
   private readonly intento = signal(0);
+
+  // ---- Sugerencia de la IA (MC-25): la IA solo sugiere, el tipo lo decide el personal ----
+  protected readonly eligiendoTipo = signal(false);
+  protected readonly tipos = signal<readonly TipoReclamoDto[]>([]);
+  protected readonly errorTipos = signal(false);
+  protected readonly tipoElegido = signal('');
+  protected readonly intentoTipo = signal(false);
+  protected readonly guardandoTipo = signal(false);
+  protected readonly errorTipo = signal<string | null>(null);
+  protected readonly actualizandoSugerencia = signal(false);
+  protected readonly sugerencia = computed(() => this.reclamo()?.sugerenciaIa ?? null);
+  protected readonly estaCerrado = computed(() => {
+    const e = this.reclamo()?.estado;
+    return e === 'RESUELTO' || e === 'DESCARTADO';
+  });
+  // Hay sugerencia distinta del tipo elegido y nadie decidió todavía.
+  protected readonly pendiente = computed(() => {
+    const s = this.sugerencia();
+    return s?.estado === 'HECHA' && !s.coincide && !s.decision;
+  });
+  protected readonly errorTipoElegido = computed(() => (this.intentoTipo() && !this.tipoElegido() ? 'Elegí un tipo.' : null));
+
+  protected aceptarSugerencia(): void {
+    const t = this.sugerencia()?.tipoSugerido;
+    if (t) {
+      this.guardarTipo(t);
+    }
+  }
+
+  protected mantenerTipo(): void {
+    const r = this.reclamo();
+    if (r) {
+      this.guardarTipo(r.tipo);
+    }
+  }
+
+  protected abrirElegirTipo(): void {
+    this.eligiendoTipo.set(true);
+    this.errorTipo.set(null);
+    this.intentoTipo.set(false);
+    this.tipoElegido.set('');
+    if (this.tipos().length === 0) {
+      this.cargarTipos();
+    }
+  }
+
+  protected cancelarElegirTipo(): void {
+    this.eligiendoTipo.set(false);
+    this.errorTipo.set(null);
+  }
+
+  protected cargarTipos(): void {
+    this.errorTipos.set(false);
+    this.reclamosApi.listarTipos().subscribe({
+      next: (t) => this.tipos.set(t),
+      error: () => this.errorTipos.set(true),
+    });
+  }
+
+  protected elegirTipo(evento: Event): void {
+    this.tipoElegido.set((evento.target as HTMLSelectElement).value);
+    this.errorTipo.set(null);
+  }
+
+  protected guardarTipoElegido(): void {
+    this.intentoTipo.set(true);
+    const t = this.tipoElegido();
+    if (t) {
+      this.guardarTipo(t);
+    }
+  }
+
+  // Cada acción manda el tipo que decide el personal; el servidor registra si fue aceptar o corregir.
+  private guardarTipo(tipo: string): void {
+    const r = this.reclamo();
+    if (!r || this.guardandoTipo()) {
+      return;
+    }
+    this.guardandoTipo.set(true);
+    this.errorTipo.set(null);
+    this.api.cambiarTipo(r.numero, tipo).subscribe({
+      next: (nuevo) => {
+        this.reclamo.set(nuevo);
+        this.guardandoTipo.set(false);
+        this.eligiendoTipo.set(false);
+      },
+      error: (e: unknown) => {
+        this.guardandoTipo.set(false);
+        const codigo = e instanceof HttpErrorResponse ? (e.error?.codigo as string | undefined) : undefined;
+        this.errorTipo.set(mensajeDeTipo(e, codigo));
+        // Si el reclamo cambió del lado del servidor, se vuelve a mirar para no mostrar datos viejos.
+        if (codigo === 'RECLAMO_CERRADO' || codigo === 'CONFLICTO' || codigo === 'MISMO_TIPO') {
+          this.eligiendoTipo.set(false);
+          this.intento.update((n) => n + 1);
+        }
+      },
+    });
+  }
+
+  // La sugerencia puede aparecer unos segundos después del alta: se vuelve a pedir el detalle.
+  protected actualizarSugerencia(): void {
+    const r = this.reclamo();
+    if (!r || this.actualizandoSugerencia()) {
+      return;
+    }
+    this.actualizandoSugerencia.set(true);
+    this.api.detalle(r.numero).subscribe({
+      next: (nuevo) => {
+        this.reclamo.set(nuevo);
+        this.actualizandoSugerencia.set(false);
+      },
+      error: () => {
+        this.actualizandoSugerencia.set(false);
+        this.errorTipo.set('No pudimos actualizar la sugerencia. Probá de nuevo.');
+      },
+    });
+  }
 
   // ---- Asignar a un agente ----
   protected readonly textoAgente = textoDeAgenteConCarga;
@@ -209,6 +344,11 @@ export class DetallePanel {
       return null;
     }
     return c.agenteAnterior ? `Reasignado de ${c.agenteAnterior.nombre} a ${c.agente.nombre}` : `Asignado a ${c.agente.nombre}`;
+  }
+
+  // Mismo estado y sin agente: no cambió el estado ni se reasignó, solo se cambió el tipo (MC-25).
+  protected esCambioDeTipo(c: CambioDeEstadoPanelDto): boolean {
+    return c.estadoAnterior === c.estado && !c.agente;
   }
 
   protected reintentar(): void {

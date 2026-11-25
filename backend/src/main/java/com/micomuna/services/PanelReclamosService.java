@@ -21,10 +21,14 @@ import com.micomuna.dtos.PuntoReclamoDto;
 import com.micomuna.dtos.ReclamoPanelDetalleDto;
 import com.micomuna.dtos.ReclamoPanelDto;
 import com.micomuna.dtos.ResumenPanelDto;
+import com.micomuna.dtos.SugerenciaIaDto;
 import com.micomuna.entities.Reclamo;
 import com.micomuna.entities.ReclamoFoto;
+import com.micomuna.entities.SugerenciaIa;
 import com.micomuna.entities.Usuario;
 import com.micomuna.enums.EstadoReclamo;
+import com.micomuna.enums.EstadoSugerenciaIa;
+import com.micomuna.enums.EstadoSugerenciaPanel;
 import com.micomuna.enums.OrigenFoto;
 import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.PeticionInvalidaException;
@@ -33,6 +37,7 @@ import com.micomuna.models.FiltrosDelPanel;
 import com.micomuna.repositories.PanelReclamosRepository;
 import com.micomuna.repositories.ReclamoEstadoRepository;
 import com.micomuna.repositories.ReclamoFotoRepository;
+import com.micomuna.repositories.SugerenciaIaRepository;
 import com.micomuna.repositories.TipoReclamoRepository;
 import com.micomuna.repositories.UsuarioRepository;
 import com.micomuna.security.ComunaActual;
@@ -53,6 +58,7 @@ public class PanelReclamosService {
 	private final ReclamoEstadoRepository historial;
 	private final ReclamoFotoRepository fotos;
 	private final TipoReclamoRepository tipos;
+	private final SugerenciaIaRepository sugerencias;
 	private final UsuarioRepository usuarios;
 	private final ComunaActual comunaActual;
 
@@ -142,9 +148,32 @@ public class PanelReclamosService {
 				reclamo.getDireccion(), reclamo.getLatitud() == null ? null : reclamo.getLatitud().doubleValue(),
 				reclamo.getLongitud() == null ? null : reclamo.getLongitud().doubleValue(), reclamo.getCreadoEn(),
 				reclamo.getVecino().getNombre(), AgenteDto.desde(reclamo.getAgente()), datosDeFotos, cambios, descarte,
-				resuelto ? reclamo.getTrabajoRealizado() : null, panel.numerosDeDuplicados(reclamo.getId()));
+				resuelto ? reclamo.getTrabajoRealizado() : null, panel.numerosDeDuplicados(reclamo.getId()), sugerenciaIa(reclamo));
 	}
 
+
+	// La sugerencia vigente de la IA (la fila más nueva): sin filas SIN_ANALIZAR; ERROR u OMITIDA NO_DISPONIBLE (sin tipo ni
+	// justificación, y nunca el detalle del error, el modelo ni los tokens); HECHA con el tipo, la justificación y, si el
+	// personal ya decidió, la decisión. La prioridad sugerida no se muestra (MC-27).
+	private SugerenciaIaDto sugerenciaIa(Reclamo reclamo) {
+		SugerenciaIa s = sugerencias.findFirstByIdReclamoOrderByCreadaEnDescIdDesc(reclamo.getId()).orElse(null);
+		if (s == null) {
+			return SugerenciaIaDto.sinAnalizar();
+		}
+		if (s.getEstado() != EstadoSugerenciaIa.HECHA) {
+			return SugerenciaIaDto.noDisponible();
+		}
+		String decididaPor = s.getIdUsuarioDecision() == null ? null
+				: usuarios.findByIdAndComunaId(s.getIdUsuarioDecision(), reclamo.getComuna().getId()).map(Usuario::getNombre)
+						.orElse(null);
+		return new SugerenciaIaDto(EstadoSugerenciaPanel.HECHA, s.getTipoSugerido(), nombreDeTipo(s.getTipoSugerido()),
+				s.getJustificacion(), s.getTipoSugerido().equals(reclamo.getTipo().getCodigo()), s.getDecision(),
+				s.getTipoDecidido(), nombreDeTipo(s.getTipoDecidido()), decididaPor, s.getDecididaEn());
+	}
+
+	private String nombreDeTipo(String codigo) {
+		return codigo == null ? null : tipos.findByCodigo(codigo).map(t -> t.getNombre()).orElse(null);
+	}
 	@Transactional(readOnly = true)
 	public MisReclamosService.Imagen foto(Integer numero, Long idFoto) {
 		ReclamoFoto foto = fotos.buscarEnComuna(idFoto, numero, comunaActual.id())

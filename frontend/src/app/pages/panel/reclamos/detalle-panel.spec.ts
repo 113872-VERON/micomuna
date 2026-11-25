@@ -44,6 +44,7 @@ const reclamo = (extra: Partial<ReclamoPanelDetalleDto> = {}): ReclamoPanelDetal
   descarte: null,
   trabajoRealizado: null,
   duplicados: [],
+  sugerenciaIa: { estado: 'SIN_ANALIZAR', coincide: false },
   ...extra,
 });
 
@@ -546,5 +547,171 @@ describe('DetallePanel', () => {
     const f = crear('42', reclamo({ numero: 42, direccion: largo, descripcion: 'x'.repeat(500), historial: Array.from({ length: 40 }, (_, i) => ({ estadoAnterior: null, estado: 'ASIGNADO' as const, fecha: '2026-11-04T10:30:00', usuarioNombre: `Persona ${i}`, observacion: 'o'.repeat(300) })) }));
 
     expect(seccion(f, 'Historial')?.querySelectorAll('li').length).toBe(40);
+  });
+
+  it('unCambioDeTipoSeMuestraComoEventoPropioYUnaReasignacionNo', () => {
+    const f = crear('42', reclamo({
+      historial: [
+        { estadoAnterior: null, estado: 'RECIBIDO', fecha: '2026-11-03T09:12:00', usuarioNombre: 'Ana López', observacion: null },
+        { estadoAnterior: 'RECIBIDO', estado: 'RECIBIDO', fecha: '2026-11-04T10:30:00', usuarioNombre: 'Marta Gil', observacion: 'Cambió el tipo de Bache o calle rota a Luz quemada', agente: null, agenteAnterior: null },
+        { estadoAnterior: 'ASIGNADO', estado: 'ASIGNADO', fecha: '2026-11-05T08:00:00', usuarioNombre: 'Marta Gil', observacion: null, agente: { id: 9, nombre: 'Lucía Paz' }, agenteAnterior: { id: 4, nombre: 'Marcos Díaz' } },
+      ],
+    }));
+
+    const filas = Array.from(seccion(f, 'Historial')?.querySelectorAll('li') ?? []);
+    expect(filas[1].textContent?.replace(/\s+/g, ' ').trim()).toBe('Cambio de tipo 4/11/2026 10:30 Lo cambió Marta Gil Cambió el tipo de Bache o calle rota a Luz quemada');
+    expect(filas[1].querySelector('app-chip-estado')).toBeNull();
+    expect(filas[1].textContent).not.toContain('easignado');
+    expect(filas[2].textContent).toContain('Reasignado de Marcos Díaz a Lucía Paz');
+    expect(filas[2].querySelector('app-chip-estado')).not.toBeNull();
+  });
+
+  describe('sugerencia de la IA', () => {
+    const TIPOS = [
+      { codigo: 'BACHE', nombre: 'Bache o calle rota', consejoFoto: '' },
+      { codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' },
+      { codigo: 'AGUA', nombre: 'Pérdida de agua', consejoFoto: '' },
+    ];
+    const sugiere = (extra: Partial<ReclamoPanelDetalleDto['sugerenciaIa']> = {}): ReclamoPanelDetalleDto['sugerenciaIa'] => ({
+      estado: 'HECHA',
+      tipoSugerido: 'LUZ',
+      tipoSugeridoNombre: 'Luz quemada',
+      justificacion: 'Se ve un farol apagado.',
+      coincide: false,
+      decision: null,
+      ...extra,
+    });
+    const tarjeta = (f: ComponentFixture<unknown>) => seccion(f, 'Sugerencia de la IA')!;
+    const textoTarjeta = (f: ComponentFixture<unknown>) => tarjeta(f).textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    const botonesDeTarjeta = (f: ComponentFixture<unknown>) => Array.from(tarjeta(f).querySelectorAll('button')).map((b) => b.textContent?.trim());
+    const decidida = (tipo: string, nombre: string, decision: 'ACEPTADA' | 'CORREGIDA') =>
+      sugiere({ decision, tipoDecidido: tipo, tipoDecididoNombre: nombre, decididaPor: 'Marta Gil', decididaEn: '2026-11-25T10:05:00' });
+
+    it('siCoincideLoDiceYNoPideDecidir', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere({ coincide: true, tipoSugerido: 'BACHE', tipoSugeridoNombre: 'Bache o calle rota' }) }));
+
+      expect(textoTarjeta(f)).toContain('La IA coincide con el tipo elegido: Bache o calle rota.');
+      expect(textoTarjeta(f)).toContain('Se ve un farol apagado.');
+      expect(textoTarjeta(f)).toContain('La IA solo sugiere: el tipo lo decide la comuna.');
+      expect(botonesDeTarjeta(f)).toEqual(['Cambiar tipo']);
+    });
+
+    it('siNoCoincideOfreceAceptarMantenerYElegirOtro', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere() }));
+
+      expect(textoTarjeta(f)).toContain('La IA sugiere: Luz quemada');
+      expect(botonesDeTarjeta(f)).toEqual(['Aceptar Luz quemada', 'Mantener Bache o calle rota', 'Elegir otro tipo']);
+    });
+
+    it('aceptarMandaElTipoSugeridoYRefrescaTodaLaPantalla', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere() }));
+
+      boton(f, 'Aceptar Luz quemada').click();
+      f.detectChanges();
+      const p = http.expectOne('/api/panel/reclamos/42/tipo');
+      expect(p.request.method).toBe('PUT');
+      expect(p.request.body).toEqual({ tipo: 'LUZ' });
+      expect(boton(f, 'Guardando…').disabled).toBe(true);
+      expect(boton(f, 'Mantener Bache o calle rota').disabled).toBe(true);
+      p.flush(reclamo({ tipo: 'LUZ', tipoNombre: 'Luz quemada', sugerenciaIa: { ...decidida('LUZ', 'Luz quemada', 'ACEPTADA'), coincide: true } }));
+      f.detectChanges();
+
+      expect(seccion(f, 'Qué reportó el vecino')?.textContent).toContain('Luz quemada');
+      expect(textoTarjeta(f)).toContain('Marta Gil aceptó la sugerencia de la IA el 25/11/2026 10:05: Luz quemada.');
+      expect(botonesDeTarjeta(f)).toEqual(['Cambiar tipo']);
+    });
+
+    it('mantenerMandaElTipoActual', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere() }));
+
+      boton(f, 'Mantener Bache o calle rota').click();
+      const p = http.expectOne('/api/panel/reclamos/42/tipo');
+      expect(p.request.body).toEqual({ tipo: 'BACHE' });
+      p.flush(reclamo({ sugerenciaIa: decidida('BACHE', 'Bache o calle rota', 'CORREGIDA') }));
+      f.detectChanges();
+
+      expect(textoTarjeta(f)).toContain('La IA sugería Luz quemada; Marta Gil dejó Bache o calle rota el 25/11/2026 10:05.');
+    });
+
+    it('elegirOtroTipoCargaLosTiposExigeUnoYGuarda', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere() }));
+
+      boton(f, 'Elegir otro tipo').click();
+      f.detectChanges();
+      http.expectOne('/api/tipos-reclamo').flush(TIPOS);
+      f.detectChanges();
+      boton(f, 'Guardar').click();
+      f.detectChanges();
+      http.expectNone('/api/panel/reclamos/42/tipo');
+      expect(textoTarjeta(f)).toContain('Elegí un tipo.');
+
+      const select = tarjeta(f).querySelector('select') as HTMLSelectElement;
+      expect(Array.from(select.options).map((o) => o.textContent?.trim())).toEqual(['Elegí un tipo', 'Bache o calle rota', 'Luz quemada', 'Pérdida de agua']);
+      select.value = 'AGUA';
+      select.dispatchEvent(new Event('change'));
+      f.detectChanges();
+      boton(f, 'Guardar').click();
+      const p = http.expectOne('/api/panel/reclamos/42/tipo');
+      expect(p.request.body).toEqual({ tipo: 'AGUA' });
+      p.flush(reclamo({ tipo: 'AGUA', tipoNombre: 'Pérdida de agua', sugerenciaIa: decidida('AGUA', 'Pérdida de agua', 'CORREGIDA') }));
+      f.detectChanges();
+
+      expect(textoTarjeta(f)).toContain('La IA sugería Luz quemada; Marta Gil dejó Pérdida de agua el 25/11/2026 10:05.');
+      expect(tarjeta(f).querySelector('select')).toBeNull();
+    });
+
+    it('conDecisionPermiteCambiarElTipoOtraVez', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: decidida('LUZ', 'Luz quemada', 'ACEPTADA') }));
+
+      expect(botonesDeTarjeta(f)).toEqual(['Cambiar tipo']);
+      boton(f, 'Cambiar tipo').click();
+      f.detectChanges();
+      http.expectOne('/api/tipos-reclamo').flush(TIPOS);
+      f.detectChanges();
+
+      expect(tarjeta(f).querySelector('select')).not.toBeNull();
+    });
+
+    it('sinAnalizarOfreceActualizarYCambiarTipo', () => {
+      const f = crear('42');
+
+      expect(textoTarjeta(f)).toContain('Todavía no hay sugerencia de la IA.');
+      expect(botonesDeTarjeta(f)).toEqual(['Actualizar', 'Cambiar tipo']);
+      boton(f, 'Actualizar').click();
+      http.expectOne('/api/panel/reclamos/42').flush(reclamo({ sugerenciaIa: sugiere() }));
+      f.detectChanges();
+
+      expect(textoTarjeta(f)).toContain('La IA sugiere: Luz quemada');
+    });
+
+    it('noDisponibleLoDiceYDejaCambiarElTipo', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: { estado: 'NO_DISPONIBLE', coincide: false } }));
+
+      expect(textoTarjeta(f)).toContain('La IA no pudo analizar este reclamo.');
+      expect(botonesDeTarjeta(f)).toEqual(['Cambiar tipo']);
+    });
+
+    it('unConflictoSeExplicaYVuelveAMirarElReclamo', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: sugiere() }));
+
+      boton(f, 'Aceptar Luz quemada').click();
+      http.expectOne('/api/panel/reclamos/42/tipo').flush({ codigo: 'CONFLICTO' }, { status: 409, statusText: 'Conflicto' });
+      f.detectChanges();
+      http.expectOne('/api/panel/reclamos/42').flush(reclamo({ sugerenciaIa: sugiere() }));
+      f.detectChanges();
+
+      expect(tarjeta(f).querySelector('[role="alert"]')?.textContent).toContain('Otra persona está cambiando este reclamo. Probá de nuevo.');
+      expect(boton(f, 'Aceptar Luz quemada').disabled).toBe(false);
+    });
+
+    it('conElReclamoCerradoSeVeLaSugerenciaSinAcciones', () => {
+      for (const estado of ['RESUELTO', 'DESCARTADO'] as const) {
+        const f = crear('42', reclamo({ estado, sugerenciaIa: sugiere() }));
+
+        expect(textoTarjeta(f)).toContain('La IA sugiere: Luz quemada');
+        expect(tarjeta(f).querySelectorAll('button').length).toBe(0);
+        f.destroy();
+      }
+    });
   });
 });

@@ -24,5 +24,6 @@ public record ReclamoPanelDetalleDto(
 		@Schema(description = "Del más viejo al más nuevo") List<CambioDeEstadoPanelDto> historial,
 		@Schema(nullable = true, description = "Solo si el estado es DESCARTADO") DescartePanelDto descarte,
 		@Schema(nullable = true, description = "Solo si el estado es RESUELTO") String trabajoRealizado,
-		@Schema(description = "Números de los reclamos descartados como duplicados de este") List<Integer> duplicados) {
+		@Schema(description = "Números de los reclamos descartados como duplicados de este") List<Integer> duplicados,
+		@Schema(description = "La sugerencia de tipo de la IA vigente. Siempre presente") SugerenciaIaDto sugerenciaIa) {
 }

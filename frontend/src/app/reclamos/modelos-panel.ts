@@ -96,6 +96,21 @@ export interface ReclamoPanelDetalleDto {
   descarte: DescartePanelDto | null;
   trabajoRealizado: string | null;
   duplicados: number[];
+  sugerenciaIa: SugerenciaIaDto;
+}
+
+// La sugerencia de tipo de la IA (docs/api/openapi.yaml, SugerenciaIaDto). La IA solo sugiere: decide el personal.
+export interface SugerenciaIaDto {
+  estado: 'HECHA' | 'NO_DISPONIBLE' | 'SIN_ANALIZAR';
+  tipoSugerido?: string | null;
+  tipoSugeridoNombre?: string | null;
+  justificacion?: string | null;
+  coincide: boolean;
+  decision?: 'ACEPTADA' | 'CORREGIDA' | null;
+  tipoDecidido?: string | null;
+  tipoDecididoNombre?: string | null;
+  decididaPor?: string | null;
+  decididaEn?: string | null;
 }
 
 export type EstadoDeCambio = Exclude<EstadoReclamo, 'DESCARTADO'>;
