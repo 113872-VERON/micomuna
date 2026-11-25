@@ -1,5 +1,5 @@
 import { DatePipe } from '@angular/common';
-import { Component, DestroyRef, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, afterRenderEffect, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AyudaFlotante } from '../../../compartido/ayuda-flotante/ayuda-flotante';
@@ -39,6 +39,16 @@ const POR_PAGINA = 25;
 const ESPERA_BUSQUEDA_MS = 400;
 const ESTADOS: readonly EstadoReclamo[] = ['RECIBIDO', 'ASIGNADO', 'EN_REPARACION', 'RESUELTO', 'DESCARTADO'];
 
+// Alto mínimo del mapa en escritorio, margen que queda debajo y ancho desde el que hay dos columnas.
+export const ALTO_MINIMO_MAPA = 480;
+export const MARGEN_INFERIOR_MAPA = 16;
+const ESCRITORIO = '(min-width: 1001px)';
+
+// Alto para que el mapa entre justo debajo de lo que tiene arriba: lo que queda de ventana, sin bajar del mínimo.
+export function altoDelMapa(altoVentana: number, arriba: number, minimo = ALTO_MINIMO_MAPA, margen = MARGEN_INFERIOR_MAPA): number {
+  return Math.max(minimo, Math.round(altoVentana - arriba - margen));
+}
+
 const mismos = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 // "El más antiguo es de hace 5 días."
@@ -59,6 +69,7 @@ export function textoDelAviso(resumen: ResumenPanelDto, ahora = new Date()): str
   imports: [DatePipe, RouterLink, ChipEstado, IconoTipo, AyudaFlotante, MapaReclamos, DialogoCambiarEstado, DialogoDescartar],
   templateUrl: './reclamos-panel.html',
   styleUrl: './reclamos-panel.scss',
+  host: { '(window:resize)': 'medirMapa()' },
 })
 export class ReclamosPanel {
   readonly slug = input.required<string>();
@@ -124,6 +135,11 @@ export class ReclamosPanel {
   protected readonly todosElegidos = computed(() => this.reclamos().length > 0 && this.seleccionados().length === this.reclamos().length);
   protected readonly algunosElegidos = computed(() => this.seleccionados().length > 0 && !this.todosElegidos());
   protected readonly mostrarMapa = computed(() => this.vista() === 'mapa' && !this.sinMapa());
+
+  // Alto del mapa en escritorio (ej. "612px"); null en angosto, donde manda el valor del CSS.
+  protected readonly altoMapa = signal<string | null>(null);
+  private readonly cuerpo = viewChild<ElementRef<HTMLElement>>('cuerpo');
+  private readonly anfitrion = inject<ElementRef<HTMLElement>>(ElementRef);
 
   private temporizador: ReturnType<typeof setTimeout> | undefined;
   private ultimoEnviado = '';
@@ -197,7 +213,35 @@ export class ReclamosPanel {
       alLimpiar(() => sub.unsubscribe());
     });
 
-    inject(DestroyRef).onDestroy(() => clearTimeout(this.temporizador));
+    // Se mide cada vez que aparece el mapa, y cuando cambia lo de arriba (aviso, filtros, barra) o la ventana.
+    afterRenderEffect(() => {
+      this.mostrarMapa();
+      this.medirMapa();
+    });
+    let observador: ResizeObserver | undefined;
+    afterNextRender(() => {
+      if (typeof ResizeObserver !== 'undefined') {
+        observador = new ResizeObserver(() => this.medirMapa());
+        observador.observe(this.anfitrion.nativeElement);
+      }
+    });
+
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.temporizador);
+      observador?.disconnect();
+    });
+  }
+
+  // Alto visible de la ventana menos lo que hay arriba del mapa (posición en la página, no en la ventana).
+  protected medirMapa(): void {
+    const cuerpo = this.cuerpo()?.nativeElement;
+    const escritorio = typeof matchMedia === 'function' && matchMedia(ESCRITORIO).matches;
+    if (!cuerpo || !this.mostrarMapa() || !escritorio) {
+      this.altoMapa.set(null);
+      return;
+    }
+    const arriba = cuerpo.getBoundingClientRect().top + window.scrollY;
+    this.altoMapa.set(`${altoDelMapa(window.innerHeight, arriba)}px`);
   }
 
   protected cargarAgentes(): void {

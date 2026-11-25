@@ -70,7 +70,7 @@
 </div>
 }
 
-<div class="cuerpo" [class.con-mapa]="mostrarMapa()">
+<div class="cuerpo" #cuerpo [class.con-mapa]="mostrarMapa()">
   <section class="lista" aria-label="Lista de reclamos" [attr.aria-busy]="cargando()">
     @if (errorLista()) {
       <div class="caja-error" role="alert">
@@ -182,7 +182,7 @@
   </section>
 
   @if (mostrarMapa()) {
-    <section class="mapa" aria-label="Mapa de reclamos">
+    <section class="mapa" aria-label="Mapa de reclamos" [style.--alto-mapa]="altoMapa()">
       @if (recortado()) {
         <div class="aviso alerta" role="status">Hay más de 1000 reclamos con estos filtros: el mapa muestra los 1000 más nuevos. Usá los filtros para ver el resto.</div>
       }
@@ -192,7 +192,7 @@
           <button type="button" class="btn sec chico" (click)="reintentar()">Reintentar</button>
         </div>
       }
-      <app-mapa-reclamos [puntos]="puntos()" [limite]="limite()" [resaltado]="filaActiva()" altura="560px" (elegido)="alElegirPin($event)" (falla)="sinMapa.set(true)" />
+      <app-mapa-reclamos [puntos]="puntos()" [limite]="limite()" [resaltado]="filaActiva()" altura="var(--alto-mapa)" (elegido)="alElegirPin($event)" (falla)="sinMapa.set(true)" />
       @if (puntos().length === 0 && !errorMapa()) {
         <p class="ayuda-c">No hay reclamos con ubicación para mostrar con estos filtros.</p>
       }

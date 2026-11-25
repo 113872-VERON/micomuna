@@ -35,10 +35,13 @@
 
 // Lista y mapa lado a lado; en pantallas angostas, una debajo de la otra.
 .cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
-.cuerpo.con-mapa { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+.cuerpo.con-mapa { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
 @media (max-width: 1000px) { .cuerpo.con-mapa { grid-template-columns: minmax(0, 1fr); } }
 .lista, .mapa { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-.mapa { position: sticky; top: 8px; }
+// En angosto el mapa tiene alto fijo. En escritorio el componente mide lo que hay arriba y pisa --alto-mapa en línea
+// (entra justo bajo los filtros, mínimo 480px); este valor es el de respaldo hasta que mide. Queda fijo al bajar.
+.mapa { --alto-mapa: 560px; position: sticky; top: 8px; }
+@media (min-width: 1001px) { .mapa { --alto-mapa: max(480px, calc(100dvh - 112px)); } }
 @media (max-width: 1000px) { .mapa { position: static; } }
 
 .cantidad { color: var(--sub); font-size: 16px; }
