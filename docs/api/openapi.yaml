@@ -1203,6 +1203,67 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/panel/reclamos/{numero}/tipo:
+    put:
+      tags:
+      - Panel de reclamos
+      summary: Cambiar el tipo de un reclamo (aceptar o corregir la sugerencia de la IA)
+      description: "Personal administrativo y administrador de la comuna. Fija el tipo\
+        \ del reclamo: la decisión es siempre del personal, la IA solo sugiere. Si\
+        \ la sugerencia vigente de la IA (la más nueva) está HECHA, se registra la\
+        \ decisión sobre ella: ACEPTADA si el tipo elegido es el sugerido, CORREGIDA\
+        \ si es otro (incluido mantener el tipo que eligió el vecino). Si ya había\
+        \ una decisión, se reemplaza por esta. Mandar el tipo actual solo vale para\
+        \ decidir sobre una sugerencia pendiente: en ese caso el tipo no cambia y\
+        \ queda la decisión. No cambia el estado ni manda correo; el vecino ve el\
+        \ tipo nuevo en sus reclamos. Devuelve el detalle actualizado."
+      operationId: cambiarTipo
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambiarTipoRequest"
+      responses:
+        "200":
+          description: Tipo cambiado o decisión registrada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoPanelDetalleDto"
+        "400":
+          description: "Falta el tipo (VALIDACION) o no es uno de /api/tipos-reclamo\
+            \ (TIPO_INVALIDO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El reclamo no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo está RESUELTO o DESCARTADO (RECLAMO_CERRADO), ya tiene\
+            \ ese tipo y no hay una sugerencia pendiente de decidir (MISMO_TIPO), u otra\
+            \ persona lo está cambiando en este momento (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/panel/reclamos/cambios-de-estado:
     post:
       tags:
@@ -2302,6 +2363,76 @@ components:
           items:
             type: integer
             format: int32
+        sugerenciaIa:
+          $ref: "#/components/schemas/SugerenciaIaDto"
+    SugerenciaIaDto:
+      type: object
+      description: "La sugerencia de tipo de la IA vigente para el reclamo (la más nueva).\
+        \ Solo la ve el personal. La IA solo sugiere: el tipo del reclamo lo decide el\
+        \ personal con PUT /api/panel/reclamos/{numero}/tipo. La prioridad sugerida no\
+        \ se muestra todavía (MC-27)."
+      properties:
+        estado:
+          type: string
+          enum:
+          - HECHA
+          - NO_DISPONIBLE
+          - SIN_ANALIZAR
+          description: "HECHA: hay sugerencia. NO_DISPONIBLE: la IA falló o no se llamó\
+            \ (tope diario o IA apagada). SIN_ANALIZAR: todavía no hay ningún análisis\
+            \ (puede estar en curso, unos segundos después del alta)."
+        tipoSugerido:
+          type:
+          - string
+          - "null"
+          description: Código del tipo sugerido. Solo con HECHA
+        tipoSugeridoNombre:
+          type:
+          - string
+          - "null"
+        justificacion:
+          type:
+          - string
+          - "null"
+          description: Qué vio o leyó la IA para sugerirlo (hasta 300 caracteres). Solo con HECHA
+        coincide:
+          type: boolean
+          description: "true si la sugerencia es HECHA y el tipo sugerido es el tipo actual del reclamo"
+        decision:
+          type:
+          - string
+          - "null"
+          enum:
+          - ACEPTADA
+          - CORREGIDA
+          - null
+          description: "Qué decidió el personal sobre la sugerencia. Vacío si todavía no decidió"
+        tipoDecidido:
+          type:
+          - string
+          - "null"
+        tipoDecididoNombre:
+          type:
+          - string
+          - "null"
+        decididaPor:
+          type:
+          - string
+          - "null"
+          description: Nombre de quién decidió
+        decididaEn:
+          type:
+          - string
+          - "null"
+          format: date-time
+    CambiarTipoRequest:
+      type: object
+      required:
+      - tipo
+      properties:
+        tipo:
+          type: string
+          description: Código del tipo (ver /api/tipos-reclamo)
     CambioDeEstadoPanelDto:
       type: object
       properties:

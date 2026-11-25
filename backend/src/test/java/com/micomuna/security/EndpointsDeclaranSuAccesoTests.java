@@ -182,6 +182,7 @@ class EndpointsDeclaranSuAccesoTests {
 			"GET /api/panel/metricas",
 			"POST /api/panel/reclamos/cambios-de-estado",
 			"PUT /api/panel/reclamos/{numero}/agente",
+			"PUT /api/panel/reclamos/{numero}/tipo",
 			"POST /api/panel/reclamos/descartes");
 
 	@Test

@@ -109,6 +109,11 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "RECLAMO_CERRADO", e.getMessage());
 	}
 
+	@ExceptionHandler(MismoTipoException.class)
+	ProblemDetail mismoTipo(MismoTipoException e) {
+		return problema(HttpStatus.CONFLICT, "Conflicto", "MISMO_TIPO", e.getMessage());
+	}
+
 	@ExceptionHandler(YaAsignadoException.class)
 	ProblemDetail yaAsignado(YaAsignadoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "YA_ASIGNADO", e.getMessage());
