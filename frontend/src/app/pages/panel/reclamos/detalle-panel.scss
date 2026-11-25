@@ -52,3 +52,25 @@ select[aria-invalid='true'] { border-color: var(--error); background: var(--erro
 .aviso-reasignar .botones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
 .aviso-reasignar { display: flex; flex-direction: column; }
 .aviso-reasignar p { margin: 0; }
+
+.ia { gap: 8px; }
+.ia p { margin: 0; }
+.ia-linea { font-weight: 700; overflow-wrap: anywhere; }
+.ia-just { white-space: pre-line; overflow-wrap: anywhere; }
+.ia-sub, .ia-aviso { font-size: 16px; color: var(--sub); overflow-wrap: anywhere; }
+.ia .botones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.ia .botones .btn { touch-action: manipulation; }
+.elegir-tipo { display: flex; flex-direction: column; gap: 4px; }
+.elegir-tipo .botones { margin-top: 8px; }
+@media (max-width: 600px) { .ia .botones .btn:not(.chico) { flex: 1 1 100%; } }
+
+.ia { gap: 8px; }
+.ia p { margin: 0; }
+.ia-linea { font-weight: 700; overflow-wrap: anywhere; }
+.ia-just { white-space: pre-line; overflow-wrap: anywhere; }
+.ia-sub, .ia-aviso { font-size: 16px; color: var(--sub); overflow-wrap: anywhere; }
+.ia .botones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+.ia .botones .btn { touch-action: manipulation; }
+.elegir-tipo { display: flex; flex-direction: column; gap: 4px; }
+.elegir-tipo .botones { margin-top: 8px; }
+@media (max-width: 600px) { .ia .botones .btn:not(.chico) { flex: 1 1 100%; } }

@@ -57,6 +57,11 @@ export class ReclamosPanelService {
     return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/agente`, { idAgente });
   }
 
+  // Decide el tipo del reclamo (acepta o corrige la sugerencia de la IA): devuelve el detalle actualizado.
+  cambiarTipo(numero: number, tipo: string): Observable<ReclamoPanelDetalleDto> {
+    return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/tipo`, { tipo });
+  }
+
   cambiarEstado(pedido: CambioDeEstadoEnLoteRequest): Observable<ResultadoEnLoteDto> {
     return this.http.post<ResultadoEnLoteDto>(`${BASE}/reclamos/cambios-de-estado`, pedido);
   }
