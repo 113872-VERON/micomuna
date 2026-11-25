@@ -9,7 +9,7 @@ import { AuthService } from '../../../auth/auth.service';
 import { ComunaDto } from '../../../auth/modelos';
 import { PuntoReclamoDto, ReclamoPanelDto, ResumenPanelDto } from '../../../reclamos/modelos-panel';
 import { MapaReclamos } from './mapa-reclamos';
-import { ReclamosPanel, textoDelAviso } from './reclamos-panel';
+import { ALTO_MINIMO_MAPA, ReclamosPanel, altoDelMapa, textoDelAviso } from './reclamos-panel';
 
 // Leaflet no se monta en las pruebas: este mapa falso tiene las mismas entradas y salidas.
 @Component({ selector: 'app-mapa-reclamos', template: '<div class="mapa-falso"></div>' })
@@ -123,6 +123,40 @@ describe('Panel de reclamos', () => {
   const boton = (nombre: string) =>
     Array.from(el().querySelectorAll('button')).find((b) => b.textContent?.replace(/\s+/g, ' ').trim().startsWith(nombre)) as HTMLButtonElement;
   const mapaFalso = () => harness.fixture.debugElement.query(By.directive(MapaFalso))?.componentInstance as MapaFalso | undefined;
+
+  describe('alto del mapa en escritorio', () => {
+    it('altoDelMapaEsLoQueQuedaDeVentanaMenosLoDeArribaYElMargen', () => {
+      expect(altoDelMapa(900, 354)).toBe(530);
+      expect(altoDelMapa(900, 0)).toBe(884);
+    });
+
+    it('altoDelMapaNuncaBajaDelMinimoDe480', () => {
+      expect(altoDelMapa(700, 354)).toBe(ALTO_MINIMO_MAPA);
+      expect(altoDelMapa(300, 900)).toBe(480);
+    });
+
+    it('elPanelPonePorEscritorioElAltoMedidoYEnAngostoNoLoToca', async () => {
+      const original = window.matchMedia as typeof window.matchMedia | undefined;
+      let escritorio = true;
+      window.matchMedia = (() => ({ matches: escritorio })) as unknown as typeof window.matchMedia;
+      try {
+        await abrir();
+        await esperar();
+        window.dispatchEvent(new Event('resize'));
+        await esperar();
+        const seccion = el().querySelector<HTMLElement>('section.mapa')!;
+        const arriba = el().querySelector('.cuerpo')!.getBoundingClientRect().top + window.scrollY;
+        expect(seccion.style.getPropertyValue('--alto-mapa')).toBe(`${altoDelMapa(window.innerHeight, arriba)}px`);
+
+        escritorio = false;
+        window.dispatchEvent(new Event('resize'));
+        await esperar();
+        expect(seccion.style.getPropertyValue('--alto-mapa')).toBe('');
+      } finally {
+        window.matchMedia = original as typeof window.matchMedia;
+      }
+    });
+  });
 
   describe('al abrir', () => {
     it('pideLaListaElMapaYElResumenSinFiltrosYMuestraListaYMapa', async () => {

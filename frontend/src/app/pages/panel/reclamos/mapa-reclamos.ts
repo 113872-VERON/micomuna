@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRe
 import * as L from 'leaflet';
 import { ATRIBUCION_ARGENMAP, ATRIBUCION_OSM, ESPERA_TESELAS_MS, RespaldoDeTeselas, URL_ARGENMAP, URL_OSM, ZOOM_MAXIMO } from '../../../mapas/capas-base';
 import { bordesParaDibujar } from '../../../mapas/geo';
+import { crearMascara } from '../../../mapas/mascara';
 import { COLOR_PIN } from '../../../reclamos/estilo-estados';
 import { PuntoReclamoDto } from '../../../reclamos/modelos-panel';
 import { nombreDeEstado } from '../../../reclamos/seguimiento';
@@ -48,8 +49,10 @@ export class MapaReclamos {
   private mapa: L.Map | null = null;
   private pines: L.LayerGroup | null = null;
   private lineas: L.LayerGroup | null = null;
+  private mascara: L.Polygon | null = null;
   private readonly marcadores = new Map<number, L.Marker>();
   private temporizador: ReturnType<typeof setTimeout> | undefined;
+  private observador: ResizeObserver | undefined;
 
   constructor() {
     afterNextRender(() => this.iniciar());
@@ -67,6 +70,7 @@ export class MapaReclamos {
     });
     inject(DestroyRef).onDestroy(() => {
       clearTimeout(this.temporizador);
+      this.observador?.disconnect();
       this.mapa?.remove();
       this.mapa = null;
     });
@@ -77,6 +81,11 @@ export class MapaReclamos {
       const mapa = L.map(this.lienzo().nativeElement, { center: CENTRO_POR_DEFECTO, zoom: ZOOM_POR_DEFECTO, maxZoom: ZOOM_MAXIMO, keyboard: true });
       this.mapa = mapa;
       this.ponerCapas(mapa);
+      // Si cambia el alto o el ancho del lienzo, Leaflet tiene que volver a medirse o queda con teselas de menos.
+      if (typeof ResizeObserver !== 'undefined') {
+        this.observador = new ResizeObserver(() => this.mapa?.invalidateSize({ animate: false }));
+        this.observador.observe(this.lienzo().nativeElement);
+      }
       this.pines = L.layerGroup().addTo(mapa);
       this.dibujarLimite(untracked(() => this.limite()));
       this.dibujarPines(untracked(() => this.puntos()));
@@ -167,11 +176,15 @@ export class MapaReclamos {
       return;
     }
     this.lineas?.remove();
+    this.mascara?.remove();
     const anillos = bordesParaDibujar(figura);
     if (anillos.length === 0) {
       this.lineas = null;
+      this.mascara = null;
       return;
     }
+    // La máscara va primero (y en el panel de overlays, debajo de los pines): no recibe toques.
+    this.mascara = crearMascara(figura).addTo(this.mapa);
     const color = getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#1d6aa8';
     this.lineas = L.layerGroup(
       anillos.map((anillo) => L.polyline(anillo.map((p): L.LatLngTuple => [p.lat, p.lng]), { color, weight: 3, dashArray: '8 8', interactive: false })),

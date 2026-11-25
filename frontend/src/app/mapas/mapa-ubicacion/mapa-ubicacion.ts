@@ -24,10 +24,8 @@ import {
   URL_OSM,
   ZOOM_MAXIMO,
 } from '../capas-base';
-import { anillosExterioresParaMascara, bordesParaDibujar } from '../geo';
-
-// Un anillo que cubre todo el mundo: con el borde de la comuna como agujero, queda gris lo de afuera.
-const MUNDO: L.LatLngTuple[] = [[-90, -180], [-90, 180], [90, 180], [90, -180]];
+import { bordesParaDibujar } from '../geo';
+import { crearMascara } from '../mascara';
 
 // Dónde y a qué altura mira el mapa.
 export interface VistaMapa {
@@ -173,8 +171,7 @@ export class MapaUbicacion {
       return;
     }
     // La máscara va primero: queda debajo de la línea punteada y no recibe toques.
-    const huecos = anillosExterioresParaMascara(figura).map((a) => a.map((p): L.LatLngTuple => [p.lat, p.lng]));
-    this.mascara = L.polygon([MUNDO, ...huecos], { stroke: false, fillColor: '#4b5563', fillOpacity: 0.45, fillRule: 'evenodd', interactive: false, className: 'mascara-fuera' }).addTo(this.mapa);
+    this.mascara = crearMascara(figura).addTo(this.mapa);
     const color = getComputedStyle(document.documentElement).getPropertyValue('--p').trim() || '#1d6aa8';
     this.lineas = L.layerGroup(
       anillos.map((anillo) =>

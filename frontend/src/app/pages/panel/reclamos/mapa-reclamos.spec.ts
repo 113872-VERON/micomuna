@@ -77,6 +77,42 @@ describe('MapaReclamos (con Leaflet de verdad)', () => {
     f.destroy();
   });
 
+  describe('mascara de fuera de la comuna', () => {
+    const cuadrado = (d: number) => ({ type: 'Polygon', coordinates: [[[-64.3 - d, -31.1 - d], [-64.3 + d, -31.1 - d], [-64.3 + d, -31.1 + d], [-64.3 - d, -31.1 + d], [-64.3 - d, -31.1 - d]]] });
+    const mascaras = (f: { nativeElement: unknown }) => (f.nativeElement as HTMLElement).querySelectorAll('path.mascara-fuera');
+
+    it('conLimiteDibujaLaMascaraYLaLineaPunteada', async () => {
+      const f = await crear();
+      f.componentRef.setInput('limite', cuadrado(0.1));
+      f.detectChanges();
+
+      expect(mascaras(f).length).toBe(1);
+      expect((f.nativeElement as HTMLElement).querySelectorAll('path[stroke-dasharray]').length).toBe(1);
+      f.destroy();
+    });
+
+    it('sinLimiteNoDibujaMascara', async () => {
+      const f = await crear();
+
+      expect(mascaras(f).length).toBe(0);
+      f.destroy();
+    });
+
+    it('alCambiarElLimiteReemplazaLaMascaraYNoLaDuplica', async () => {
+      const f = await crear();
+      f.componentRef.setInput('limite', cuadrado(0.1));
+      f.detectChanges();
+      f.componentRef.setInput('limite', cuadrado(0.2));
+      f.detectChanges();
+      expect(mascaras(f).length).toBe(1);
+
+      f.componentRef.setInput('limite', null);
+      f.detectChanges();
+      expect(mascaras(f).length).toBe(0);
+      f.destroy();
+    });
+  });
+
   it('unPuntoConCoordenadasRarasSeSaltea', async () => {
     const f = await crear([...PUNTOS, { numero: 5, estado: 'RECIBIDO', tipo: 'OTRO', latitud: NaN, longitud: 0 }]);
 
