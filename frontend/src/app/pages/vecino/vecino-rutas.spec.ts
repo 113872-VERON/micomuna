@@ -43,7 +43,8 @@ describe('Rutas del vecino (con las rutas reales)', () => {
       if (!terminada) {
         throw new Error('la navegación sigue en curso');
       }
-    });
+      // La primera carga de un tramo perezoso (con Material) puede tardar con todas las pruebas en paralelo.
+    }, { timeout: 8000 });
     await navegacion;
     harness.detectChanges();
   }
