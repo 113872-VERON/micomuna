@@ -555,6 +555,83 @@ describe('Panel de reclamos', () => {
     });
   });
 
+  describe('orden y prioridad (MC-27)', () => {
+    it('porDefectoOrdenaPorFechaYNoMandaElParametro', async () => {
+      await abrir();
+
+      const select = el().querySelector('#filtro-orden') as HTMLSelectElement;
+      expect(select.value).toBe('fecha');
+      expect(Array.from(select.options).map((o) => o.textContent?.trim())).toEqual(['Fecha (más nuevos primero)', 'Prioridad (alta primero)']);
+      expect(el().querySelector('label[for="filtro-orden"]')?.textContent).toBe('Ordenar por');
+    });
+
+    it('elegirPrioridadLoGuardaEnLaUrlVuelveALaPrimeraPaginaYPideElOrden', async () => {
+      await abrir('?pagina=2', { total: 60 });
+
+      await cambiarSelect('filtro-orden', 'prioridad');
+
+      expect(url()).toBe(`${BASE}?orden=prioridad`);
+      const l = lista();
+      expect(l.request.params.get('orden')).toBe('prioridad');
+      expect(l.request.params.get('pagina')).toBe('0');
+      l.flush(pagina([fila(12)]));
+      // El orden no cambia el resumen ni el mapa: no se vuelven a pedir (http.verify lo comprueba).
+      http.expectNone((p) => p.url.endsWith("/mapa") || p.url.endsWith("/resumen"));
+    });
+
+    it('abreConElOrdenDeLaUrlYRespetaLosFiltros', async () => {
+      await harness.navigateByUrl(`${BASE}?orden=prioridad&tipo=LUZ`);
+      http.expectOne('/api/panel/agentes').flush([]);
+      http.expectOne('/api/tipos-reclamo').flush([{ codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' }]);
+      limiteConMapa();
+      resumen().flush(RESUMEN);
+      const l = lista();
+      expect(l.request.params.get('orden')).toBe('prioridad');
+      expect(l.request.params.get('tipo')).toBe('LUZ');
+      l.flush(pagina([fila(12)]));
+      mapa().flush({ puntos: [], recortado: false });
+      harness.detectChanges();
+
+      expect((el().querySelector('#filtro-orden') as HTMLSelectElement).value).toBe('prioridad');
+    });
+
+    it('volverAFechaSacaElParametroDeLaUrl', async () => {
+      await abrir('?orden=prioridad');
+
+      await cambiarSelect('filtro-orden', 'fecha');
+
+      expect(url()).toBe(BASE);
+      const l = lista();
+      expect(l.request.params.has('orden')).toBe(false);
+      l.flush(pagina([fila(12)]));
+    });
+
+    it('cadaFilaMuestraLaPrioridadEnLaVistaConMapa', async () => {
+      await abrir('', {
+        reclamos: [
+          fila(1, { prioridad: { valor: 'ALTA', origen: 'IA' } }),
+          fila(2, { prioridad: { valor: 'BAJA', origen: 'PERSONAL' } }),
+          fila(3, { prioridad: { valor: null, origen: 'NINGUNA' } }),
+          fila(4),
+        ],
+      });
+
+      const chip = (n: number) => el().querySelector(`#fila-${n} app-chip-prioridad`)?.textContent?.replace(/\s+/g, ' ').trim();
+      expect(chip(1)).toBe('Alta Sugerida, sugerida por la IA');
+      expect(chip(2)).toBe('Baja');
+      expect(chip(3)).toBe('Sin prioridad');
+      expect(chip(4)).toBe('Sin prioridad');
+    });
+
+    it('enSoloListaLaTablaTieneLaColumnaPrioridad', async () => {
+      await abrir('?vista=lista', { reclamos: [fila(1, { prioridad: { valor: 'MEDIA', origen: 'PERSONAL' } })] }, false);
+
+      const titulos = Array.from(el().querySelectorAll('th')).map((t) => t.textContent?.trim());
+      expect(titulos).toContain('Prioridad');
+      expect(el().querySelector('#fila-1 td app-chip-prioridad')?.textContent?.trim()).toBe('Media');
+    });
+  });
+
   describe('vistas', () => {
     it('soloListaPasaALaUrlYMuestraLaTablaSinMapa', async () => {
       await abrir();

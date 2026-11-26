@@ -26,6 +26,11 @@
         <p class="dato"><span class="rotulo">Agente</span>&ngsp;{{ r.agente?.nombre || 'Sin asignar' }}</p>
       </section>
 
+      <section class="bloque" aria-labelledby="t-prioridad">
+        <h2 id="t-prioridad">Prioridad</h2>
+        <app-control-prioridad [numero]="r.numero" [prioridad]="r.prioridad" [cerrado]="estaCerrado()" (actualizado)="reclamo.set($event)" (desactualizado)="reintentar()" />
+      </section>
+
       @if (sugerencia(); as s) {
         <section class="bloque ia" aria-labelledby="t-ia">
           <h2 id="t-ia">Sugerencia de la IA</h2>
@@ -39,6 +44,9 @@
                 <p class="ia-linea">La IA coincide con el tipo elegido: {{ s.tipoSugeridoNombre }}.</p>
               } @else {
                 <p class="ia-linea">La IA sugiere: {{ s.tipoSugeridoNombre }}</p>
+              }
+              @if (s.prioridadSugerida) {
+                <p class="ia-linea">Prioridad sugerida por la IA: {{ nombreDePrioridad(s.prioridadSugerida) }}</p>
               }
               @if (s.justificacion) {
                 <p class="ia-just">{{ s.justificacion }}</p>
@@ -267,7 +275,7 @@
             @if (esCambioDeTipo(c)) {
               <li class="h-tipo">
                 <div class="h-arriba">
-                  <strong>Cambio de tipo</strong>&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
+                  <strong>{{ esCambioDePrioridad(c) ? 'Cambio de prioridad' : 'Cambio de tipo' }}</strong>&ngsp;<span class="h-fecha">{{ c.fecha | date: 'd/M/yyyy H:mm' }}</span>
                 </div>&ngsp;<span class="h-quien">Lo cambió {{ c.usuarioNombre || 'el sistema' }}</span>
                 @if (c.observacion) {
                   &ngsp;<span class="h-obs">{{ c.observacion }}</span>

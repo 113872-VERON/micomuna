@@ -25,6 +25,7 @@
       <header class="titulo">
         <h1>Reclamo n.º {{ r.numero }}</h1>
         <app-chip-estado [estado]="r.estado" />
+        <app-chip-prioridad [prioridad]="r.prioridad" />
       </header>
 
       @if (errorAccion(); as m) {

@@ -5,6 +5,7 @@ import java.time.Instant;
 
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.enums.MotivoDescarte;
+import com.micomuna.enums.PrioridadIa;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -101,6 +102,19 @@ public class Reclamo {
 
 	@Column(name = "no_duplicado_en")
 	private Instant noDuplicadoEn;
+
+	// Prioridad que fijó el personal (V15, MC-27): quién y cuándo, las tres juntas o ninguna. La sugerencia de la IA NO se copia
+	// acá: la prioridad efectiva se calcula (ver PrioridadDelReclamo). La base exige que quien la fijó sea de la misma comuna;
+	// que sea ADMINISTRATIVO o ADMIN_COMUNA lo valida CambioDePrioridadService.
+	@Enumerated(EnumType.STRING)
+	private PrioridadIa prioridad;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "id_usuario_prioridad")
+	private Usuario usuarioPrioridad;
+
+	@Column(name = "prioridad_fijada_en")
+	private Instant prioridadFijadaEn;
 
 	// Lo que hizo el agente al resolverlo. Si el reclamo se reabre queda como antecedente.
 	@Column(name = "trabajo_realizado")

@@ -202,7 +202,7 @@ describe('MisReclamos', () => {
       expect(boton(f, 'Ordenar por').textContent).toContain('Fecha');
     });
 
-    it('laHojaTraeTresOpcionesConSuExplicacion', async () => {
+    it('laHojaTraeCuatroOpcionesConSuExplicacion', async () => {
       const f = await crear();
 
       boton(f, 'Ordenar por').click();
@@ -213,6 +213,7 @@ describe('MisReclamos', () => {
         'Fecha Los más antiguos primero.',
         'Tipo Agrupados por tipo de problema, con un título por cada grupo.',
         'Distancia Los más cerca de donde estás primero, en línea recta.',
+        'Prioridad Los de prioridad alta primero; a igual prioridad, el más cerca si tenemos tu ubicación y si no, el más antiguo. Sin prioridad al final.',
       ]);
     });
 
@@ -224,6 +225,46 @@ describe('MisReclamos', () => {
       expect(Array.from(el(f).querySelectorAll('h2.grupo')).map((h) => h.textContent?.trim())).toEqual(['Bache o calle rota', 'Luz quemada']);
       expect(numeros(f)).toEqual(['3', '1', '2']);
       expect(boton(f, 'Ordenar por').textContent).toContain('Tipo');
+    });
+
+    it('porPrioridadVaAltaPrimeroSinPrioridadAlFinalYAIgualPrioridadElMasCerca', async () => {
+      const f = await crear([
+        reclamo(1, { latitud: -31.4066, prioridad: { valor: 'ALTA', origen: 'IA' } }),
+        reclamo(2, { latitud: -31.4165, prioridad: { valor: 'ALTA', origen: 'PERSONAL' } }),
+        reclamo(3, { latitud: -31.4201, prioridad: { valor: 'BAJA', origen: 'PERSONAL' } }),
+        reclamo(4, { prioridad: { valor: null, origen: 'NINGUNA' } }),
+      ]);
+
+      await elegirOrden(f, 'Prioridad');
+
+      expect(numeros(f)).toEqual(['2', '1', '3', '4']);
+      expect(boton(f, 'Ordenar por').textContent).toContain('Prioridad');
+      expect(el(f).querySelector('h2.grupo')).toBeNull();
+    });
+
+    it('porPrioridadNoNecesitaLaUbicacionYSinEllaDesempataPorFecha', async () => {
+      obtener.mockRejectedValue(new SinUbicacion('permiso'));
+      const f = await crear([
+        reclamo(1, { creadoEn: '2026-11-05T10:00:00', prioridad: { valor: 'MEDIA', origen: 'PERSONAL' } }),
+        reclamo(2, { creadoEn: '2026-11-01T10:00:00', prioridad: { valor: 'MEDIA', origen: 'PERSONAL' } }),
+        reclamo(3, { creadoEn: '2026-11-09T10:00:00', prioridad: { valor: 'ALTA', origen: 'IA' } }),
+      ]);
+
+      await elegirOrden(f, 'Prioridad');
+
+      expect(numeros(f)).toEqual(['3', '2', '1']);
+      expect(el(f).textContent).not.toContain('Sin tu ubicación se ordena por fecha');
+    });
+
+    it('cadaTarjetaMuestraLaPrioridadYLaMarcaDeLaIA', async () => {
+      const f = await crear([
+        reclamo(1, { prioridad: { valor: 'ALTA', origen: 'IA' } }),
+        reclamo(2, { prioridad: { valor: 'BAJA', origen: 'PERSONAL' } }),
+        reclamo(3),
+      ]);
+
+      const chips = Array.from(el(f).querySelectorAll('.tarjeta app-chip-prioridad'));
+      expect(chips.map((c) => c.textContent?.replace(/\s+/g, ' ').trim())).toEqual(['Alta Sugerida, sugerida por la IA', 'Baja', 'Sin prioridad']);
     });
 
     it('porDistanciaVaElMasCercaPrimeroYLosSinCoordenadasAlFinal', async () => {

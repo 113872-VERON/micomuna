@@ -1,5 +1,6 @@
 // Modelos del panel de reclamos del personal (MC-18), según docs/api/openapi.yaml ("Panel de reclamos").
 import { EstadoReclamo, FotoReclamoDto, MotivoDescarte } from './modelos';
+import { PrioridadPanelDto, PrioridadReclamoDto, ValorPrioridad } from './prioridad';
 
 export interface AgenteDto {
   id: number;
@@ -32,6 +33,8 @@ export interface ReclamoPanelDto {
   agente: AgenteDto | null;
   numeroOriginal: number | null;
   cantidadDuplicados: number;
+  // MC-27: la prioridad efectiva. Si falta (un servidor viejo) se muestra como "Sin prioridad".
+  prioridad?: PrioridadReclamoDto;
 }
 
 export interface PaginaReclamosPanelDto {
@@ -98,6 +101,7 @@ export interface ReclamoPanelDetalleDto {
   duplicados: number[];
   sugerenciaIa: SugerenciaIaDto;
   posiblesDuplicados: PosiblesDuplicadosDto;
+  prioridad?: PrioridadPanelDto;
 }
 
 // Aviso de posibles duplicados cercanos (MC-26, docs/api/openapi.yaml). Siempre viene; es una regla del servidor, sin IA.
@@ -122,6 +126,8 @@ export interface SugerenciaIaDto {
   tipoSugerido?: string | null;
   tipoSugeridoNombre?: string | null;
   justificacion?: string | null;
+  // MC-27: la prioridad que sugirió la IA (solo con HECHA).
+  prioridadSugerida?: ValorPrioridad | null;
   coincide: boolean;
   decision?: 'ACEPTADA' | 'CORREGIDA' | null;
   tipoDecidido?: string | null;

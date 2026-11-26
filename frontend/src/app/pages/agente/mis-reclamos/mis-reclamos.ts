@@ -6,6 +6,7 @@ import { ComunaDto } from '../../../auth/modelos';
 import { ChipEstado } from '../../../compartido/estado-reclamo/chip-estado';
 import { Dialogo } from '../../../compartido/dialogo/dialogo';
 import { IconoTipo } from '../../../compartido/icono-tipo/icono-tipo';
+import { ChipPrioridad } from '../../../compartido/prioridad/chip-prioridad';
 import { OrdenAgente, conDistancias, ordenar, textoDeDistancia } from '../../../agente/distancia';
 import { GrupoAgente, ReclamoAgenteDto } from '../../../agente/modelos-agente';
 import { ReclamosAgenteService } from '../../../agente/reclamos-agente.service';
@@ -18,6 +19,7 @@ export const OPCIONES_DE_ORDEN: readonly { valor: OrdenAgente; nombre: string; e
   { valor: 'fecha', nombre: 'Fecha', explicacion: 'Los más antiguos primero.' },
   { valor: 'tipo', nombre: 'Tipo', explicacion: 'Agrupados por tipo de problema, con un título por cada grupo.' },
   { valor: 'distancia', nombre: 'Distancia', explicacion: 'Los más cerca de donde estás primero, en línea recta.' },
+  { valor: 'prioridad', nombre: 'Prioridad', explicacion: 'Los de prioridad alta primero; a igual prioridad, el más cerca si tenemos tu ubicación y si no, el más antiguo. Sin prioridad al final.' },
 ];
 
 type EstadoUbicacion = 'pidiendo' | 'ok' | 'permiso' | 'no-disponible' | 'otro';
@@ -26,7 +28,7 @@ type EstadoUbicacion = 'pidiendo' | 'ok' | 'permiso' | 'no-disponible' | 'otro';
 // acá, en el teléfono, con el GPS: la ubicación del agente no se manda al servidor ni se guarda.
 @Component({
   selector: 'app-mis-reclamos',
-  imports: [DatePipe, RouterLink, ChipEstado, IconoTipo, Dialogo],
+  imports: [DatePipe, RouterLink, ChipEstado, ChipPrioridad, IconoTipo, Dialogo],
   templateUrl: './mis-reclamos.html',
   styleUrl: './mis-reclamos.scss',
 })

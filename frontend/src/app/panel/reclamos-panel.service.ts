@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { FiltrosPanel, aParamsDeApi } from '../reclamos/filtros-panel';
+import { FiltrosPanel, OrdenPanel, aParamsDeApi } from '../reclamos/filtros-panel';
 import {
   AgenteConCargaDto,
   CambioDeEstadoEnLoteRequest,
@@ -13,6 +13,7 @@ import {
   ResultadoEnLoteDto,
   ResumenPanelDto,
 } from '../reclamos/modelos-panel';
+import { ValorPrioridad } from '../reclamos/prioridad';
 
 const BASE = '/api/panel';
 
@@ -21,8 +22,9 @@ const BASE = '/api/panel';
 export class ReclamosPanelService {
   private readonly http = inject(HttpClient);
 
-  listar(filtros: FiltrosPanel, pagina: number, tamanio: number): Observable<PaginaReclamosPanelDto> {
-    return this.http.get<PaginaReclamosPanelDto>(`${BASE}/reclamos`, { params: { ...aParamsDeApi(filtros), pagina, tamanio } });
+  // Sin "orden" el servidor usa la fecha: solo viaja el orden por prioridad.
+  listar(filtros: FiltrosPanel, pagina: number, tamanio: number, orden: OrdenPanel = 'fecha'): Observable<PaginaReclamosPanelDto> {
+    return this.http.get<PaginaReclamosPanelDto>(`${BASE}/reclamos`, { params: { ...aParamsDeApi(filtros), ...(orden === 'prioridad' ? { orden } : {}), pagina, tamanio } });
   }
 
   mapa(filtros: FiltrosPanel): Observable<MapaReclamosDto> {
@@ -60,6 +62,11 @@ export class ReclamosPanelService {
   // Decide el tipo del reclamo (acepta o corrige la sugerencia de la IA): devuelve el detalle actualizado.
   cambiarTipo(numero: number, tipo: string): Observable<ReclamoPanelDetalleDto> {
     return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/tipo`, { tipo });
+  }
+
+  // Fija la prioridad (confirma la sugerida por la IA o la cambia): devuelve el detalle actualizado.
+  cambiarPrioridad(numero: number, prioridad: ValorPrioridad): Observable<ReclamoPanelDetalleDto> {
+    return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/prioridad`, { prioridad });
   }
 
   // Deja el reclamo como nuevo (no es duplicado de los cercanos), sin cuerpo: devuelve el detalle actualizado.

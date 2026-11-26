@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.micomuna.dtos.AgenteConCargaDto;
 import com.micomuna.dtos.AsignarAgenteRequest;
+import com.micomuna.dtos.CambiarPrioridadRequest;
 import com.micomuna.dtos.CambiarTipoRequest;
 import com.micomuna.dtos.CambioDeEstadoEnLoteRequest;
 import com.micomuna.dtos.DescarteEnLoteRequest;
@@ -29,7 +30,9 @@ import com.micomuna.dtos.ResultadoEnLoteDto;
 import com.micomuna.dtos.ResumenPanelDto;
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.security.UsuarioAutenticado;
+import com.micomuna.enums.PrioridadIa;
 import com.micomuna.services.CambioDeEstadoService;
+import com.micomuna.services.CambioDePrioridadService;
 import com.micomuna.services.CambioDeTipoService;
 import com.micomuna.services.CambiosEnLoteService;
 import com.micomuna.services.MisReclamosService;
@@ -66,6 +69,7 @@ public class PanelReclamosController {
 	private final CambiosEnLoteService lotes;
 	private final CambioDeEstadoService cambios;
 	private final CambioDeTipoService tipoDelReclamo;
+	private final CambioDePrioridadService prioridadDelReclamo;
 	private final PosiblesDuplicadosService duplicados;
 	private final MetricasService metricasService;
 
@@ -80,13 +84,14 @@ public class PanelReclamosController {
 	@Operation(operationId = "listarReclamosDelPanel", summary = "Reclamos de la comuna, con filtros")
 	@GetMapping("/reclamos")
 	public PaginaReclamosPanelDto listar(
+			@Parameter(description = "fecha (predeterminado) o prioridad", schema = @Schema(allowableValues = { "fecha", "prioridad" }, defaultValue = "fecha")) @RequestParam(defaultValue = "fecha") String orden,
 			@RequestParam(required = false) EstadoReclamo estado,
 			@RequestParam(required = false) String tipo,
 			@RequestParam(required = false) Long agente,
 			@RequestParam(required = false) String buscar,
 			@RequestParam(defaultValue = "0") @Min(0) @Max(1000) int pagina,
 			@RequestParam(defaultValue = "25") @Min(1) @Max(100) int tamanio) {
-		return panel.listar(panel.filtros(estado, tipo, agente, buscar), pagina, tamanio);
+		return panel.listar(panel.filtros(estado, tipo, agente, buscar), orden, pagina, tamanio);
 	}
 
 	@Operation(operationId = "mapaDeReclamosDelPanel", summary = "Puntos del mapa")
@@ -145,6 +150,16 @@ public class PanelReclamosController {
 			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
 		// Quien decide sale del token. El cambio se confirma en su propia transacción y el detalle se lee después.
 		tipoDelReclamo.cambiarTipo(numero, pedido.tipo(), usuario.id());
+		return panel.detalle(numero);
+	}
+
+	@Operation(operationId = "cambiarPrioridad", summary = "Fijar la prioridad de un reclamo (confirmar o cambiar la sugerida por la IA)")
+	@PutMapping("/reclamos/{numero}/prioridad")
+	public ReclamoPanelDetalleDto cambiarPrioridad(@PathVariable Integer numero,
+			@Valid @RequestBody CambiarPrioridadRequest pedido,
+			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
+		// Quien decide sale del token. El cambio se confirma en su propia transacción y el detalle se lee después.
+		prioridadDelReclamo.cambiarPrioridad(numero, PrioridadIa.valueOf(pedido.prioridad()), usuario.id());
 		return panel.detalle(numero);
 	}
 

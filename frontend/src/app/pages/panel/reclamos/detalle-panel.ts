@@ -13,9 +13,11 @@ import { FotosDeReclamos } from '../../../reclamos/fotos-de-reclamos';
 import { TipoReclamoDto } from '../../../reclamos/modelos';
 import { ReclamosService } from '../../../reclamos/reclamos.service';
 import { AgenteConCargaDto, CambioDeEstadoPanelDto, ReclamoElegido, ReclamoPanelDetalleDto, sePuedeDescartar, textoDeAgenteConCarga } from '../../../reclamos/modelos-panel';
+import { nombreDePrioridad } from '../../../reclamos/prioridad';
 import { textoDeMotivo } from '../../../reclamos/seguimiento';
 import { DialogoCambiarEstado } from './dialogo-cambiar-estado';
 import { DialogoDescartar } from './dialogo-descartar';
+import { ControlPrioridad } from './control-prioridad';
 import { SinAgentes } from './sin-agentes';
 
 function mensajeDeAsignar(e: unknown, codigo: string | undefined): string {
@@ -68,7 +70,7 @@ function mensajeDeNoEsDuplicado(e: unknown, codigo: string | undefined): string 
 // usuarios se muestra como texto plano. Desde acá también se asigna o reasigna el agente (MC-19), con la carga de cada uno.
 @Component({
   selector: 'app-detalle-panel',
-  imports: [DatePipe, RouterLink, ChipEstado, FotoReclamo, IconoTipo, MapaUbicacion, DialogoCambiarEstado, DialogoDescartar, SinAgentes],
+  imports: [DatePipe, RouterLink, ChipEstado, FotoReclamo, IconoTipo, MapaUbicacion, DialogoCambiarEstado, DialogoDescartar, SinAgentes, ControlPrioridad],
   providers: [FotosDeReclamos],
   templateUrl: './detalle-panel.html',
   styleUrl: './detalle-panel.scss',
@@ -277,6 +279,7 @@ export class DetallePanel {
 
   // ---- Asignar a un agente ----
   protected readonly textoAgente = textoDeAgenteConCarga;
+  protected readonly nombreDePrioridad = nombreDePrioridad;
   // Un reclamo En reparación que ya tiene agente: reasignarlo lo devuelve a Asignado, así que se pide confirmar.
   protected readonly pideConfirmar = computed(() => {
     const r = this.reclamo();
@@ -431,6 +434,11 @@ export class DetallePanel {
   // Mismo estado y sin agente: no cambió el estado ni se reasignó, solo se cambió el tipo (MC-25).
   protected esCambioDeTipo(c: CambioDeEstadoPanelDto): boolean {
     return c.estadoAnterior === c.estado && !c.agente;
+  }
+
+  // Mismo estado y sin agente, y la observación habla de la prioridad (MC-27): es un cambio de prioridad, no de tipo.
+  protected esCambioDePrioridad(c: CambioDeEstadoPanelDto): boolean {
+    return !!c.observacion?.startsWith('Cambió la prioridad');
   }
 
   protected reintentar(): void {

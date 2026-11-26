@@ -115,7 +115,7 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.components.schemas.SugerenciaIaDto.properties.keys()")
 						.value(org.hamcrest.Matchers.containsInAnyOrder("estado", "tipoSugerido", "tipoSugeridoNombre",
 								"justificacion", "coincide", "decision", "tipoDecidido", "tipoDecididoNombre", "decididaPor",
-								"decididaEn")));
+								"decididaEn", "prioridadSugerida")));
 	}
 
 	// MC-26: lo nuevo coincide con docs/api/openapi.yaml: marcar el reclamo como nuevo (sin cuerpo) y el aviso de posibles
@@ -141,6 +141,45 @@ class OpenApiTests {
 				.andExpect(jsonPath("$.components.schemas.PosibleDuplicadoDto.properties.keys()")
 						.value(org.hamcrest.Matchers.containsInAnyOrder("numero", "estado", "distanciaMetros", "creadoEn",
 								"direccion", "descripcion")));
+	}
+
+	// MC-27: lo nuevo coincide con docs/api/openapi.yaml: el orden de la lista, fijar la prioridad y la prioridad efectiva.
+	@Test
+	void laPrioridadSugeridaCoincideConElContrato() throws Exception {
+		String fijar = "$.paths['/api/panel/reclamos/{numero}/prioridad'].put";
+		String lista = "$.paths['/api/panel/reclamos'].get.parameters[?(@.name=='orden')]";
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(lista + ".schema.enum").value(org.hamcrest.Matchers.contains(org.hamcrest.Matchers.contains("fecha", "prioridad"))))
+				.andExpect(jsonPath(lista + ".schema.default").value(org.hamcrest.Matchers.contains("fecha")))
+				.andExpect(jsonPath(fijar + ".operationId").value("cambiarPrioridad"))
+				.andExpect(jsonPath(fijar + ".tags[0]").value("Panel de reclamos"))
+				.andExpect(jsonPath(fijar + ".requestBody.content['application/json'].schema['$ref']")
+						.value("#/components/schemas/CambiarPrioridadRequest"))
+				.andExpect(jsonPath(fijar + ".responses['200'].content['*/*'].schema['$ref']")
+						.value("#/components/schemas/ReclamoPanelDetalleDto"))
+				.andExpect(jsonPath(fijar + ".responses['401']").exists())
+				.andExpect(jsonPath(fijar + ".responses['403'].description").value(org.hamcrest.Matchers.containsString("ACCESO_DENEGADO")))
+				.andExpect(jsonPath("$.components.schemas.CambiarPrioridadRequest.required").value(org.hamcrest.Matchers.contains("prioridad")))
+				.andExpect(jsonPath("$.components.schemas.CambiarPrioridadRequest.properties.prioridad.enum")
+						.value(org.hamcrest.Matchers.contains("ALTA", "MEDIA", "BAJA")))
+				.andExpect(jsonPath("$.components.schemas.PrioridadReclamoDto.properties.keys()")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("valor", "origen")))
+				.andExpect(jsonPath("$.components.schemas.PrioridadReclamoDto.properties.origen.enum")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("PERSONAL", "IA", "NINGUNA")))
+				.andExpect(jsonPath("$.components.schemas.PrioridadPanelDto.properties.keys()")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("valor", "origen", "fijadaPor", "fijadaEn")))
+				.andExpect(jsonPath("$.components.schemas.ReclamoPanelDetalleDto.properties.prioridad['$ref']")
+						.value("#/components/schemas/PrioridadPanelDto"))
+				.andExpect(jsonPath("$.components.schemas.ReclamoPanelDto.properties.prioridad['$ref']")
+						.value("#/components/schemas/PrioridadReclamoDto"))
+				.andExpect(jsonPath("$.components.schemas.ReclamoAgenteDto.properties.prioridad['$ref']")
+						.value("#/components/schemas/PrioridadReclamoDto"))
+				.andExpect(jsonPath("$.components.schemas.ReclamoAgenteDetalleDto.properties.prioridad['$ref']")
+						.value("#/components/schemas/PrioridadReclamoDto"))
+				.andExpect(jsonPath("$.components.schemas.SugerenciaIaDto.properties.prioridadSugerida").exists())
+				.andExpect(jsonPath("$.components.schemas.MiReclamoResumenDto.properties.prioridad").doesNotExist())
+				.andExpect(jsonPath("$.components.schemas.MiReclamoDetalleDto.properties.prioridad").doesNotExist());
 	}
 
 	@Test

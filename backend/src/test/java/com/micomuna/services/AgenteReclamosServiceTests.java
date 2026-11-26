@@ -64,7 +64,9 @@ class AgenteReclamosServiceTests {
 		when(reclamo.getLongitud()).thenReturn(new BigDecimal("-64.188776"));
 		when(reclamo.getCreadoEn()).thenReturn(Instant.now());
 		when(fotos.datosDe(50L)).thenReturn(List.of());
-		servicio = new AgenteReclamosService(reclamos, fotos, cambios, comunaActual, mock(TurnosDeFotos.class), transacciones);
+		servicio = new AgenteReclamosService(reclamos, fotos, cambios,
+				new com.micomuna.services.PrioridadDelReclamo(mock(com.micomuna.repositories.SugerenciaIaRepository.class)), comunaActual,
+				mock(TurnosDeFotos.class), transacciones);
 	}
 
 	@Test

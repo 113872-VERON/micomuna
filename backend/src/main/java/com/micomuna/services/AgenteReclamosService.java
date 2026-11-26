@@ -50,15 +50,18 @@ public class AgenteReclamosService {
 	private final ReclamoRepository reclamos;
 	private final ReclamoFotoRepository fotos;
 	private final CambioDeEstadoService cambios;
+	private final PrioridadDelReclamo prioridades;
 	private final ComunaActual comunaActual;
 	private final TurnosDeFotos turnos;
 	private final TransactionTemplate transaccion;
 
 	public AgenteReclamosService(ReclamoRepository reclamos, ReclamoFotoRepository fotos, CambioDeEstadoService cambios,
-			ComunaActual comunaActual, TurnosDeFotos turnos, PlatformTransactionManager transacciones) {
+			PrioridadDelReclamo prioridades, ComunaActual comunaActual, TurnosDeFotos turnos,
+			PlatformTransactionManager transacciones) {
 		this.reclamos = reclamos;
 		this.fotos = fotos;
 		this.cambios = cambios;
+		this.prioridades = prioridades;
 		this.comunaActual = comunaActual;
 		this.turnos = turnos;
 		this.transaccion = new TransactionTemplate(transacciones);
@@ -90,7 +93,7 @@ public class AgenteReclamosService {
 				reclamo.getEstado(), reclamo.getDescripcion(), reclamo.getReferencia(), reclamo.getDireccion(),
 				reclamo.getLatitud() == null ? null : reclamo.getLatitud().doubleValue(),
 				reclamo.getLongitud() == null ? null : reclamo.getLongitud().doubleValue(), reclamo.getCreadoEn(),
-				datosDeFotos, resuelto ? reclamo.getTrabajoRealizado() : null);
+				datosDeFotos, resuelto ? reclamo.getTrabajoRealizado() : null, prioridades.de(reclamo));
 	}
 
 	@Transactional(readOnly = true)

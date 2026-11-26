@@ -92,3 +92,41 @@ describe('ReclamosPanelService', () => {
     d.flush({ aplicados: [3], omitidos: [] });
   });
 });
+
+describe('ReclamosPanelService, prioridad (MC-27)', () => {
+  let http: HttpTestingController;
+  let servicio: ReclamosPanelService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    http = TestBed.inject(HttpTestingController);
+    servicio = TestBed.inject(ReclamosPanelService);
+  });
+
+  afterEach(() => http.verify());
+
+  it('ordenarPorPrioridadMandaElParametroOrden', () => {
+    servicio.listar(SIN_FILTROS, 0, 25, 'prioridad').subscribe();
+    const p = http.expectOne((r) => r.url === '/api/panel/reclamos');
+    expect(p.request.params.get('orden')).toBe('prioridad');
+    expect(p.request.params.keys().sort()).toEqual(['orden', 'pagina', 'tamanio']);
+    p.flush({ reclamos: [], pagina: 0, tamanio: 25, total: 0 });
+  });
+
+  it('elOrdenPorFechaNoMandaNada', () => {
+    servicio.listar(SIN_FILTROS, 0, 25, 'fecha').subscribe();
+    const p = http.expectOne((r) => r.url === '/api/panel/reclamos');
+    expect(p.request.params.has('orden')).toBe(false);
+    p.flush({ reclamos: [], pagina: 0, tamanio: 25, total: 0 });
+  });
+
+  it('fijarLaPrioridadHaceUnPutConLaPrioridadYDevuelveElDetalle', () => {
+    let detalle: unknown;
+    servicio.cambiarPrioridad(42, 'MEDIA').subscribe((d) => (detalle = d));
+    const p = http.expectOne('/api/panel/reclamos/42/prioridad');
+    expect(p.request.method).toBe('PUT');
+    expect(p.request.body).toEqual({ prioridad: 'MEDIA' });
+    p.flush({ numero: 42 });
+    expect(detalle).toEqual({ numero: 42 });
+  });
+});
