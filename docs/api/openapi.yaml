@@ -946,10 +946,23 @@ paths:
       - Panel de reclamos
       summary: Reclamos de la comuna, con filtros
       description: "Personal administrativo y administrador de la comuna. Solo reclamos\
-        \ de la comuna del token, del más nuevo al más viejo. Los filtros se combinan\
-        \ entre sí. Paginado."
+        \ de la comuna del token. Por defecto del más nuevo al más viejo; con orden=prioridad,\
+        \ por prioridad efectiva (ALTA, MEDIA, BAJA y al final sin prioridad) y a igual\
+        \ prioridad el más viejo primero (MC-27). Los filtros se combinan entre sí. Paginado."
       operationId: listarReclamosDelPanel
       parameters:
+      - name: orden
+        in: query
+        required: false
+        description: "fecha: del más nuevo al más viejo. prioridad: la prioridad efectiva\
+          \ (la que fijó el personal o, si no, la sugerida por la IA), de ALTA a BAJA, sin\
+          \ prioridad al final; a igual prioridad, el más viejo primero"
+        schema:
+          type: string
+          enum:
+          - fecha
+          - prioridad
+          default: fecha
       - $ref: "#/components/parameters/FiltroEstado"
       - $ref: "#/components/parameters/FiltroTipo"
       - $ref: "#/components/parameters/FiltroAgente"
@@ -1305,6 +1318,64 @@ paths:
           description: "El reclamo está RESUELTO o DESCARTADO (RECLAMO_CERRADO), ya tiene\
             \ ese tipo y no hay una sugerencia pendiente de decidir (MISMO_TIPO), u otra\
             \ persona lo está cambiando en este momento (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
+  /api/panel/reclamos/{numero}/prioridad:
+    put:
+      tags:
+      - Panel de reclamos
+      summary: Fijar la prioridad de un reclamo (confirmar o cambiar la sugerida por la IA)
+      description: "Personal administrativo y administrador de la comuna (MC-27). La IA\
+        \ solo sugiere: mientras nadie la fije, el reclamo usa la prioridad de la sugerencia\
+        \ vigente de la IA. Al fijarla queda quién y cuándo, y desde ahí vale la del personal.\
+        \ Elegir la misma que sugirió la IA la confirma. Si la prioridad efectiva cambia\
+        \ se agrega una fila al historial (por ejemplo, Cambió la prioridad de Media a Alta),\
+        \ sin cambiar el estado. No manda correo; el vecino no ve la prioridad. Devuelve\
+        \ el detalle actualizado."
+      operationId: cambiarPrioridad
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambiarPrioridadRequest"
+      responses:
+        "200":
+          description: Prioridad fijada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoPanelDetalleDto"
+        "400":
+          description: Falta la prioridad o no es ALTA, MEDIA ni BAJA (VALIDACION)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El reclamo no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo está RESUELTO o DESCARTADO (RECLAMO_CERRADO), el personal\
+            \ ya le había fijado esa misma prioridad (MISMA_PRIORIDAD), u otra persona lo\
+            \ está cambiando en este momento (CONFLICTO)"
           content:
             application/problem+json:
               schema:
@@ -2283,6 +2354,8 @@ components:
       type: object
       description: Una fila de la lista del panel.
       properties:
+        prioridad:
+          $ref: "#/components/schemas/PrioridadReclamoDto"
         numero:
           type: integer
           format: int32
@@ -2458,6 +2531,59 @@ components:
           $ref: "#/components/schemas/SugerenciaIaDto"
         posiblesDuplicados:
           $ref: "#/components/schemas/PosiblesDuplicadosDto"
+        prioridad:
+          $ref: "#/components/schemas/PrioridadPanelDto"
+    PrioridadReclamoDto:
+      type: object
+      description: "Prioridad efectiva del reclamo (MC-27). Siempre presente. Si el personal\
+        \ la fijó, vale esa (origen PERSONAL); si no, la sugerida por la IA en la sugerencia\
+        \ vigente si está HECHA (origen IA); si no, ninguna (valor vacío, origen NINGUNA)."
+      required:
+      - origen
+      properties:
+        valor:
+          type:
+          - string
+          - "null"
+          enum:
+          - ALTA
+          - MEDIA
+          - BAJA
+          - null
+        origen:
+          type: string
+          enum:
+          - PERSONAL
+          - IA
+          - NINGUNA
+    PrioridadPanelDto:
+      description: "La prioridad efectiva, más quién la fijó y cuándo (solo con origen\
+        \ PERSONAL). Solo la ve el personal."
+      allOf:
+      - $ref: "#/components/schemas/PrioridadReclamoDto"
+      - type: object
+        properties:
+          fijadaPor:
+            type:
+            - string
+            - "null"
+            description: Nombre de quién la fijó
+          fijadaEn:
+            type:
+            - string
+            - "null"
+            format: date-time
+    CambiarPrioridadRequest:
+      type: object
+      required:
+      - prioridad
+      properties:
+        prioridad:
+          type: string
+          enum:
+          - ALTA
+          - MEDIA
+          - BAJA
     PosiblesDuplicadosDto:
       type: object
       description: "Aviso de posibles duplicados cercanos (MC-26). Siempre presente.\
@@ -2520,9 +2646,19 @@ components:
       type: object
       description: "La sugerencia de tipo de la IA vigente para el reclamo (la más nueva).\
         \ Solo la ve el personal. La IA solo sugiere: el tipo del reclamo lo decide el\
-        \ personal con PUT /api/panel/reclamos/{numero}/tipo. La prioridad sugerida no\
-        \ se muestra todavía (MC-27)."
+        \ personal con PUT /api/panel/reclamos/{numero}/tipo, y la prioridad con PUT\
+        \ /api/panel/reclamos/{numero}/prioridad (MC-27)."
       properties:
+        prioridadSugerida:
+          type:
+          - string
+          - "null"
+          enum:
+          - ALTA
+          - MEDIA
+          - BAJA
+          - null
+          description: Prioridad que sugirió la IA. Solo con HECHA
         estado:
           type: string
           enum:
@@ -2769,6 +2905,8 @@ components:
       type: object
       description: Una tarjeta de la lista del agente.
       properties:
+        prioridad:
+          $ref: "#/components/schemas/PrioridadReclamoDto"
         numero:
           type: integer
           format: int32
@@ -2807,6 +2945,8 @@ components:
       type: object
       description: "Lo que el agente necesita para ir y resolver. Sin nombre ni datos del vecino."
       properties:
+        prioridad:
+          $ref: "#/components/schemas/PrioridadReclamoDto"
         numero:
           type: integer
           format: int32
