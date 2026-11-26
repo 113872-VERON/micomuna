@@ -49,7 +49,14 @@ export function altoDelMapa(altoVentana: number, arriba: number, minimo = ALTO_M
   return Math.max(minimo, Math.round(altoVentana - arriba - margen));
 }
 
-const mismos = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+export const TEXTO_SIN_MAPA = 'Debe solicitar a soporte que cargue el mapa para su comuna.';
+
+// La figura GeoJSON del límite: null o vacía es que la comuna no tiene límite cargado (el servidor responde 204).
+export function hayLimite(limite: unknown): boolean {
+  return typeof limite === 'object' && limite !== null && Object.keys(limite).length > 0;
+}
+
+const mismos =(a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 // "El más antiguo es de hace 5 días."
 export function textoDelAviso(resumen: ResumenPanelDto, ahora = new Date()): string {
@@ -89,7 +96,8 @@ export class ReclamosPanel {
   private readonly params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
   protected readonly pantalla = computed<EstadoDePantalla>(() => leerEstado(this.params()), { equal: mismos });
   protected readonly filtros = computed<FiltrosPanel>(() => this.pantalla().filtros, { equal: mismos });
-  protected readonly vista = computed<VistaPanel>(() => this.pantalla().vista);
+  // Sin límite cargado la comuna no tiene mapa: la vista es siempre "Solo lista", diga lo que diga la URL.
+  protected readonly vista = computed<VistaPanel>(() => (this.sinLimite() ? 'lista' : this.pantalla().vista));
   protected readonly pagina = computed(() => this.pantalla().pagina);
   // El resumen no lleva el filtro de estado (así el desplegable muestra cuántos hay en cada uno).
   private readonly filtrosDelResumen = computed(() => ({ ...this.filtros(), estado: null }), { equal: mismos });
@@ -105,6 +113,12 @@ export class ReclamosPanel {
   protected readonly errorMapa = signal(false);
   protected readonly sinMapa = signal(false);
   protected readonly limite = signal<unknown>(null);
+  // Mientras no se sabe si hay límite no se dibuja el mapa (así no aparece y desaparece); la lista ya se está cargando.
+  protected readonly limiteCargado = signal(false);
+  private readonly limiteFallo = signal(false);
+  protected readonly sinLimite = computed(() => this.limiteCargado() && !this.limiteFallo() && !hayLimite(this.limite()));
+  protected readonly esperandoLimite = computed(() => !this.limiteCargado() && this.pantalla().vista === 'mapa');
+  protected readonly textoSinMapa = TEXTO_SIN_MAPA;
   protected readonly agentes = signal<readonly AgenteConCargaDto[]>([]);
   protected readonly errorAgentes = signal(false);
   protected readonly tipos = signal<readonly TipoReclamoDto[]>([]);
@@ -134,7 +148,7 @@ export class ReclamosPanel {
   protected readonly avisoDeAplicables = computed(() => textoDeAplicables(this.seleccionados()));
   protected readonly todosElegidos = computed(() => this.reclamos().length > 0 && this.seleccionados().length === this.reclamos().length);
   protected readonly algunosElegidos = computed(() => this.seleccionados().length > 0 && !this.todosElegidos());
-  protected readonly mostrarMapa = computed(() => this.vista() === 'mapa' && !this.sinMapa());
+  protected readonly mostrarMapa = computed(() => this.vista() === 'mapa' && !this.sinMapa() && !this.esperandoLimite());
 
   // Alto del mapa en escritorio (ej. "612px"); null en angosto, donde manda el valor del CSS.
   protected readonly altoMapa = signal<string | null>(null);
@@ -195,7 +209,7 @@ export class ReclamosPanel {
     effect((alLimpiar) => {
       const filtros = this.filtros();
       this.recarga();
-      if (this.vista() !== 'mapa') {
+      if (this.vista() !== 'mapa' || this.esperandoLimite()) {
         return;
       }
       untracked(() => this.errorMapa.set(false));
@@ -259,7 +273,18 @@ export class ReclamosPanel {
   private cargarApoyos(): void {
     this.cargarAgentes();
     this.reclamosApi.listarTipos().subscribe({ next: (t) => this.tipos.set(t), error: () => this.tipos.set([]) });
-    this.reclamosApi.limiteDeMiComuna().subscribe({ next: (l) => this.limite.set(l ?? null), error: () => this.limite.set(null) });
+    // Un error al pedirlo no dice que la comuna no tenga mapa: no se bloquea nada (el mapa queda, sin la figura del límite).
+    this.reclamosApi.limiteDeMiComuna().subscribe({
+      next: (l) => {
+        this.limite.set(l ?? null);
+        this.limiteCargado.set(true);
+      },
+      error: () => {
+        this.limite.set(null);
+        this.limiteFallo.set(true);
+        this.limiteCargado.set(true);
+      },
+    });
   }
 
   // ---- Navegar: todo cambio de filtro pasa por la URL ----
@@ -275,6 +300,10 @@ export class ReclamosPanel {
   }
 
   protected cambiarVista(vista: VistaPanel): void {
+    // Sin límite cargado no hay mapa: el botón queda con aria-disabled y acá se bloquea la acción.
+    if (vista === 'mapa' && this.sinLimite()) {
+      return;
+    }
     if (vista !== this.vista()) {
       this.navegar({ vista });
     }

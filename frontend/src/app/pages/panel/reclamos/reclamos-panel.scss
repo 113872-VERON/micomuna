@@ -2,11 +2,12 @@
 
 .enc { display: flex; justify-content: space-between; align-items: center; gap: 12px 16px; flex-wrap: wrap; }
 
-// Las dos vistas: un par de botones donde el activo va relleno (y marcado con aria-pressed).
+// Las dos vistas: el activo va relleno (aria-pressed).
 .vistas { display: inline-flex; border: 2px solid var(--p); border-radius: 14px; overflow: hidden; }
 .vista {
   min-height: 44px; padding: 0 18px; border: 0; background: #fff; color: var(--p); font: inherit; font-size: 17px; font-weight: 700; cursor: pointer; touch-action: manipulation;
   &.on { background: var(--p); color: #fff; }
+  &.sin-mapa { background: #e4e7eb; color: #52606d; }
 }
 
 .aviso { align-items: center; }
