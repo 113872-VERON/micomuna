@@ -93,6 +93,15 @@ public class Reclamo {
 	@JoinColumn(name = "id_agente")
 	private Usuario agente;
 
+	// "Es un reclamo nuevo, no es duplicado" (V14, MC-26): quién lo decidió y cuándo, juntos o ninguno. La base exige que sea
+	// de la misma comuna; que sea ADMINISTRATIVO o ADMIN_COMUNA lo valida PosiblesDuplicadosService.
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "id_usuario_no_duplicado")
+	private Usuario usuarioNoDuplicado;
+
+	@Column(name = "no_duplicado_en")
+	private Instant noDuplicadoEn;
+
 	// Lo que hizo el agente al resolverlo. Si el reclamo se reabre queda como antecedente.
 	@Column(name = "trabajo_realizado")
 	private String trabajoRealizado;

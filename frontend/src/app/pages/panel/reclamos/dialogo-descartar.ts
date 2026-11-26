@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { mensajeDeError } from '../../../auth/errores';
 import { Dialogo } from '../../../compartido/dialogo/dialogo';
 import { MotivoDescarte } from '../../../reclamos/modelos';
@@ -137,8 +137,11 @@ export function textoDeAplicables(elegidos: readonly ReclamoElegido[]): string |
     .btn:disabled { opacity: 0.6; cursor: default; }
   `,
 })
-export class DialogoDescartar {
+export class DialogoDescartar implements OnInit {
   readonly reclamos = input.required<readonly ReclamoElegido[]>();
+  // Valores iniciales opcionales (MC-26): "Es duplicado de este" abre la ventana con DUPLICADO y el original ya cargados.
+  readonly motivoInicial = input<MotivoDescarte | null>(null);
+  readonly originalInicial = input<number | null>(null);
   readonly cerrar = output<void>();
   readonly aplicado = output<ResultadoEnLoteDto>();
 
@@ -179,6 +182,17 @@ export class DialogoDescartar {
     }
     return this.aplicables().some((r) => r.numero === Number(texto)) ? 'El original no puede ser uno de los reclamos que estás descartando.' : null;
   });
+
+  ngOnInit(): void {
+    const motivo = this.motivoInicial();
+    if (motivo) {
+      this.motivo.set(motivo);
+    }
+    const original = this.originalInicial();
+    if (original !== null) {
+      this.original.set(String(original));
+    }
+  }
 
   protected elegirMotivo(m: MotivoDescarte): void {
     this.motivo.set(m);

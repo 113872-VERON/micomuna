@@ -60,6 +60,7 @@ public class PanelReclamosService {
 	private final TipoReclamoRepository tipos;
 	private final SugerenciaIaRepository sugerencias;
 	private final UsuarioRepository usuarios;
+	private final PosiblesDuplicadosService posiblesDuplicados;
 	private final ComunaActual comunaActual;
 
 	// Interpreta los filtros. Un tipo que no existe o un texto de menos de 2 o más de 100 caracteres es un 400
@@ -148,7 +149,8 @@ public class PanelReclamosService {
 				reclamo.getDireccion(), reclamo.getLatitud() == null ? null : reclamo.getLatitud().doubleValue(),
 				reclamo.getLongitud() == null ? null : reclamo.getLongitud().doubleValue(), reclamo.getCreadoEn(),
 				reclamo.getVecino().getNombre(), AgenteDto.desde(reclamo.getAgente()), datosDeFotos, cambios, descarte,
-				resuelto ? reclamo.getTrabajoRealizado() : null, panel.numerosDeDuplicados(reclamo.getId()), sugerenciaIa(reclamo));
+				resuelto ? reclamo.getTrabajoRealizado() : null, panel.numerosDeDuplicados(reclamo.getId()), sugerenciaIa(reclamo),
+				posiblesDuplicados.de(reclamo));
 	}
 
 

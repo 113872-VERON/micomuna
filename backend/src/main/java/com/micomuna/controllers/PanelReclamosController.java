@@ -35,6 +35,7 @@ import com.micomuna.services.CambiosEnLoteService;
 import com.micomuna.services.MisReclamosService;
 import com.micomuna.services.MetricasService;
 import com.micomuna.services.PanelReclamosService;
+import com.micomuna.services.PosiblesDuplicadosService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -65,6 +66,7 @@ public class PanelReclamosController {
 	private final CambiosEnLoteService lotes;
 	private final CambioDeEstadoService cambios;
 	private final CambioDeTipoService tipoDelReclamo;
+	private final PosiblesDuplicadosService duplicados;
 	private final MetricasService metricasService;
 
 	@Operation(operationId = "metricasDelPanel", summary = "Métricas simples de la comuna")
@@ -143,6 +145,15 @@ public class PanelReclamosController {
 			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
 		// Quien decide sale del token. El cambio se confirma en su propia transacción y el detalle se lee después.
 		tipoDelReclamo.cambiarTipo(numero, pedido.tipo(), usuario.id());
+		return panel.detalle(numero);
+	}
+
+	@Operation(operationId = "marcarNoEsDuplicado", summary = "Dejar el reclamo como nuevo (no es duplicado de los cercanos)")
+	@PutMapping("/reclamos/{numero}/no-es-duplicado")
+	public ReclamoPanelDetalleDto marcarNoEsDuplicado(@PathVariable Integer numero,
+			@Parameter(hidden = true) @AuthenticationPrincipal UsuarioAutenticado usuario) {
+		// Quien lo marca sale del token. Se confirma en su propia transacción y el detalle se lee después.
+		duplicados.marcarNoEsDuplicado(numero, usuario.id());
 		return panel.detalle(numero);
 	}
 

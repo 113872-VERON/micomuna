@@ -62,6 +62,11 @@ export class ReclamosPanelService {
     return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/tipo`, { tipo });
   }
 
+  // Deja el reclamo como nuevo (no es duplicado de los cercanos), sin cuerpo: devuelve el detalle actualizado.
+  marcarNoEsDuplicado(numero: number): Observable<ReclamoPanelDetalleDto> {
+    return this.http.put<ReclamoPanelDetalleDto>(`${BASE}/reclamos/${numero}/no-es-duplicado`, null);
+  }
+
   cambiarEstado(pedido: CambioDeEstadoEnLoteRequest): Observable<ResultadoEnLoteDto> {
     return this.http.post<ResultadoEnLoteDto>(`${BASE}/reclamos/cambios-de-estado`, pedido);
   }

@@ -97,6 +97,23 @@ export interface ReclamoPanelDetalleDto {
   trabajoRealizado: string | null;
   duplicados: number[];
   sugerenciaIa: SugerenciaIaDto;
+  posiblesDuplicados: PosiblesDuplicadosDto;
+}
+
+// Aviso de posibles duplicados cercanos (MC-26, docs/api/openapi.yaml). Siempre viene; es una regla del servidor, sin IA.
+export interface PosiblesDuplicadosDto {
+  candidatos: PosibleDuplicadoDto[];
+  marcadoNuevoPor?: string | null;
+  marcadoNuevoEn?: string | null;
+}
+
+export interface PosibleDuplicadoDto {
+  numero: number;
+  estado: EstadoReclamo;
+  distanciaMetros: number;
+  creadoEn: string;
+  direccion?: string | null;
+  descripcion?: string;
 }
 
 // La sugerencia de tipo de la IA (docs/api/openapi.yaml, SugerenciaIaDto). La IA solo sugiere: decide el personal.

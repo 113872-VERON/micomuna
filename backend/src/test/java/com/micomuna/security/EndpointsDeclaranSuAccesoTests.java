@@ -185,6 +185,7 @@ class EndpointsDeclaranSuAccesoTests {
 			"POST /api/panel/reclamos/cambios-de-estado",
 			"PUT /api/panel/reclamos/{numero}/agente",
 			"PUT /api/panel/reclamos/{numero}/tipo",
+			"PUT /api/panel/reclamos/{numero}/no-es-duplicado",
 			"POST /api/panel/reclamos/descartes");
 
 	@Test
