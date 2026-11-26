@@ -1,5 +1,6 @@
 // Modelos de "Mis reclamos" del agente (MC-20), según docs/api/openapi.yaml (etiqueta "Agente").
 import { EstadoReclamo, FotoReclamoDto } from '../reclamos/modelos';
+import { PrioridadReclamoDto } from '../reclamos/prioridad';
 
 export type GrupoAgente = 'PARA_HACER' | 'RESUELTOS';
 
@@ -15,6 +16,8 @@ export interface ReclamoAgenteDto {
   longitud: number | null;
   creadoEn: string;
   estadoCambiadoEn: string;
+  // MC-27: la prioridad efectiva, sin el detalle de quién la fijó.
+  prioridad?: PrioridadReclamoDto;
 }
 
 export interface PaginaReclamosAgenteDto {
@@ -38,6 +41,7 @@ export interface ReclamoAgenteDetalleDto {
   creadoEn: string;
   fotos: FotoReclamoDto[];
   trabajoRealizado: string | null;
+  prioridad?: PrioridadReclamoDto;
 }
 
 export const MAX_NOTA = 1000;

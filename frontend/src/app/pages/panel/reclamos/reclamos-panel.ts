@@ -5,12 +5,14 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AyudaFlotante } from '../../../compartido/ayuda-flotante/ayuda-flotante';
 import { ChipEstado } from '../../../compartido/estado-reclamo/chip-estado';
 import { IconoTipo } from '../../../compartido/icono-tipo/icono-tipo';
+import { ChipPrioridad } from '../../../compartido/prioridad/chip-prioridad';
 import { ComunaDto } from '../../../auth/modelos';
 import { ReclamosPanelService } from '../../../panel/reclamos-panel.service';
 import {
   EstadoDePantalla,
   FiltrosPanel,
   MAX_BUSCAR,
+  OrdenPanel,
   SIN_FILTROS,
   VistaPanel,
   aQueryParams,
@@ -73,7 +75,7 @@ export function textoDelAviso(resumen: ResumenPanelDto, ahora = new Date()): str
 // Panel de reclamos del personal (MC-18): dos vistas, "Lista y mapa" y "Solo lista", con los filtros en la URL.
 @Component({
   selector: 'app-reclamos-panel',
-  imports: [DatePipe, RouterLink, ChipEstado, IconoTipo, AyudaFlotante, MapaReclamos, DialogoCambiarEstado, DialogoDescartar],
+  imports: [DatePipe, RouterLink, ChipEstado, ChipPrioridad, IconoTipo, AyudaFlotante, MapaReclamos, DialogoCambiarEstado, DialogoDescartar],
   templateUrl: './reclamos-panel.html',
   styleUrl: './reclamos-panel.scss',
   host: { '(window:resize)': 'medirMapa()' },
@@ -99,6 +101,7 @@ export class ReclamosPanel {
   // Sin límite cargado la comuna no tiene mapa: la vista es siempre "Solo lista", diga lo que diga la URL.
   protected readonly vista = computed<VistaPanel>(() => (this.sinLimite() ? 'lista' : this.pantalla().vista));
   protected readonly pagina = computed(() => this.pantalla().pagina);
+  protected readonly orden = computed<OrdenPanel>(() => this.pantalla().orden);
   // El resumen no lleva el filtro de estado (así el desplegable muestra cuántos hay en cada uno).
   private readonly filtrosDelResumen = computed(() => ({ ...this.filtros(), estado: null }), { equal: mismos });
   protected readonly conFiltros = computed(() => hayFiltros(this.filtros()));
@@ -182,13 +185,14 @@ export class ReclamosPanel {
     effect((alLimpiar) => {
       const filtros = this.filtros();
       const pagina = this.pagina();
+      const orden = this.orden();
       this.recarga();
       untracked(() => {
         this.cargando.set(true);
         this.errorLista.set(false);
         this.seleccion.set(new Set());
       });
-      const sub = this.api.listar(filtros, pagina, POR_PAGINA).subscribe({
+      const sub = this.api.listar(filtros, pagina, POR_PAGINA, orden).subscribe({
         next: (d) => {
           // Una página fuera de rango (una URL vieja, o menos resultados al filtrar) lleva a la última con reclamos.
           if (d.reclamos.length === 0 && pagina > 0) {
@@ -297,6 +301,14 @@ export class ReclamosPanel {
     const valor = (evento.target as HTMLSelectElement).value;
     const filtros = { ...this.filtros(), [clave]: valor ? (clave === 'agente' ? Number(valor) : valor) : null } as FiltrosPanel;
     this.navegar({ filtros, pagina: 0 });
+  }
+
+  // El orden se guarda en la URL; al cambiarlo se vuelve a la primera página.
+  protected cambiarOrden(evento: Event): void {
+    const orden: OrdenPanel = (evento.target as HTMLSelectElement).value === 'prioridad' ? 'prioridad' : 'fecha';
+    if (orden !== this.orden()) {
+      this.navegar({ orden, pagina: 0 });
+    }
   }
 
   protected cambiarVista(vista: VistaPanel): void {

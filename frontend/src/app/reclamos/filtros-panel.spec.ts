@@ -6,7 +6,7 @@ const leer = (params: Record<string, string>) => leerEstado(convertToParamMap(pa
 
 describe('filtros del panel en la URL', () => {
   it('sinParametrosNoHayFiltrosYSeVeLaVistaConMapa', () => {
-    expect(leer({})).toEqual({ filtros: SIN_FILTROS, vista: 'mapa', pagina: 0 });
+    expect(leer({})).toEqual({ filtros: SIN_FILTROS, vista: 'mapa', orden: 'fecha', pagina: 0 });
   });
 
   it('leeTodosLosFiltrosDeLaUrl', () => {
@@ -19,7 +19,7 @@ describe('filtros del panel en la URL', () => {
 
   it('loInvalidoSeIgnoraEnLugarDeRomper', () => {
     const e = leer({ estado: 'INVENTADO', tipo: 'xx', agente: 'abc', vista: 'otra', pagina: '-4' });
-    expect(e).toEqual({ filtros: SIN_FILTROS, vista: 'mapa', pagina: 0 });
+    expect(e).toEqual({ filtros: SIN_FILTROS, vista: 'mapa', orden: 'fecha', pagina: 0 });
     expect(leer({ pagina: '0' }).pagina).toBe(0);
     expect(leer({ pagina: 'x' }).pagina).toBe(0);
   });
@@ -29,9 +29,9 @@ describe('filtros del panel en la URL', () => {
   });
 
   it('losParametrosDeLaUrlSoloLlevanLoQueSeUsa', () => {
-    const q = aQueryParams({ filtros: { estado: 'RECIBIDO', tipo: null, agente: 5, buscar: '  luz  ' }, vista: 'lista', pagina: 1 });
-    expect(q).toEqual({ estado: 'RECIBIDO', tipo: null, agente: 5, buscar: 'luz', vista: 'lista', pagina: 2 });
-    const limpio = aQueryParams({ filtros: SIN_FILTROS, vista: 'mapa', pagina: 0 });
+    const q = aQueryParams({ filtros: { estado: 'RECIBIDO', tipo: null, agente: 5, buscar: '  luz  ' }, vista: 'lista', orden: 'prioridad', pagina: 1 });
+    expect(q).toEqual({ estado: 'RECIBIDO', tipo: null, agente: 5, buscar: 'luz', vista: 'lista', orden: 'prioridad', pagina: 2 });
+    const limpio = aQueryParams({ filtros: SIN_FILTROS, vista: 'mapa', orden: 'fecha', pagina: 0 });
     expect(Object.values(limpio).every((v) => v === null)).toBe(true);
   });
 
@@ -70,5 +70,18 @@ describe('diasDesde', () => {
   it('unaFechaDelFuturoOInvalidaNoDaNegativos', () => {
     expect(diasDesde(new Date(2026, 10, 20).toISOString(), ahora)).toBe(0);
     expect(diasDesde('no es una fecha', ahora)).toBe(0);
+  });
+});
+
+describe('orden de la lista del panel en la URL (MC-27)', () => {
+  it('sinParametroEsPorFechaYSoloPrioridadSeReconoce', () => {
+    expect(leer({}).orden).toBe('fecha');
+    expect(leer({ orden: 'prioridad' }).orden).toBe('prioridad');
+    expect(leer({ orden: 'inventado' }).orden).toBe('fecha');
+  });
+
+  it('enLaUrlSoloVaPrioridad', () => {
+    expect(aQueryParams({ filtros: SIN_FILTROS, vista: 'mapa', orden: 'prioridad', pagina: 0 })['orden']).toBe('prioridad');
+    expect(aQueryParams({ filtros: SIN_FILTROS, vista: 'mapa', orden: 'fecha', pagina: 0 })['orden']).toBeNull();
   });
 });

@@ -71,6 +71,7 @@
                       <b class="n">Reclamo n.º {{ t.reclamo.numero }}</b>
                       <app-chip-estado [estado]="t.reclamo.estado" />
                     </span>
+                    <app-chip-prioridad class="prioridad" [prioridad]="t.reclamo.prioridad" />
                     <span class="tipo"><app-icono-tipo [codigo]="t.reclamo.tipo" [tamano]="20" />{{ t.reclamo.tipoNombre }}</span>
                     <span class="direccion">{{ t.reclamo.direccion || 'Sin dirección' }}</span>
                     @if (distanciaDe(t.metros); as d) {

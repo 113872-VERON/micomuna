@@ -44,6 +44,13 @@
       }
     </select>
   </div>
+  <div class="f-orden">
+    <label for="filtro-orden">Ordenar por</label>
+    <select id="filtro-orden" (change)="cambiarOrden($event)">
+      <option value="fecha" [selected]="orden() === 'fecha'">Fecha (más nuevos primero)</option>
+      <option value="prioridad" [selected]="orden() === 'prioridad'">Prioridad (alta primero)</option>
+    </select>
+  </div>
   <div class="f-agente">
     <label for="filtro-agente">Agente</label>
     <select id="filtro-agente" (change)="cambiarFiltro('agente', $event)">
@@ -106,6 +113,7 @@
                 <th scope="col">Tipo</th>
                 <th scope="col">Dirección</th>
                 <th scope="col">Estado</th>
+                <th scope="col">Prioridad</th>
                 <th scope="col">Agente</th>
                 <th scope="col">Fecha</th>
                 <th scope="col">Acciones</th>
@@ -126,6 +134,7 @@
                     }
                   </td>
                   <td><app-chip-estado [estado]="r.estado" /></td>
+                  <td><app-chip-prioridad [prioridad]="r.prioridad" /></td>
                   <td class="c-agente">{{ r.agente?.nombre || 'Sin asignar' }}</td>
                   <td class="c-fecha">{{ r.creadoEn | date: 'd/M/yyyy' }}</td>
                   <td>
@@ -156,6 +165,7 @@
                 <div class="fila-arriba">
                   <b class="num">N.º {{ r.numero }}</b>
                   <app-chip-estado [estado]="r.estado" />
+                  <app-chip-prioridad [prioridad]="r.prioridad" />
                 </div>
                 <span class="tipo"><app-icono-tipo [codigo]="r.tipo" [tamano]="20" />{{ r.tipoNombre }}</span>
                 <span class="dir">{{ r.direccion || 'Sin dirección' }}</span>

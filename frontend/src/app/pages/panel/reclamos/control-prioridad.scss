@@ -1,0 +1,14 @@
+:host { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+p { margin: 0; }
+.actual { display: flex; }
+.linea { overflow-wrap: anywhere; }
+.ok { font-weight: 700; }
+.ayuda-c { font-size: 16px; color: var(--sub); }
+
+.grupo { margin: 0; padding: 0; border: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 6px; font-weight: 700; }
+.opciones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.opcion { flex-direction: column; gap: 0; padding: 0 8px; line-height: 1.2; small { font-size: 14px; font-weight: 600; } }
+// La elegida va rellena: además del color, queda apretada (aria-pressed) y sin acción.
+.opcion.elegida { background: var(--p); color: #fff; cursor: default; opacity: 1; }
+@media (max-width: 360px) { .opciones { grid-template-columns: minmax(0, 1fr); } }

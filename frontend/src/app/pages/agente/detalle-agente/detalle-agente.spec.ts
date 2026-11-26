@@ -97,6 +97,26 @@ describe('DetalleAgente', () => {
   const dialogo = (f: ComponentFixture<unknown>) => el(f).querySelector('app-dialogo-resolver') as HTMLElement | null;
 
   describe('lo que muestra', () => {
+    it('muestraLaPrioridadEfectivaSinDecirQuienLaFijo', () => {
+      const f = crear('12', reclamo({ prioridad: { valor: 'ALTA', origen: 'PERSONAL' } }));
+
+      expect(el(f).querySelector('.titulo app-chip-prioridad')?.textContent?.trim()).toBe('Alta');
+      expect(texto(f)).not.toContain('Fijada por');
+    });
+
+    it('sinPrioridadDiceSinPrioridad', () => {
+      const f = crear('12', reclamo({ prioridad: { valor: null, origen: 'NINGUNA' } }));
+
+      expect(el(f).querySelector('.titulo app-chip-prioridad')?.textContent?.trim()).toBe('Sin prioridad');
+    });
+
+    it('laSugeridaPorLaIALlevaLaMarcaYElAgenteNoPuedeCambiarla', () => {
+      const f = crear('12', reclamo({ prioridad: { valor: 'MEDIA', origen: 'IA' } }));
+
+      expect(el(f).querySelector('.titulo app-chip-prioridad .marca')?.textContent).toBe('Sugerida');
+      expect(el(f).querySelector('button.opcion')).toBeNull();
+    });
+
     it('mostrarTipoDescripcionDireccionReferenciaYFecha', () => {
       const f = crear();
 

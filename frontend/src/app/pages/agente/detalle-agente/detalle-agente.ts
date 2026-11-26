@@ -10,6 +10,7 @@ import { ComunaDto } from '../../../auth/modelos';
 import { ChipEstado } from '../../../compartido/estado-reclamo/chip-estado';
 import { FotoReclamo } from '../../../compartido/foto-reclamo/foto-reclamo';
 import { IconoTipo } from '../../../compartido/icono-tipo/icono-tipo';
+import { ChipPrioridad } from '../../../compartido/prioridad/chip-prioridad';
 import { MapaUbicacion, VistaMapa } from '../../../mapas/mapa-ubicacion/mapa-ubicacion';
 import { FotosDeReclamos } from '../../../reclamos/fotos-de-reclamos';
 import { DialogoResolver } from './dialogo-resolver';
@@ -18,7 +19,7 @@ import { DialogoResolver } from './dialogo-resolver';
 // botón de acción según el estado. Sin datos del vecino. Un reclamo ajeno o inexistente da el mismo 404.
 @Component({
   selector: 'app-detalle-agente',
-  imports: [DatePipe, RouterLink, ChipEstado, FotoReclamo, IconoTipo, MapaUbicacion, DialogoResolver],
+  imports: [DatePipe, RouterLink, ChipEstado, ChipPrioridad, FotoReclamo, IconoTipo, MapaUbicacion, DialogoResolver],
   providers: [FotosDeReclamos],
   templateUrl: './detalle-agente.html',
   styleUrl: './detalle-agente.scss',

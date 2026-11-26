@@ -128,3 +128,46 @@ describe('enlaceComoLlegar', () => {
     expect(enlaceComoLlegar(NaN, -64.2)).toBeNull();
   });
 });
+
+describe('ordenar por prioridad (MC-27)', () => {
+  const orden = (lista: ReclamoAgenteDto[], desde: typeof AQUI | null) => ordenar(conDistancias(lista, desde), 'prioridad')[0].tarjetas.map((t) => t.reclamo.numero);
+  const alta = { valor: 'ALTA', origen: 'IA' } as const;
+  const media = { valor: 'MEDIA', origen: 'PERSONAL' } as const;
+  const baja = { valor: 'BAJA', origen: 'PERSONAL' } as const;
+  const ninguna = { valor: null, origen: 'NINGUNA' } as const;
+
+  it('altaPrimeroYSinPrioridadAlFinal', () => {
+    const lista = [reclamo(1, { prioridad: ninguna }), reclamo(2, { prioridad: baja }), reclamo(3, { prioridad: alta }), reclamo(4, { prioridad: media }), reclamo(5)];
+    expect(orden(lista, null)).toEqual([3, 4, 2, 1, 5]);
+  });
+
+  it('aIgualPrioridadVaElMasCercaSiHayUbicacion', () => {
+    const lista = [
+      reclamo(1, { prioridad: alta, latitud: -31.4066 }),
+      reclamo(2, { prioridad: alta, latitud: -31.4165 }),
+      reclamo(3, { prioridad: media, latitud: -31.4201 }),
+    ];
+    // La Alta más cerca (2) antes que la Alta lejana (1); la Media, aunque esté al lado, va después.
+    expect(orden(lista, AQUI)).toEqual([2, 1, 3]);
+  });
+
+  it('aIgualPrioridadSinUbicacionVaElMasViejo', () => {
+    const lista = [
+      reclamo(1, { prioridad: alta, creadoEn: '2026-11-05T10:00:00' }),
+      reclamo(2, { prioridad: alta, creadoEn: '2026-11-01T10:00:00' }),
+    ];
+    expect(orden(lista, null)).toEqual([2, 1]);
+  });
+
+  it('aIgualPrioridadLosQueNoTienenCoordenadasVanDespuesDeLosQueSi', () => {
+    const lista = [
+      reclamo(1, { prioridad: baja, latitud: null, longitud: null, creadoEn: '2026-10-01T10:00:00' }),
+      reclamo(2, { prioridad: baja, latitud: -31.4066 }),
+    ];
+    expect(orden(lista, AQUI)).toEqual([2, 1]);
+  });
+
+  it('noAgrupaConTitulo', () => {
+    expect(ordenar(conDistancias([reclamo(1)], null), 'prioridad')[0].titulo).toBeNull();
+  });
+});

@@ -18,8 +18,8 @@
 }
 
 // Todos los filtros en un solo renglón; en pantallas chicas pasan a una columna.
-.filtros { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 2.4fr) minmax(170px, 1fr) minmax(170px, 1fr); gap: 12px; align-items: start; }
-.f-estado, .f-buscar, .f-tipo, .f-agente { min-width: 0; }
+.filtros { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(220px, 2.4fr) minmax(170px, 1fr) minmax(170px, 1fr) minmax(190px, 1fr); gap: 12px; align-items: start; }
+.filtros > div { min-width: 0; }
 .f-buscar input { height: 56px; font-size: 19px; }
 .ayuda-c { margin-top: 6px; font-size: 15px; color: var(--sub); }
 @media (max-width: 900px) { .filtros { grid-template-columns: 1fr 1fr; } .f-buscar { grid-column: 1 / -1; order: -1; } }

@@ -1,0 +1,15 @@
+<span class="chip-p" [attr.data-prioridad]="valor() ?? 'NINGUNA'" [class.sugerida]="sugerida()">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    @switch (valor()) {
+      @case ('ALTA') { <path d="M6 11l6-6 6 6" /><path d="M6 19l6-6 6 6" /> }
+      @case ('MEDIA') { <path d="M5 9h14" /><path d="M5 15h14" /> }
+      @case ('BAJA') { <path d="M6 5l6 6 6-6" /><path d="M6 13l6 6 6-6" /> }
+      @default { <path d="M7 12h10" /> }
+    }
+  </svg>
+  <span>{{ nombre() }}</span>&ngsp;
+  @if (sugerida()) {
+    <span class="marca" aria-hidden="true">Sugerida</span>
+    <span class="solo-lectores">, sugerida por la IA</span>
+  }
+</span>

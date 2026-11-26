@@ -857,4 +857,95 @@ describe('DetallePanel', () => {
       }
     });
   });
+
+  describe('prioridad (MC-27)', () => {
+    const personal = { valor: 'MEDIA', origen: 'PERSONAL', fijadaPor: 'Marta Gil', fijadaEn: '2026-11-26T10:00:00' } as const;
+    const tarjetaPrioridad = (f: ComponentFixture<unknown>) => seccion(f, 'Prioridad')!;
+    const textoPrioridad = (f: ComponentFixture<unknown>) => tarjetaPrioridad(f).textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    const opcion = (f: ComponentFixture<unknown>, nombre: string) =>
+      Array.from(tarjetaPrioridad(f).querySelectorAll<HTMLButtonElement>('button.opcion')).find((b) => b.textContent?.trim().startsWith(nombre))!;
+
+    it('muestraLaPrioridadEfectivaDeLaIAComoSugeridaYElegirlaLaConfirma', () => {
+      const f = crear('42', reclamo({ prioridad: { valor: 'ALTA', origen: 'IA' } }));
+
+      expect(textoPrioridad(f)).toContain('Alta');
+      expect(tarjetaPrioridad(f).querySelector('app-chip-prioridad .marca')?.textContent).toBe('Sugerida');
+      expect(textoPrioridad(f)).toContain('Si la elegís abajo, la confirmás');
+    });
+
+    it('conPrioridadDelPersonalDiceQuienYCuando', () => {
+      const f = crear('42', reclamo({ prioridad: personal }));
+
+      expect(textoPrioridad(f)).toContain('Fijada por Marta Gil el 26/11/2026.');
+      expect(tarjetaPrioridad(f).querySelector('app-chip-prioridad .marca')).toBeNull();
+    });
+
+    it('sinDatoDePrioridadDiceSinPrioridad', () => {
+      const f = crear();
+
+      expect(textoPrioridad(f)).toContain('Sin prioridad');
+    });
+
+    it('fijarLaPrioridadMandaElPutYRefrescaConLaRespuesta', () => {
+      const f = crear('42', reclamo({ prioridad: { valor: 'MEDIA', origen: 'IA' } }));
+
+      opcion(f, 'Alta').click();
+      const p = http.expectOne('/api/panel/reclamos/42/prioridad');
+      expect(p.request.method).toBe('PUT');
+      expect(p.request.body).toEqual({ prioridad: 'ALTA' });
+      p.flush(reclamo({ prioridad: { valor: 'ALTA', origen: 'PERSONAL', fijadaPor: 'Marta Gil', fijadaEn: '2026-11-26T11:00:00' } }));
+      f.detectChanges();
+
+      expect(textoPrioridad(f)).toContain('Fijada por Marta Gil el 26/11/2026.');
+      expect(opcion(f, 'Alta').getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('conElReclamoCerradoSeVeSinPoderCambiarla', () => {
+      for (const estado of ['RESUELTO', 'DESCARTADO'] as const) {
+        const f = crear('42', reclamo({ estado, prioridad: personal }));
+
+        expect(textoPrioridad(f)).toContain('Media');
+        expect(tarjetaPrioridad(f).querySelectorAll('button').length).toBe(0);
+        f.destroy();
+      }
+    });
+
+    it('unConflictoDelServidorMuestraElErrorEnEspañolYVuelveAPedirElDetalle', () => {
+      const f = crear('42', reclamo({ prioridad: { valor: null, origen: 'NINGUNA' } }));
+
+      opcion(f, 'Baja').click();
+      http.expectOne('/api/panel/reclamos/42/prioridad').flush({ codigo: 'RECLAMO_CERRADO' }, { status: 409, statusText: 'Conflicto' });
+      f.detectChanges();
+
+      expect(tarjetaPrioridad(f).querySelector('[role="alert"]')?.textContent).toContain('El reclamo ya está cerrado');
+      http.expectOne('/api/panel/reclamos/42').flush(reclamo({ estado: 'RESUELTO', prioridad: { valor: null, origen: 'NINGUNA' } }));
+      f.detectChanges();
+      expect(tarjetaPrioridad(f).querySelectorAll('button').length).toBe(0);
+    });
+
+    it('latarjetaDeLaIAMuestraLaPrioridadSugerida', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: { estado: 'HECHA', tipoSugerido: 'BACHE', tipoSugeridoNombre: 'Bache o calle rota', coincide: true, prioridadSugerida: 'ALTA' } }));
+
+      expect(seccion(f, 'Sugerencia de la IA')?.textContent).toContain('Prioridad sugerida por la IA: Alta');
+    });
+
+    it('sinPrioridadSugeridaLaTarjetaDeLaIANoDiceNada', () => {
+      const f = crear('42', reclamo({ sugerenciaIa: { estado: 'HECHA', tipoSugerido: 'BACHE', tipoSugeridoNombre: 'Bache o calle rota', coincide: true, prioridadSugerida: null } }));
+
+      expect(seccion(f, 'Sugerencia de la IA')?.textContent).not.toContain('Prioridad sugerida');
+    });
+
+    it('unCambioDePrioridadSeMuestraComoEventoPropioNoComoCambioDeTipo', () => {
+      const f = crear('42', reclamo({
+        historial: [
+          { estadoAnterior: null, estado: 'RECIBIDO', fecha: '2026-11-03T09:12:00', usuarioNombre: 'Ana López', observacion: null },
+          { estadoAnterior: 'RECIBIDO', estado: 'RECIBIDO', fecha: '2026-11-26T10:30:00', usuarioNombre: 'Marta Gil', observacion: 'Cambió la prioridad de Media a Alta', agente: null, agenteAnterior: null },
+        ],
+      }));
+
+      const fila = Array.from(seccion(f, 'Historial')?.querySelectorAll('li') ?? [])[1];
+      expect(fila.textContent?.replace(/\s+/g, ' ').trim()).toBe('Cambio de prioridad 26/11/2026 10:30 Lo cambió Marta Gil Cambió la prioridad de Media a Alta');
+      expect(fila.querySelector('app-chip-estado')).toBeNull();
+    });
+  });
 });

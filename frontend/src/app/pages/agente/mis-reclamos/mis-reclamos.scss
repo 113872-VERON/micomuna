@@ -41,6 +41,7 @@ p { margin: 0; }
   &:focus-visible { outline: 3px solid var(--p); outline-offset: 2px; }
 }
 @media (hover: hover) and (pointer: fine) { .tarjeta:hover { border-color: var(--p); } }
+.prioridad { align-self: flex-start; }
 .fila { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
 .n { font-size: 20px; }
 .tipo { display: flex; gap: 6px; align-items: center; overflow-wrap: anywhere; app-icono-tipo { flex: none; color: var(--p); } }

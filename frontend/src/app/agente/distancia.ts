@@ -1,5 +1,6 @@
 import { Coordenadas } from '../reclamos/modelos';
 import { ReclamoAgenteDto } from './modelos-agente';
+import { rangoDePrioridad } from '../reclamos/prioridad';
 
 const RADIO_TIERRA_M = 6_371_000;
 const aRadianes = (grados: number) => (grados * Math.PI) / 180;
@@ -29,7 +30,7 @@ export function textoDeDistancia(metros: number): string {
   return `A ${UN_DECIMAL.format(metros / 1000)} km`;
 }
 
-export type OrdenAgente = 'fecha' | 'tipo' | 'distancia';
+export type OrdenAgente = 'fecha' | 'tipo' | 'distancia' | 'prioridad';
 
 // Un reclamo de la lista con la distancia ya calculada (o null si no hay ubicación o el reclamo no tiene coordenadas).
 export interface ReclamoConDistancia {
@@ -56,6 +57,14 @@ const tiempo = (fecha: string) => {
 };
 const porFecha = (a: ReclamoConDistancia, b: ReclamoConDistancia) => tiempo(a.reclamo.creadoEn) - tiempo(b.reclamo.creadoEn) || a.reclamo.numero - b.reclamo.numero;
 
+// El más cerca primero; los que no tienen distancia van al final, por fecha.
+const porCercania = (a: ReclamoConDistancia, b: ReclamoConDistancia) => {
+  if (a.metros === null || b.metros === null) {
+    return a.metros === b.metros ? porFecha(a, b) : a.metros === null ? 1 : -1;
+  }
+  return a.metros - b.metros || porFecha(a, b);
+};
+
 // Fecha: el más antiguo primero. Tipo: agrupados por tipo (A a Z), cada grupo por fecha. Distancia: el más cerca
 // primero; los que no tienen distancia van al final, por fecha.
 export function ordenar(lista: readonly ReclamoConDistancia[], orden: OrdenAgente): GrupoDeTarjetas[] {
@@ -67,12 +76,12 @@ export function ordenar(lista: readonly ReclamoConDistancia[], orden: OrdenAgent
     return [...porTipo.entries()].sort(([a], [b]) => a.localeCompare(b, 'es')).map(([titulo, tarjetas]) => ({ titulo, tarjetas }));
   }
   if (orden === 'distancia') {
-    const tarjetas = [...lista].sort((a, b) => {
-      if (a.metros === null || b.metros === null) {
-        return a.metros === b.metros ? porFecha(a, b) : a.metros === null ? 1 : -1;
-      }
-      return a.metros - b.metros || porFecha(a, b);
-    });
+    const tarjetas = [...lista].sort(porCercania);
+    return [{ titulo: null, tarjetas }];
+  }
+  if (orden === 'prioridad') {
+    // Alta primero y sin prioridad al final; a igual prioridad, el más cerca (si hay ubicación) y si no, el más viejo.
+    const tarjetas = [...lista].sort((a, b) => rangoDePrioridad(a.reclamo.prioridad) - rangoDePrioridad(b.reclamo.prioridad) || porCercania(a, b));
     return [{ titulo: null, tarjetas }];
   }
   return [{ titulo: null, tarjetas: [...lista].sort(porFecha) }];

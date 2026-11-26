@@ -11,9 +11,14 @@ export interface FiltrosPanel {
 
 export type VistaPanel = 'mapa' | 'lista';
 
+// Cómo se ordena la lista (MC-27): por fecha (la más nueva primero) o por prioridad (Alta primero, sin prioridad al final).
+export type OrdenPanel = 'fecha' | 'prioridad';
+
 export interface EstadoDePantalla {
   filtros: FiltrosPanel;
   vista: VistaPanel;
+  // En la URL solo va "prioridad"; fecha es lo predeterminado.
+  orden: OrdenPanel;
   // Desde 0 (en la URL va desde 1 y se omite la primera).
   pagina: number;
 }
@@ -47,6 +52,7 @@ export function leerEstado(params: ParamMap): EstadoDePantalla {
       buscar: (params.get('buscar') ?? '').slice(0, MAX_BUSCAR),
     },
     vista: params.get('vista') === 'lista' ? 'lista' : 'mapa',
+    orden: params.get('orden') === 'prioridad' ? 'prioridad' : 'fecha',
     pagina: pagina && /^\d{1,4}$/.test(pagina) && Number(pagina) >= 1 ? Number(pagina) - 1 : 0,
   };
 }
@@ -59,6 +65,7 @@ export function aQueryParams(e: EstadoDePantalla): Params {
     agente: e.filtros.agente,
     buscar: e.filtros.buscar.trim() || null,
     vista: e.vista === 'lista' ? 'lista' : null,
+    orden: e.orden === 'prioridad' ? 'prioridad' : null,
     pagina: e.pagina > 0 ? e.pagina + 1 : null,
   };
 }

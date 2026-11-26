@@ -1,0 +1,36 @@
+<div class="actual">
+  <app-chip-prioridad [prioridad]="actual()" />
+</div>
+@switch (origen()) {
+  @case ('PERSONAL') {
+    <p class="linea">Fijada por {{ prioridad()?.fijadaPor || 'el personal' }}@if (prioridad()?.fijadaEn) { el {{ prioridad()?.fijadaEn | date: 'dd/MM/yyyy' }}}.</p>
+  }
+  @case ('IA') {
+    <p class="linea">Es la prioridad que sugirió la IA y todavía nadie la fijó. Si la elegís abajo, la confirmás.</p>
+  }
+  @default {
+    <p class="linea">Todavía no tiene prioridad: la IA no sugirió una y nadie la fijó.</p>
+  }
+}
+
+@if (cerrado()) {
+  <p class="ayuda-c">El reclamo está cerrado: la prioridad ya no se puede cambiar.</p>
+} @else {
+  <fieldset class="grupo" [attr.aria-describedby]="error() ? 'error-prioridad' : null">
+    <legend>{{ origen() === 'PERSONAL' ? 'Cambiar la prioridad' : 'Fijar la prioridad' }}</legend>
+    <div class="opciones">
+      @for (v of valores; track v) {
+        <button type="button" class="btn sec opcion" [class.elegida]="estaElegida(v)" [attr.aria-pressed]="estaElegida(v)" [attr.aria-disabled]="estaElegida(v) ? 'true' : null"
+          [disabled]="guardando() !== null" (click)="fijar(v)">
+          {{ guardando() === v ? 'Guardando…' : nombres[v] }}@if (esLaSugerida(v) && guardando() !== v) {&ngsp;<small>(sugerida)</small>}
+        </button>
+      }
+    </div>
+  </fieldset>
+}
+@if (error(); as m) {
+  <div id="error-prioridad" class="caja-error" role="alert">{{ m }}</div>
+}
+@if (confirmado(); as m) {
+  <p class="ok" role="status">{{ m }}</p>
+}
