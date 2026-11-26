@@ -1311,6 +1311,50 @@ paths:
                 $ref: "#/components/schemas/Problema"
       security:
       - bearerAuth: []
+  /api/panel/reclamos/{numero}/no-es-duplicado:
+    put:
+      tags:
+      - Panel de reclamos
+      summary: Dejar el reclamo como nuevo (no es duplicado de los cercanos)
+      description: "Personal administrativo y administrador de la comuna (MC-26). Registra\
+        \ que el personal revisó los posibles duplicados y decidió que este reclamo\
+        \ es nuevo: queda quién y cuándo, y el aviso no vuelve a aparecer para este\
+        \ reclamo. No se puede deshacer. No cambia el estado ni el historial, no manda\
+        \ correo y el vecino no ve nada. Sin cuerpo. Devuelve el detalle actualizado."
+      operationId: marcarNoEsDuplicado
+      parameters:
+      - $ref: "#/components/parameters/NumeroReclamo"
+      responses:
+        "200":
+          description: Marcado como reclamo nuevo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReclamoPanelDetalleDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+        "403":
+          description: Tu rol no permite esto (ACCESO_DENEGADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "404":
+          description: El reclamo no existe o es de otra comuna (NO_ENCONTRADO)
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "409":
+          description: "El reclamo está RESUELTO o DESCARTADO (RECLAMO_CERRADO), ya se\
+            \ marcó como nuevo (YA_MARCADO), no tiene posibles duplicados cerca (SIN_CANDIDATOS)\
+            \ u otra persona lo está cambiando en este momento (CONFLICTO)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+      security:
+      - bearerAuth: []
   /api/panel/reclamos/cambios-de-estado:
     post:
       tags:
@@ -2412,6 +2456,66 @@ components:
             format: int32
         sugerenciaIa:
           $ref: "#/components/schemas/SugerenciaIaDto"
+        posiblesDuplicados:
+          $ref: "#/components/schemas/PosiblesDuplicadosDto"
+    PosiblesDuplicadosDto:
+      type: object
+      description: "Aviso de posibles duplicados cercanos (MC-26). Siempre presente.\
+        \ Es una regla, sin IA: otros reclamos de la misma comuna, del mismo tipo\
+        \ actual, abiertos (RECIBIDO, ASIGNADO o EN_REPARACION), con ubicación y a\
+        \ 100 m o menos de este. Se calcula al pedir el detalle. Para vincularlo a\
+        \ uno de ellos se descarta con motivo DUPLICADO (POST /api/panel/reclamos/descartes);\
+        \ para dejarlo como nuevo, PUT /api/panel/reclamos/{numero}/no-es-duplicado."
+      required:
+      - candidatos
+      properties:
+        candidatos:
+          type: array
+          maxItems: 5
+          description: "Hasta 5, del más cercano al más lejano (a igual distancia, el\
+            \ más viejo primero). Vacío si este reclamo está RESUELTO o DESCARTADO, no\
+            \ tiene ubicación, ya se marcó como nuevo o no hay ninguno cerca"
+          items:
+            $ref: "#/components/schemas/PosibleDuplicadoDto"
+        marcadoNuevoPor:
+          type:
+          - string
+          - "null"
+          description: "Nombre de quién lo marcó como reclamo nuevo. Vacío si nadie lo marcó"
+        marcadoNuevoEn:
+          type:
+          - string
+          - "null"
+          format: date-time
+    PosibleDuplicadoDto:
+      type: object
+      required:
+      - numero
+      - estado
+      - distanciaMetros
+      - creadoEn
+      properties:
+        numero:
+          type: integer
+          format: int32
+        estado:
+          $ref: "#/components/schemas/EstadoReclamo"
+        distanciaMetros:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+          description: Distancia aproximada a este reclamo, redondeada al metro
+        creadoEn:
+          type: string
+          format: date-time
+        direccion:
+          type:
+          - string
+          - "null"
+        descripcion:
+          type: string
+          description: "Lo que escribió el vecino, para comparar (solo lo ve el personal)"
     SugerenciaIaDto:
       type: object
       description: "La sugerencia de tipo de la IA vigente para el reclamo (la más nueva).\
