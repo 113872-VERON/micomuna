@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.QueryHints;
 import org.springframework.data.repository.query.Param;
 
 import com.micomuna.constants.Bloqueo;
+import com.micomuna.constants.Prioridades;
 import com.micomuna.dtos.MiReclamoResumenDto;
 import com.micomuna.entities.Reclamo;
 
@@ -63,7 +64,8 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@Query(value = """
 			select new com.micomuna.dtos.ReclamoAgenteDto(r.numero, t.codigo, t.nombre, r.estado, r.direccion, r.referencia,
 				r.latitud, r.longitud, r.creadoEn,
-				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id and (e.estadoAnterior is null or e.estadoAnterior <> e.estado)), r.creadoEn))
+				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id and (e.estadoAnterior is null or e.estadoAnterior <> e.estado)), r.creadoEn),
+				r.prioridad, """ + Prioridades.SUGERIDA + ") " + """
 			from Reclamo r join r.tipo t
 			where r.comuna.id = :idComuna and r.agente.id = :idAgente
 				and r.estado in (com.micomuna.enums.EstadoReclamo.ASIGNADO, com.micomuna.enums.EstadoReclamo.EN_REPARACION)
@@ -82,7 +84,8 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 			select new com.micomuna.dtos.ReclamoAgenteDto(r.numero, t.codigo, t.nombre, r.estado, r.direccion, r.referencia,
 				r.latitud, r.longitud, r.creadoEn,
 				coalesce((select max(e.cambiadoEn) from ReclamoEstado e where e.reclamo.id = r.id
-					and e.estado = com.micomuna.enums.EstadoReclamo.RESUELTO), r.creadoEn))
+					and e.estado = com.micomuna.enums.EstadoReclamo.RESUELTO), r.creadoEn),
+				r.prioridad, """ + Prioridades.SUGERIDA + ") " + """
 			from Reclamo r join r.tipo t
 			where r.comuna.id = :idComuna and r.agente.id = :idAgente and r.estado = com.micomuna.enums.EstadoReclamo.RESUELTO
 			order by coalesce((select max(e2.cambiadoEn) from ReclamoEstado e2 where e2.reclamo.id = r.id
@@ -149,6 +152,13 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
 	@Query("update Reclamo r set r.usuarioNoDuplicado.id = :idUsuario, r.noDuplicadoEn = :cuando where r.id = :id")
 	int marcarNoDuplicado(@Param("id") Long id, @Param("idUsuario") Long idUsuario, @Param("cuando") Instant cuando);
+
+	// Fija la prioridad del personal (MC-27) sin pasar por @PreUpdate: así no se mueve actualizado_en (la decisión queda en
+	// prioridad_fijada_en y, si cambió la prioridad efectiva, en el historial). Prioridad, quién y cuándo van juntos (V15).
+	@org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update Reclamo r set r.prioridad = :prioridad, r.usuarioPrioridad.id = :idUsuario, r.prioridadFijadaEn = :cuando where r.id = :id")
+	int fijarPrioridad(@Param("id") Long id, @Param("prioridad") com.micomuna.enums.PrioridadIa prioridad,
+			@Param("idUsuario") Long idUsuario, @Param("cuando") Instant cuando);
 
 	// El agente asignado a un reclamo de la comuna (vacío si no tiene o el reclamo no existe).
 	@Query("select a from Reclamo r join r.agente a where r.comuna.id = :idComuna and r.numero = :numero")

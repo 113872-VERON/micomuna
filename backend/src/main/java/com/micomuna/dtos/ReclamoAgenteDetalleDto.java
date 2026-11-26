@@ -20,5 +20,6 @@ public record ReclamoAgenteDetalleDto(
 		@Schema(nullable = true) Double longitud,
 		Instant creadoEn,
 		@Schema(description = "Primero las del vecino y después las del trabajo (solo si está RESUELTO)") List<FotoReclamoDto> fotos,
-		@Schema(nullable = true, description = "Solo si está RESUELTO") String trabajoRealizado) {
+		@Schema(nullable = true, description = "Solo si está RESUELTO") String trabajoRealizado,
+		@Schema(description = "Prioridad efectiva (MC-27), sin quién la fijó. Siempre presente") PrioridadReclamoDto prioridad) {
 }

@@ -119,6 +119,11 @@ public class ApiExceptionHandler {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "MISMO_TIPO", e.getMessage());
 	}
 
+	@ExceptionHandler(MismaPrioridadException.class)
+	ProblemDetail mismaPrioridad(MismaPrioridadException e) {
+		return problema(HttpStatus.CONFLICT, "Conflicto", "MISMA_PRIORIDAD", e.getMessage());
+	}
+
 	@ExceptionHandler(YaAsignadoException.class)
 	ProblemDetail yaAsignado(YaAsignadoException e) {
 		return problema(HttpStatus.CONFLICT, "Conflicto", "YA_ASIGNADO", e.getMessage());

@@ -10,13 +10,17 @@ import java.util.Optional;
 
 import org.springframework.stereotype.Repository;
 
+import com.micomuna.constants.Prioridades;
 import com.micomuna.dtos.AgenteDto;
 import com.micomuna.dtos.AgenteConCargaDto;
 import com.micomuna.dtos.CambioDeEstadoPanelDto;
+import com.micomuna.dtos.PrioridadReclamoDto;
 import com.micomuna.dtos.PuntoReclamoDto;
 import com.micomuna.dtos.ReclamoPanelDto;
 import com.micomuna.entities.Reclamo;
 import com.micomuna.enums.EstadoReclamo;
+import com.micomuna.enums.OrdenPanel;
+import com.micomuna.enums.PrioridadIa;
 import com.micomuna.models.FiltrosDelPanel;
 
 import jakarta.persistence.EntityManager;
@@ -95,16 +99,19 @@ public class PanelReclamosRepository {
 
 	// Una sola consulta para la página: trae el agente, el original y la cantidad de duplicados como columnas
 	// (subconsulta de conteo), sin una consulta extra por fila.
-	public List<ReclamoPanelDto> listar(Long comunaId, FiltrosDelPanel filtros, int pagina, int tamanio) {
+	public List<ReclamoPanelDto> listar(Long comunaId, FiltrosDelPanel filtros, OrdenPanel orden, int pagina, int tamanio) {
 		Donde donde = donde(comunaId, filtros, true);
 		Query consulta = em.createQuery("""
 				select r.numero, t.codigo, t.nombre, r.estado, r.descripcion, r.direccion, r.referencia, r.creadoEn,
 					a.id, a.nombre, o.numero,
 					(select count(d) from Reclamo d where d.reclamoOriginal.id = r.id
 						and d.estado = com.micomuna.enums.EstadoReclamo.DESCARTADO
-						and d.motivoDescarte = com.micomuna.enums.MotivoDescarte.DUPLICADO)
+						and d.motivoDescarte = com.micomuna.enums.MotivoDescarte.DUPLICADO),
+					r.prioridad, """ + Prioridades.SUGERIDA + " " + """
 				from Reclamo r join r.tipo t left join r.agente a left join r.reclamoOriginal o
-				""" + donde.jpql() + " order by r.creadoEn desc, r.id desc", Object[].class);
+				""" + donde.jpql() + (orden == OrdenPanel.PRIORIDAD
+						? " order by " + Prioridades.ORDEN_POR_PRIORIDAD + ", r.creadoEn, r.id"
+						: " order by r.creadoEn desc, r.id desc"), Object[].class);
 		enlazar(consulta, donde);
 		consulta.setFirstResult(pagina * tamanio);
 		consulta.setMaxResults(tamanio);
@@ -114,7 +121,7 @@ public class PanelReclamosRepository {
 			AgenteDto agente = c[8] == null ? null : new AgenteDto((Long) c[8], (String) c[9]);
 			filas.add(new ReclamoPanelDto((Integer) c[0], (String) c[1], (String) c[2], (EstadoReclamo) c[3],
 					(String) c[4], (String) c[5], (String) c[6], (Instant) c[7], agente, (Integer) c[10],
-					((Number) c[11]).intValue()));
+					((Number) c[11]).intValue(), PrioridadReclamoDto.de((PrioridadIa) c[12], (PrioridadIa) c[13])));
 		}
 		return filas;
 	}

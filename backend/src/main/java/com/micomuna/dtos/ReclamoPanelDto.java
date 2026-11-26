@@ -18,5 +18,6 @@ public record ReclamoPanelDto(
 		Instant creadoEn,
 		@Schema(nullable = true) AgenteDto agente,
 		@Schema(nullable = true, description = "Si se descartó por duplicado, el número del original") Integer numeroOriginal,
-		@Schema(description = "Cuántos reclamos están descartados como duplicados de este") int cantidadDuplicados) {
+		@Schema(description = "Cuántos reclamos están descartados como duplicados de este") int cantidadDuplicados,
+		@Schema(description = "Prioridad efectiva (MC-27): la del personal o, si no, la sugerida por la IA. Siempre presente") PrioridadReclamoDto prioridad) {
 }

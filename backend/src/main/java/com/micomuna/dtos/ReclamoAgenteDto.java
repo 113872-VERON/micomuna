@@ -19,12 +19,15 @@ public record ReclamoAgenteDto(
 		@Schema(nullable = true) Double latitud,
 		@Schema(nullable = true) Double longitud,
 		Instant creadoEn,
-		@Schema(description = "Fecha del último cambio de estado (en RESUELTOS, cuándo se resolvió)") Instant estadoCambiadoEn) {
+		@Schema(description = "Fecha del último cambio de estado (en RESUELTOS, cuándo se resolvió)") Instant estadoCambiadoEn,
+		@Schema(description = "Prioridad efectiva (MC-27): la del personal o, si no, la sugerida por la IA. Siempre presente") PrioridadReclamoDto prioridad) {
 
-	// Para la consulta: las coordenadas salen de la base como BigDecimal.
+	// Para la consulta: las coordenadas salen de la base como BigDecimal y la prioridad llega como fijada por el personal y sugerida por la IA.
 	public ReclamoAgenteDto(Integer numero, String tipo, String tipoNombre, EstadoReclamo estado, String direccion,
-			String referencia, BigDecimal latitud, BigDecimal longitud, Instant creadoEn, Instant estadoCambiadoEn) {
+			String referencia, BigDecimal latitud, BigDecimal longitud, Instant creadoEn, Instant estadoCambiadoEn,
+			com.micomuna.enums.PrioridadIa prioridadFijada, com.micomuna.enums.PrioridadIa prioridadSugerida) {
 		this(numero, tipo, tipoNombre, estado, direccion, referencia, latitud == null ? null : latitud.doubleValue(),
-				longitud == null ? null : longitud.doubleValue(), creadoEn, estadoCambiadoEn);
+				longitud == null ? null : longitud.doubleValue(), creadoEn, estadoCambiadoEn,
+				PrioridadReclamoDto.de(prioridadFijada, prioridadSugerida));
 	}
 }

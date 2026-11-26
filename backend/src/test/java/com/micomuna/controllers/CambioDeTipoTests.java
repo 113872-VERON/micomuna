@@ -241,7 +241,7 @@ class CambioDeTipoTests {
 					.andExpect(jsonPath("$.sugerenciaIa.justificacion").value(nullValue()))
 					.andExpect(jsonPath("$.sugerenciaIa.coincide").value(false))
 					.andReturn().getResponse().getContentAsString();
-			assertThat(cuerpo).doesNotContain("detalle interno", "modelo-secreto", "tokens", "prioridad", "CLAUDE");
+			assertThat(cuerpo).doesNotContain("detalle interno", "modelo-secreto", "tokens", "CLAUDE");
 		}
 	}
 
@@ -260,7 +260,7 @@ class CambioDeTipoTests {
 				.andExpect(jsonPath("$.sugerenciaIa.decididaPor").value(nullValue()))
 				.andExpect(jsonPath("$.sugerenciaIa.decididaEn").value(nullValue()))
 				.andReturn().getResponse().getContentAsString();
-		assertThat(cuerpo).doesNotContain("modelo-secreto", "prioridad", "tokens");
+		assertThat(cuerpo).doesNotContain("modelo-secreto", "tokens");
 
 		// Con una sugerencia igual al tipo del vecino, coincide.
 		Reclamo igual = reclamo(2);

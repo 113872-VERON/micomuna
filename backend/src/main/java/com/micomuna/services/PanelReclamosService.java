@@ -17,6 +17,8 @@ import com.micomuna.dtos.DescartePanelDto;
 import com.micomuna.dtos.FotoReclamoDto;
 import com.micomuna.dtos.MapaReclamosDto;
 import com.micomuna.dtos.PaginaReclamosPanelDto;
+import com.micomuna.dtos.PrioridadPanelDto;
+import com.micomuna.dtos.PrioridadReclamoDto;
 import com.micomuna.dtos.PuntoReclamoDto;
 import com.micomuna.dtos.ReclamoPanelDetalleDto;
 import com.micomuna.dtos.ReclamoPanelDto;
@@ -29,6 +31,7 @@ import com.micomuna.entities.Usuario;
 import com.micomuna.enums.EstadoReclamo;
 import com.micomuna.enums.EstadoSugerenciaIa;
 import com.micomuna.enums.EstadoSugerenciaPanel;
+import com.micomuna.enums.OrdenPanel;
 import com.micomuna.enums.OrigenFoto;
 import com.micomuna.enums.Rol;
 import com.micomuna.exceptions.PeticionInvalidaException;
@@ -61,6 +64,7 @@ public class PanelReclamosService {
 	private final SugerenciaIaRepository sugerencias;
 	private final UsuarioRepository usuarios;
 	private final PosiblesDuplicadosService posiblesDuplicados;
+	private final PrioridadDelReclamo prioridades;
 	private final ComunaActual comunaActual;
 
 	// Interpreta los filtros. Un tipo que no existe o un texto de menos de 2 o más de 100 caracteres es un 400
@@ -96,9 +100,13 @@ public class PanelReclamosService {
 	}
 
 	@Transactional(readOnly = true)
-	public PaginaReclamosPanelDto listar(FiltrosDelPanel filtros, int pagina, int tamanio) {
+	public PaginaReclamosPanelDto listar(FiltrosDelPanel filtros, String orden, int pagina, int tamanio) {
+		OrdenPanel ordenInterpretado = OrdenPanel.interpretar(orden);
+		if (ordenInterpretado == null) {
+			throw new PeticionInvalidaException("VALIDACION", "El orden tiene que ser fecha o prioridad.");
+		}
 		Long comuna = comunaActual.id();
-		List<ReclamoPanelDto> filas = panel.listar(comuna, filtros, pagina, tamanio);
+		List<ReclamoPanelDto> filas = panel.listar(comuna, filtros, ordenInterpretado, pagina, tamanio);
 		return new PaginaReclamosPanelDto(filas, pagina, tamanio, panel.contar(comuna, filtros));
 	}
 
@@ -150,13 +158,13 @@ public class PanelReclamosService {
 				reclamo.getLongitud() == null ? null : reclamo.getLongitud().doubleValue(), reclamo.getCreadoEn(),
 				reclamo.getVecino().getNombre(), AgenteDto.desde(reclamo.getAgente()), datosDeFotos, cambios, descarte,
 				resuelto ? reclamo.getTrabajoRealizado() : null, panel.numerosDeDuplicados(reclamo.getId()), sugerenciaIa(reclamo),
-				posiblesDuplicados.de(reclamo));
+				posiblesDuplicados.de(reclamo), prioridad(reclamo));
 	}
 
 
 	// La sugerencia vigente de la IA (la fila más nueva): sin filas SIN_ANALIZAR; ERROR u OMITIDA NO_DISPONIBLE (sin tipo ni
 	// justificación, y nunca el detalle del error, el modelo ni los tokens); HECHA con el tipo, la justificación y, si el
-	// personal ya decidió, la decisión. La prioridad sugerida no se muestra (MC-27).
+	// personal ya decidió, la decisión. La prioridad sugerida viaja solo con HECHA (MC-27).
 	private SugerenciaIaDto sugerenciaIa(Reclamo reclamo) {
 		SugerenciaIa s = sugerencias.findFirstByIdReclamoOrderByCreadaEnDescIdDesc(reclamo.getId()).orElse(null);
 		if (s == null) {
@@ -170,11 +178,21 @@ public class PanelReclamosService {
 						.orElse(null);
 		return new SugerenciaIaDto(EstadoSugerenciaPanel.HECHA, s.getTipoSugerido(), nombreDeTipo(s.getTipoSugerido()),
 				s.getJustificacion(), s.getTipoSugerido().equals(reclamo.getTipo().getCodigo()), s.getDecision(),
-				s.getTipoDecidido(), nombreDeTipo(s.getTipoDecidido()), decididaPor, s.getDecididaEn());
+				s.getTipoDecidido(), nombreDeTipo(s.getTipoDecidido()), decididaPor, s.getDecididaEn(), s.getPrioridadSugerida());
 	}
 
 	private String nombreDeTipo(String codigo) {
 		return codigo == null ? null : tipos.findByCodigo(codigo).map(t -> t.getNombre()).orElse(null);
+	}
+
+	// La prioridad efectiva y, si la fijó el personal, quién y cuándo (el nombre sale de la comuna del reclamo).
+	private PrioridadPanelDto prioridad(Reclamo reclamo) {
+		PrioridadReclamoDto efectiva = prioridades.de(reclamo);
+		if (reclamo.getPrioridad() == null) {
+			return PrioridadPanelDto.de(efectiva, null, null);
+		}
+		Usuario quien = reclamo.getUsuarioPrioridad();
+		return PrioridadPanelDto.de(efectiva, quien == null ? null : quien.getNombre(), reclamo.getPrioridadFijadaEn());
 	}
 	@Transactional(readOnly = true)
 	public MisReclamosService.Imagen foto(Integer numero, Long idFoto) {
