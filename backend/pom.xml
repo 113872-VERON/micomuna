@@ -164,6 +164,20 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- El perfil dev importa db/.env, que en una PC de desarrollo puede traer el proveedor de IA y una
+						clave reales. Las propiedades del sistema pisan a esos archivos, así que las pruebas nunca arman
+						un asistente real ni llaman (y pagan) a la API. Las pruebas que necesitan otro proveedor lo fijan
+						ellas mismas con @SpringBootTest(properties=...) o @TestPropertySource, que tienen prioridad. -->
+					<systemPropertyVariables>
+						<micomuna.ia.proveedor>ninguno</micomuna.ia.proveedor>
+						<micomuna.ia.claude.api-key></micomuna.ia.claude.api-key>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 

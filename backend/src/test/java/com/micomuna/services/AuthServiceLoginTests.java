@@ -40,7 +40,8 @@ class AuthServiceLoginTests {
 		when(usuarios.findByComunaIdAndCorreo(1L, "ana@mail.com")).thenReturn(Optional.of(pendiente));
 
 		AuthService servicio = new AuthService(comunas, usuarios, new BCryptPasswordEncoder(),
-				new JwtService("un-secreto-de-prueba-bien-largo-de-mas-de-32-caracteres", Duration.ofHours(4)));
+				new JwtService("un-secreto-de-prueba-bien-largo-de-mas-de-32-caracteres", Duration.ofHours(4)),
+				new CuentaService(usuarios));
 
 		assertThatThrownBy(() -> servicio.login("salsipuedes-cordoba", new LoginRequest("ana@mail.com", "cualquiera-123")))
 				.isInstanceOf(CredencialesInvalidasException.class)
