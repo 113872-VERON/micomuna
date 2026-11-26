@@ -35,6 +35,7 @@ describe('PanelLayout', () => {
     return f;
   }
   const el = (f: ComponentFixture<unknown>) => f.nativeElement as HTMLElement;
+  const menu = () => Array.from(document.querySelectorAll('[role="menuitem"]')).map((i) => i.getAttribute('href'));
 
   it('muestraLaComunaYQuienIngresoConSuRolEnTextoClaro', () => {
     const f = crear();
@@ -62,11 +63,39 @@ describe('PanelLayout', () => {
     expect(document.documentElement.style.getPropertyValue('--p')).toBe('#2F6B3F');
   });
 
-  it('salirCierraLaSesionYVuelveAlLoginDeLaComuna', () => {
+  it('elBotonDelUsuarioAbreUnMenuConMisDatosCambiarContrasenaYSalir', async () => {
     const f = crear();
-    (Array.from(el(f).querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Salir') as HTMLButtonElement).click();
+    (el(f).querySelector('button.disparador') as HTMLButtonElement).click();
+    f.detectChanges();
+    await vi.waitFor(() => expect(document.querySelectorAll('[role="menuitem"]').length).toBe(3));
+
+    expect(menu()).toEqual(['/salsipuedes-cordoba/panel/mi-cuenta', '/salsipuedes-cordoba/panel/cambiar-clave', null]);
+    expect(Array.from(document.querySelectorAll('[role="menuitem"]')).map((i) => i.textContent)).toEqual([
+      expect.stringContaining('Mis datos'), expect.stringContaining('Cambiar contraseña'), expect.stringContaining('Salir'),
+    ]);
+  });
+
+  it('yaNoHayUnBotonSalirSueltoEnLaBarra', () => {
+    const f = crear();
+    expect(Array.from(el(f).querySelectorAll('header button')).map((b) => b.textContent?.trim())).not.toContain('Salir');
+  });
+
+  it('salirDesdeElMenuCierraLaSesionYVuelveAlLoginDeLaComuna', async () => {
+    const f = crear();
+    (el(f).querySelector('button.disparador') as HTMLButtonElement).click();
+    f.detectChanges();
+    await vi.waitFor(() => expect(document.querySelectorAll('[role="menuitem"]').length).toBe(3));
+    (Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find((i) => i.textContent?.includes('Salir')) as HTMLElement).click();
 
     expect(TestBed.inject(AuthService).estaAutenticado()).toBe(false);
     expect(router.navigateByUrl).toHaveBeenCalledWith('/salsipuedes-cordoba/login');
+  });
+
+  it('laBarraEsUnaGrillaDeTresColumnasConLasOpcionesAlCentro', () => {
+    const f = crear();
+    const estilo = getComputedStyle(el(f).querySelector('header') as HTMLElement);
+    expect(estilo.display).toBe('grid');
+    expect(el(f).querySelector('header')!.children.length).toBe(3);
+    expect(Array.from(el(f).querySelector('header')!.children).map((c) => c.tagName)).toEqual(['DIV', 'NAV', 'APP-MENU-USUARIO']);
   });
 });

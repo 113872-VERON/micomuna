@@ -33,11 +33,13 @@ public class AuthService {
 	private final UsuarioRepository usuarios;
 	private final PasswordEncoder encoder;
 	private final JwtService jwt;
+	private final CuentaService cuentaService;
 	// Se compara contra este hash cuando el usuario no existe, para que tarde lo mismo que con uno real.
 	private final String hashDeRelleno;
 
 	public AuthService(ComunaService comunaService, UsuarioRepository usuarios, PasswordEncoder encoder,
-			JwtService jwt) {
+			JwtService jwt, CuentaService cuentaService) {
+		this.cuentaService = cuentaService;
 		this.comunaService = comunaService;
 		this.usuarios = usuarios;
 		this.encoder = encoder;
@@ -97,7 +99,8 @@ public class AuthService {
 	// Los tokens ya emitidos siguen valiendo hasta que venzan (no hay revocación).
 	@Transactional
 	public void cambiarClave(UsuarioAutenticado autenticado, CambiarClaveRequest pedido) {
-		Usuario usuario = usuarios.findById(autenticado.id()).orElseThrow(CredencialesInvalidasException::new);
+		// Misma búsqueda que "Mi cuenta": por id y comuna del token, solo activos; si no, 401.
+		Usuario usuario = cuentaService.buscar(autenticado);
 
 		boolean actualCorrecta = usuario.getClaveHash() != null && claveEntraEnBcrypt(pedido.claveActual())
 				&& encoder.matches(pedido.claveActual(), usuario.getClaveHash());

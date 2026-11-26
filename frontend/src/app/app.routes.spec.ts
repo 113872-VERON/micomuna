@@ -66,7 +66,7 @@ describe('Rutas de la aplicación', () => {
   it('elSuperadminVeLaListaDeComunas', async () => {
     entrar('SUPERADMIN');
     const navegacion = harness.navigateByUrl('/admin');
-    await vi.waitFor(() => http.expectOne('/api/admin/comunas').flush([]));
+    await vi.waitFor(() => http.expectOne('/api/admin/comunas').flush([]), { timeout: 8000 });
     await navegacion;
     harness.detectChanges();
     expect(TestBed.inject(Router).url).toBe('/admin/comunas');

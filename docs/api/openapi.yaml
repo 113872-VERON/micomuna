@@ -219,6 +219,53 @@ paths:
           description: Sin sesión
       security:
       - bearerAuth: []
+  /api/auth/mis-datos:
+    get:
+      tags:
+      - Mi cuenta
+      summary: Ver mis datos
+      description: "Devuelve el nombre, el correo, el rol y la comuna de quien tiene         la sesión iniciada. Vale para todos los roles, incluido el superadmin (sin         comuna)."
+      operationId: verMisDatos
+      responses:
+        "200":
+          description: Mis datos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioDto"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - Mi cuenta
+      summary: Cambiar mi nombre
+      description: "Cambia el nombre de quien tiene la sesión iniciada. Solo se puede         cambiar el nombre: el correo, el rol y la comuna no se tocan desde acá.         Devuelve los datos actualizados."
+      operationId: cambiarMisDatos
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ActualizarMisDatosRequest"
+      responses:
+        "200":
+          description: Nombre cambiado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsuarioDto"
+        "400":
+          description: "Falta el nombre, supera los 100 caracteres o tiene caracteres no permitidos, como los de control (VALIDACION)"
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/Problema"
+        "401":
+          description: "Sin sesión, o el token venció o no es válido"
+      security:
+      - bearerAuth: []
   /api/admin/login:
     post:
       tags:
@@ -2971,6 +3018,16 @@ components:
           description: "De 8 a 72 caracteres, distinta de la actual"
       required:
       - claveActual
+    ActualizarMisDatosRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+          maxLength: 100
+          minLength: 1
+          description: Se guarda sin espacios al principio ni al final
+      required:
+      - nombre
     CrearComunaRequest:
       type: object
       properties:

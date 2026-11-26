@@ -1,7 +1,8 @@
 <div class="enc">
   <h1>Reclamos</h1>
   <div class="vistas" role="group" aria-label="Cómo ver los reclamos">
-    <button type="button" class="vista" [class.on]="vista() === 'mapa'" [attr.aria-pressed]="vista() === 'mapa'" (click)="cambiarVista('mapa')">Lista y mapa</button>
+    <!-- Sin mapa no se usa disabled (no recibe mouse ni foco): aria-disabled, la acción bloqueada y el texto como ayuda flotante. -->
+    <button type="button" class="vista" [class.on]="vista() === 'mapa'" [class.sin-mapa]="sinLimite()" [attr.aria-pressed]="vista() === 'mapa'" [attr.aria-disabled]="sinLimite() ? 'true' : null" [appAyuda]="textoSinMapa" [appAyudaActiva]="sinLimite()" (click)="cambiarVista('mapa')">Lista y mapa</button>
     <button type="button" class="vista" [class.on]="vista() === 'lista'" [attr.aria-pressed]="vista() === 'lista'" (click)="cambiarVista('lista')">Solo lista</button>
   </div>
 </div>

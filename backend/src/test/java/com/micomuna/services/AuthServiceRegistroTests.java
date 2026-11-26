@@ -34,7 +34,8 @@ class AuthServiceRegistroTests {
 		when(usuarios.saveAndFlush(any(Usuario.class))).thenThrow(new DataIntegrityViolationException("ORA-00001"));
 
 		AuthService servicio = new AuthService(comunas, usuarios, new BCryptPasswordEncoder(),
-				new JwtService("un-secreto-de-prueba-bien-largo-de-mas-de-32-caracteres", Duration.ofHours(4)));
+				new JwtService("un-secreto-de-prueba-bien-largo-de-mas-de-32-caracteres", Duration.ofHours(4)),
+				new CuentaService(usuarios));
 
 		assertThatThrownBy(() -> servicio.registrarVecino("salsipuedes-cordoba",
 				new RegistroRequest("Ana", "ana@mail.com", "clave-segura-1")))

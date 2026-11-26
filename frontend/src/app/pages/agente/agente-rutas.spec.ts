@@ -46,7 +46,8 @@ describe('Rutas del agente (con las rutas reales)', () => {
       if (!terminada) {
         throw new Error('la navegación sigue en curso');
       }
-    });
+      // La primera carga de un tramo perezoso (con Material) puede tardar con todas las pruebas en paralelo.
+    }, { timeout: 8000 });
     await navegacion;
     harness.detectChanges();
   }
@@ -63,7 +64,7 @@ describe('Rutas del agente (con las rutas reales)', () => {
     harness.detectChanges();
     expect(pantalla()).toContain('Comuna de');
     expect(pantalla()).toContain('Salsipuedes');
-    expect(pantalla()).toContain('Salir');
+    expect(pantalla()).toContain('Juan Agente');
     expect(pantalla()).toContain('Mis reclamos');
     expect(pantalla()).toContain('Para hacer');
     expect(pantalla()).toContain('No tenés reclamos para hacer');
@@ -83,8 +84,12 @@ describe('Rutas del agente (con las rutas reales)', () => {
     await ir('/salsipuedes-cordoba/agente');
     http.expectOne((p) => p.url === '/api/agente/reclamos').flush({ reclamos: [], pagina: 0, tamanio: 100, total: 0 });
 
-    const salir = Array.from((harness.routeNativeElement as HTMLElement).querySelectorAll('button')).find((b) => b.textContent?.trim() === 'Salir') as HTMLButtonElement;
-    salir.click();
+    harness.detectChanges();
+    (harness.routeNativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.disparador')!.click();
+    harness.detectChanges();
+    const salir = () => Array.from(document.querySelectorAll<HTMLElement>('[role="menuitem"]')).find((i) => i.textContent?.includes('Salir'));
+    await vi.waitFor(() => expect(salir()).toBeDefined());
+    salir()!.click();
     await vi.waitFor(() => expect(url()).toBe('/salsipuedes-cordoba/login'));
 
     expect(TestBed.inject(AuthService).estaAutenticado()).toBe(false);

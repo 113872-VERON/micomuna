@@ -24,6 +24,7 @@ class MapaFalso {
 }
 
 const COMUNA: ComunaDto = { nombre: 'Salsipuedes', provincia: 'Córdoba', departamento: 'Colón', slug: 'salsipuedes-cordoba', tieneLogo: false, color: 'OCRE' };
+const LIMITE = { type: 'Polygon', coordinates: [[[-64.3, -31.1], [-64.2, -31.1], [-64.2, -31.0], [-64.3, -31.1]]] };
 const BASE = '/salsipuedes-cordoba/panel/reclamos';
 const RUTAS = [
   { path: ':slug/panel/reclamos', data: { comuna: COMUNA }, component: ReclamosPanel },
@@ -78,6 +79,12 @@ describe('Panel de reclamos', () => {
   const el = () => harness.fixture.nativeElement as HTMLElement;
   const texto = () => el().textContent?.replace(/\s+/g, ' ').trim() ?? '';
   const url = () => TestBed.inject(Router).url;
+  // La comuna tiene el límite cargado (hay mapa). Hasta que llega, la pantalla no dibuja el mapa ni pide sus puntos.
+  const limiteConMapa = () => {
+    http.expectOne('/api/mi-comuna/limite').flush(LIMITE);
+    harness.detectChanges();
+  };
+  const sinLimite = () => http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
   const lista = () => http.expectOne((p) => p.url === '/api/panel/reclamos');
   const mapa = () => http.expectOne((p) => p.url === '/api/panel/reclamos/mapa');
   const resumen = () => http.expectOne((p) => p.url === '/api/panel/reclamos/resumen');
@@ -89,6 +96,8 @@ describe('Panel de reclamos', () => {
     resumen?: ResumenPanelDto;
     puntos?: PuntoReclamoDto[];
     recortado?: boolean;
+    // Si la comuna tiene el límite cargado (por defecto, lo mismo que conMapa).
+    conLimite?: boolean;
   }
 
   // Abre la pantalla y contesta lo que pide al empezar (apoyos, lista, resumen y, si hay mapa, los puntos).
@@ -99,7 +108,11 @@ describe('Panel de reclamos', () => {
       { codigo: 'BACHE', nombre: 'Bache o calle rota', consejoFoto: '' },
       { codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' },
     ]);
-    http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
+    if (datos.conLimite ?? conMapa) {
+      limiteConMapa();
+    } else {
+      sinLimite();
+    }
     resumen().flush(datos.resumen ?? RESUMEN);
     lista().flush(pagina(datos.reclamos ?? [fila(12)], datos.total));
     if (conMapa) {
@@ -163,7 +176,7 @@ describe('Panel de reclamos', () => {
       await harness.navigateByUrl(BASE);
       http.expectOne('/api/panel/agentes').flush([]);
       http.expectOne('/api/tipos-reclamo').flush([]);
-      http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
+      limiteConMapa();
 
       const l = lista();
       expect(l.request.params.keys().sort()).toEqual(['pagina', 'tamanio']);
@@ -178,7 +191,7 @@ describe('Panel de reclamos', () => {
       await harness.navigateByUrl(`${BASE}?estado=ASIGNADO&tipo=LUZ&agente=4&buscar=san%20mart%C3%ADn`);
       http.expectOne('/api/panel/agentes').flush([{ id: 4, nombre: 'Marcos Díaz', enCurso: 3 }]);
       http.expectOne('/api/tipos-reclamo').flush([{ codigo: 'LUZ', nombre: 'Luz quemada', consejoFoto: '' }]);
-      http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
+      limiteConMapa();
 
       const l = lista();
       for (const q of [l.request, mapa().request]) {
@@ -459,7 +472,7 @@ describe('Panel de reclamos', () => {
       await harness.navigateByUrl(BASE);
       http.expectOne('/api/panel/agentes').flush([]);
       http.expectOne('/api/tipos-reclamo').flush([]);
-      http.expectOne('/api/mi-comuna/limite').flush(null, { status: 204, statusText: 'No Content' });
+      limiteConMapa();
       resumen().flush(RESUMEN);
       lista().flush(null, { status: 500, statusText: 'Error' });
       mapa().flush({ puntos: [], recortado: false });
@@ -560,7 +573,7 @@ describe('Panel de reclamos', () => {
     });
 
     it('volverAListaYMapaPideLosPuntos', async () => {
-      await abrir('?vista=lista', {}, false);
+      await abrir('?vista=lista', { conLimite: true }, false);
 
       boton('Lista y mapa').click();
       await esperar();
@@ -577,6 +590,105 @@ describe('Panel de reclamos', () => {
       await esperar();
 
       expect(url()).toBe(`${BASE}?tipo=LUZ&vista=lista`);
+    });
+  });
+
+describe('comuna sin mapa (sin límite cargado)', () => {
+    const TEXTO = 'Debe solicitar a soporte que cargue el mapa para su comuna.';
+    const botonMapa = () => boton('Lista y mapa');
+
+    async function abrirSinLimite(query = '') {
+      await harness.navigateByUrl(BASE + query);
+      http.expectOne('/api/panel/agentes').flush([]);
+      http.expectOne('/api/tipos-reclamo').flush([]);
+      sinLimite();
+      harness.detectChanges();
+      resumen().flush(RESUMEN);
+      lista().flush(pagina([fila(12)]));
+      harness.detectChanges();
+    }
+
+    it('abreEnSoloListaSinPedirLosPuntosDelMapa', async () => {
+      await abrirSinLimite();
+
+      expect(boton('Solo lista').getAttribute('aria-pressed')).toBe('true');
+      expect(botonMapa().getAttribute('aria-pressed')).toBe('false');
+      expect(mapaFalso()).toBeUndefined();
+      expect(el().querySelector('table')).not.toBeNull();
+      http.expectNone((p) => p.url === '/api/panel/reclamos/mapa');
+    });
+
+    it('elBotonListaYMapaQuedaDeshabilitadoPeroEnfocableYNoHaceNada', async () => {
+      await abrirSinLimite();
+
+      expect(botonMapa().getAttribute('aria-disabled')).toBe('true');
+      expect(botonMapa().disabled).toBe(false);
+      botonMapa().click();
+      await esperar();
+
+      expect(url()).toBe(BASE);
+      expect(mapaFalso()).toBeUndefined();
+      expect(boton('Solo lista').getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('elTextoApareceAlPasarElMouseYAlEnfocarYLlegaALosLectoresDePantalla', async () => {
+      await abrirSinLimite();
+      const globito = () => Array.from(document.querySelectorAll('[role="tooltip"]')).find((g) => g.textContent === TEXTO) as HTMLElement | undefined;
+
+      expect(globito()).toBeDefined();
+      expect(globito()!.style.visibility).toBe('hidden');
+      botonMapa().dispatchEvent(new Event('mouseenter'));
+      expect(globito()!.style.visibility).toBe('visible');
+      botonMapa().dispatchEvent(new Event('mouseleave'));
+      botonMapa().dispatchEvent(new Event('focus'));
+      expect(globito()!.style.visibility).toBe('visible');
+      expect(botonMapa().getAttribute('aria-describedby')).toBe(globito()!.id);
+    });
+
+    it('unaUrlQueRecordabaLaVistaMapaTampocoVuelveAMostrarElMapa', async () => {
+      await abrirSinLimite('?vista=mapa&tipo=LUZ');
+      http.match((p) => p.url === '/api/panel/reclamos/mapa');
+
+      expect(mapaFalso()).toBeUndefined();
+      expect(boton('Solo lista').getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('unLimiteVacioTambienEsSinMapa', async () => {
+      await harness.navigateByUrl(BASE);
+      http.expectOne('/api/panel/agentes').flush([]);
+      http.expectOne('/api/tipos-reclamo').flush([]);
+      http.expectOne('/api/mi-comuna/limite').flush({});
+      harness.detectChanges();
+      resumen().flush(RESUMEN);
+      lista().flush(pagina([fila(12)]));
+      harness.detectChanges();
+
+      expect(botonMapa().getAttribute('aria-disabled')).toBe('true');
+      expect(mapaFalso()).toBeUndefined();
+    });
+
+    it('conLimiteElBotonNoEstaBloqueadoNiMuestraElTexto', async () => {
+      await abrir();
+
+      expect(botonMapa().getAttribute('aria-disabled')).toBeNull();
+      expect(botonMapa().getAttribute('aria-describedby')).toBeNull();
+      expect(mapaFalso()).toBeDefined();
+    });
+
+    it('mientrasSeEsperaElLimiteNoSeDibujaElMapaNiSePidenSusPuntos', async () => {
+      await harness.navigateByUrl(BASE);
+      http.expectOne('/api/panel/agentes').flush([]);
+      http.expectOne('/api/tipos-reclamo').flush([]);
+      resumen().flush(RESUMEN);
+      lista().flush(pagina([fila(12)]));
+      harness.detectChanges();
+
+      expect(mapaFalso()).toBeUndefined();
+      http.expectNone((p) => p.url === '/api/panel/reclamos/mapa');
+      limiteConMapa();
+      mapa().flush({ puntos: [], recortado: false });
+      harness.detectChanges();
+      expect(mapaFalso()).toBeDefined();
     });
   });
 

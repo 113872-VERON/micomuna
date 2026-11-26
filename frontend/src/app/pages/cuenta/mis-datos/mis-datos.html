@@ -1,0 +1,34 @@
+<section class="tarjeta" aria-labelledby="titulo-mis-datos">
+  <h1 id="titulo-mis-datos">Mis datos</h1>
+
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate>
+    <div class="campo-f">
+      <label for="mis-datos-nombre">Nombre y apellido</label>
+      <input id="mis-datos-nombre" type="text" formControlName="nombre" autocomplete="name" enterkeyhint="done"
+        [attr.aria-invalid]="nombre.touched && nombre.invalid" aria-describedby="error-mis-datos-nombre" (input)="guardado.set(false)" />
+      @if (nombre.touched && nombre.invalid) {
+        <p class="msg-error" id="error-mis-datos-nombre" role="alert">{{ mensajeNombre() }}</p>
+      }
+    </div>
+
+    <dl class="fijos">
+      <div><dt>Correo electrónico</dt><dd>{{ usuario()?.correo }}</dd></div>
+      <div><dt>Rol</dt><dd>{{ rol() }}</dd></div>
+    </dl>
+    <p class="ayuda">El correo y el rol no se cambian desde acá.@if (consejo(); as texto) { {{ texto }}}</p>
+
+    @if (error(); as mensaje) {
+      <p class="caja-error" role="alert">{{ mensaje }}</p>
+    }
+    @if (guardado()) {
+      <p class="aviso-ok" role="status">Listo, guardamos tu nombre.</p>
+    }
+
+    <div class="acciones">
+      <a class="btn sec" [routerLink]="inicio()">Volver</a>
+      <button type="submit" class="btn pri" [disabled]="guardando()" [attr.aria-busy]="guardando()">
+        {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+      </button>
+    </div>
+  </form>
+</section>

@@ -45,7 +45,9 @@ class EndpointsDeclaranSuAccesoTests {
 	// Endpoints que cualquier usuario con sesión puede usar, sin importar el rol (los frena el anyRequest().authenticated()
 	// de SecurityConfig). Estar bajo /api/auth/ no alcanza: cada uno se agrega acá a propósito.
 	private static final Set<String> CON_SESION = Set.of(
-			"POST /api/auth/cambiar-clave");
+			"POST /api/auth/cambiar-clave",
+			"GET /api/auth/mis-datos",
+			"PUT /api/auth/mis-datos");
 
 	// Solo cuenta como declaración de rol una expresión que nombre roles o permisos.
 	private static final Pattern NOMBRA_UN_ROL = Pattern.compile("\\b(hasRole|hasAnyRole|hasAuthority|hasAnyAuthority)\\s*\\(");

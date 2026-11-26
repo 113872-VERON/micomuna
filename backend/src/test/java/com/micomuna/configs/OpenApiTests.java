@@ -41,7 +41,12 @@ class OpenApiTests {
 	void losEndpointsDeMiCuentaDocumentan401PeroNoUn403PorRol() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
 				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['401']").exists())
-				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['403']").doesNotExist());
+				.andExpect(jsonPath("$.paths['/api/auth/cambiar-clave'].post.responses['403']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/auth/mis-datos'].get.responses['401']").exists())
+				.andExpect(jsonPath("$.paths['/api/auth/mis-datos'].get.responses['403']").doesNotExist())
+				.andExpect(jsonPath("$.paths['/api/auth/mis-datos'].put.responses['400']").exists())
+				.andExpect(jsonPath("$.paths['/api/auth/mis-datos'].put.responses['401']").exists())
+				.andExpect(jsonPath("$.paths['/api/auth/mis-datos'].put.responses['403']").doesNotExist());
 	}
 
 	// Los controladores de src/test no son parte de la API: no tienen que colarse en la documentación

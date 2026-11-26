@@ -1,0 +1,52 @@
+// Estilo común de "Mis datos" y "Cambiar contraseña": la misma tarjeta de las pantallas del panel, que sirve en cualquier marco.
+:host { display: block; }
+
+.tarjeta {
+  width: 100%; max-width: 560px; margin-inline: auto; box-sizing: border-box; background: #fff; color: var(--tinta); border: 2px solid var(--p); border-radius: 16px;
+  padding: 20px; display: flex; flex-direction: column; gap: 16px; font-size: 18px; line-height: 1.3;
+}
+h1 { margin: 0; font-size: 28px; line-height: 1.15; }
+h1:focus { outline: none; }
+h1:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 4px; }
+p { margin: 0; }
+
+form { display: flex; flex-direction: column; gap: 16px; }
+.campo-f { min-width: 0; }
+label { display: block; margin-bottom: 6px; font-size: 17px; font-weight: 700; }
+input[type='text'], input[type='password'] {
+  width: 100%; min-height: 52px; box-sizing: border-box; padding: 0 14px; border: 2px solid var(--borde); border-radius: 12px;
+  background: #fff; color: var(--tinta); font: inherit; font-size: 18px;
+}
+input:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 2px; }
+input[aria-invalid='true'] { border-color: var(--error); background: var(--error-fondo); }
+.ayuda { margin-top: 6px; font-size: 15px; color: var(--sub); }
+.msg-error { margin-top: 6px; color: var(--error); font-size: 16px; font-weight: 500; overflow-wrap: anywhere; }
+.caja-error { padding: 12px 14px; border: 3px solid var(--error); border-radius: 14px; background: var(--error-fondo); color: var(--tinta); overflow-wrap: anywhere; }
+.aviso-ok { padding: 12px 14px; border-radius: 14px; background: var(--ayuda); border: 2px solid var(--p); overflow-wrap: anywhere; }
+
+// Datos que no se cambian desde acá (correo y rol).
+.fijos { margin: 0; display: grid; gap: 12px; }
+.fijos div { min-width: 0; }
+.fijos dt { font-size: 15px; font-weight: 700; color: var(--sub); }
+.fijos dd { margin: 2px 0 0; overflow-wrap: anywhere; }
+
+label.mostrar { display: flex; align-items: center; gap: 12px; min-height: 44px; margin: 0; font-weight: 500; cursor: pointer; }
+.mostrar input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--p); cursor: pointer; }
+
+.acciones { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.btn {
+  min-height: 52px; padding: 0 22px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box;
+  border: 2px solid var(--p); border-radius: 14px; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer;
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; transition: transform 160ms ease;
+}
+.btn.pri { background: var(--p); color: #fff; }
+.btn.sec { background: #fff; color: var(--p); }
+.btn:focus-visible { outline: 4px solid #1d4ed8; outline-offset: 3px; }
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.6; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
+
+@media (max-width: 560px) {
+  .tarjeta { padding: 16px; }
+  .acciones .btn { flex: 1 1 100%; }
+}

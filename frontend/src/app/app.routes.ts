@@ -24,6 +24,8 @@ export const routes: Routes = [
           { path: 'comunas', loadComponent: () => import('./pages/admin/comunas/admin-comunas').then((m) => m.AdminComunas) },
           { path: 'comunas/nueva', loadComponent: () => import('./pages/admin/nueva-comuna/nueva-comuna').then((m) => m.NuevaComuna) },
           { path: 'comunas/:id/editar', loadComponent: () => import('./pages/admin/editar-comuna/editar-comuna').then((m) => m.EditarComuna) },
+          { path: 'mi-cuenta', loadComponent: () => import('./pages/cuenta/mis-datos/mis-datos').then((m) => m.MisDatos) },
+          { path: 'cambiar-clave', loadComponent: () => import('./pages/cuenta/cambiar-clave/cambiar-clave').then((m) => m.CambiarClave) },
           { path: '', pathMatch: 'full', redirectTo: 'comunas' },
         ],
       },
@@ -58,6 +60,8 @@ export const routes: Routes = [
             canActivate: [rolGuard('ADMIN_COMUNA', loginDeLaComuna)],
             loadComponent: () => import('./pages/panel/usuarios/nuevo-usuario/nuevo-usuario').then((m) => m.NuevoUsuario),
           },
+          { path: 'mi-cuenta', loadComponent: () => import('./pages/cuenta/mis-datos/mis-datos').then((m) => m.MisDatos) },
+          { path: 'cambiar-clave', loadComponent: () => import('./pages/cuenta/cambiar-clave/cambiar-clave').then((m) => m.CambiarClave) },
           { path: '', pathMatch: 'full', redirectTo: 'reclamos' },
         ],
       },
@@ -69,6 +73,8 @@ export const routes: Routes = [
         children: [
           { path: '', pathMatch: 'full', loadComponent: () => import('./pages/agente/mis-reclamos/mis-reclamos').then((m) => m.MisReclamos) },
           { path: 'reclamos/:numero', loadComponent: () => import('./pages/agente/detalle-agente/detalle-agente').then((m) => m.DetalleAgente) },
+          { path: 'mi-cuenta', loadComponent: () => import('./pages/cuenta/mis-datos/mis-datos').then((m) => m.MisDatos) },
+          { path: 'cambiar-clave', loadComponent: () => import('./pages/cuenta/cambiar-clave/cambiar-clave').then((m) => m.CambiarClave) },
         ],
       },
       // Reportar un problema (MC-15): solo el vecino. Marco propio de una columna, un paso por dirección.
@@ -85,6 +91,8 @@ export const routes: Routes = [
         children: [
           { path: 'inicio', loadComponent: () => import('./pages/vecino/inicio-vecino/inicio-vecino').then((m) => m.InicioVecino) },
           { path: 'reclamos/:numero', loadComponent: () => import('./pages/vecino/detalle-reclamo/detalle-reclamo').then((m) => m.DetalleReclamo) },
+          { path: 'mi-cuenta', loadComponent: () => import('./pages/cuenta/mis-datos/mis-datos').then((m) => m.MisDatos) },
+          { path: 'cambiar-clave', loadComponent: () => import('./pages/cuenta/cambiar-clave/cambiar-clave').then((m) => m.CambiarClave) },
         ],
       },
       {
