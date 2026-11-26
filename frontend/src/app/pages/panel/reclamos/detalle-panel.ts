@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
-import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { afterNextRender, Component, computed, effect, ElementRef, inject, Injector, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { mensajeDeError } from '../../../auth/errores';
 import { ComunaDto } from '../../../auth/modelos';
@@ -43,6 +43,21 @@ function mensajeDeTipo(e: unknown, codigo: string | undefined): string {
       return 'Ese tipo ya no está disponible. Elegí otro de la lista.';
     case 'CONFLICTO':
       return 'Otra persona está cambiando este reclamo. Probá de nuevo.';
+    default:
+      return mensajeDeError(e);
+  }
+}
+
+function mensajeDeNoEsDuplicado(e: unknown, codigo: string | undefined): string {
+  switch (codigo) {
+    case 'RECLAMO_CERRADO':
+      return 'El reclamo ya está cerrado: no hace falta revisar duplicados.';
+    case 'YA_MARCADO':
+      return 'Este reclamo ya se había dejado como nuevo.';
+    case 'SIN_CANDIDATOS':
+      return 'Ya no hay reclamos parecidos cerca: alguno se resolvió o se descartó.';
+    case 'CONFLICTO':
+      return 'Otra persona está cambiando este reclamo en este momento. Esperá un instante y probá de nuevo.';
     default:
       return mensajeDeError(e);
   }
@@ -189,6 +204,73 @@ export class DetallePanel {
       error: () => {
         this.actualizandoSugerencia.set(false);
         this.errorTipo.set('No pudimos actualizar la sugerencia. Probá de nuevo.');
+      },
+    });
+  }
+
+  // ---- Posibles duplicados (MC-26): es una regla del servidor; vincular reutiliza el descarte y "nuevo" queda registrado ----
+  protected readonly duplicados = computed(() => this.reclamo()?.posiblesDuplicados ?? null);
+  protected readonly candidatos = computed(() => this.duplicados()?.candidatos ?? []);
+  protected readonly hayAvisoDuplicados = computed(() => this.candidatos().length > 0 || !!this.duplicados()?.marcadoNuevoEn);
+  protected readonly textoCandidatos = computed(() => {
+    const n = this.candidatos().length;
+    return n === 1 ? 'Hay 1 reclamo parecido cerca' : `Hay ${n} reclamos parecidos cerca`;
+  });
+  protected readonly marcandoNuevo = signal(false);
+  protected readonly confirmandoNuevo = signal(false);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
+  protected readonly errorDuplicados = signal<string | null>(null);
+  // Número del original con el que se abre la ventana de descarte (null si se abrió desde el botón de arriba).
+  protected readonly originalElegido = signal<number | null>(null);
+
+  protected esDuplicadoDe(numero: number): void {
+    if (this.sinDescarte() !== null) {
+      return;
+    }
+    this.originalElegido.set(numero);
+    this.dialogo.set('descarte');
+  }
+
+  protected abrirDescarte(): void {
+    this.originalElegido.set(null);
+    this.dialogo.set('descarte');
+  }
+
+  // Marcar como nuevo no se puede deshacer: primero se pide confirmar, en la misma tarjeta.
+  protected pedirConfirmarNuevo(): void {
+    this.errorDuplicados.set(null);
+    this.confirmandoNuevo.set(true);
+    afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('#texto-nuevo')?.focus(), { injector: this.injector });
+  }
+
+  protected cancelarNuevo(): void {
+    this.confirmandoNuevo.set(false);
+    afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('#btn-nuevo')?.focus(), { injector: this.injector });
+  }
+
+  protected marcarComoNuevo(): void {
+    const r = this.reclamo();
+    if (!r || this.marcandoNuevo()) {
+      return;
+    }
+    this.marcandoNuevo.set(true);
+    this.errorDuplicados.set(null);
+    this.api.marcarNoEsDuplicado(r.numero).subscribe({
+      next: (nuevo) => {
+        this.reclamo.set(nuevo);
+        this.marcandoNuevo.set(false);
+        this.confirmandoNuevo.set(false);
+      },
+      error: (e: unknown) => {
+        this.marcandoNuevo.set(false);
+        this.confirmandoNuevo.set(false);
+        const codigo = e instanceof HttpErrorResponse ? (e.error?.codigo as string | undefined) : undefined;
+        this.errorDuplicados.set(mensajeDeNoEsDuplicado(e, codigo));
+        // Si el reclamo cambió del lado del servidor, se vuelve a mirar para no mostrar datos viejos.
+        if (codigo === 'RECLAMO_CERRADO' || codigo === 'YA_MARCADO' || codigo === 'SIN_CANDIDATOS' || codigo === 'CONFLICTO') {
+          this.intento.update((n) => n + 1);
+        }
       },
     });
   }

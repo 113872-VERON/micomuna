@@ -64,13 +64,7 @@ select[aria-invalid='true'] { border-color: var(--error); background: var(--erro
 .elegir-tipo .botones { margin-top: 8px; }
 @media (max-width: 600px) { .ia .botones .btn:not(.chico) { flex: 1 1 100%; } }
 
-.ia { gap: 8px; }
-.ia p { margin: 0; }
-.ia-linea { font-weight: 700; overflow-wrap: anywhere; }
-.ia-just { white-space: pre-line; overflow-wrap: anywhere; }
-.ia-sub, .ia-aviso { font-size: 16px; color: var(--sub); overflow-wrap: anywhere; }
-.ia .botones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
-.ia .botones .btn { touch-action: manipulation; }
-.elegir-tipo { display: flex; flex-direction: column; gap: 4px; }
-.elegir-tipo .botones { margin-top: 8px; }
-@media (max-width: 600px) { .ia .botones .btn:not(.chico) { flex: 1 1 100%; } }
+.dup-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.dup-lista li { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border: 2px solid #c9d1d9; border-radius: 14px; min-width: 0; }
+.dup-lista a { display: inline-flex; align-items: center; min-height: 44px; }
+.dup-desc { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

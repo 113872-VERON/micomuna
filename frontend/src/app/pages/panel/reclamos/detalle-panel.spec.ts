@@ -45,6 +45,7 @@ const reclamo = (extra: Partial<ReclamoPanelDetalleDto> = {}): ReclamoPanelDetal
   trabajoRealizado: null,
   duplicados: [],
   sugerenciaIa: { estado: 'SIN_ANALIZAR', coincide: false },
+  posiblesDuplicados: { candidatos: [] },
   ...extra,
 });
 
@@ -564,6 +565,148 @@ describe('DetallePanel', () => {
     expect(filas[1].textContent).not.toContain('easignado');
     expect(filas[2].textContent).toContain('Reasignado de Marcos Díaz a Lucía Paz');
     expect(filas[2].querySelector('app-chip-estado')).not.toBeNull();
+  });
+
+  describe('posibles duplicados', () => {
+    const CANDIDATOS = [
+      { numero: 7, estado: 'RECIBIDO' as const, distanciaMetros: 35, creadoEn: '2026-11-01T08:00:00', direccion: 'San Martín 460', descripcion: 'Pozo grande en la esquina' },
+      { numero: 9, estado: 'EN_REPARACION' as const, distanciaMetros: 80, creadoEn: '2026-11-02T08:00:00', direccion: null, descripcion: '<b>Otro pozo</b>' },
+    ];
+    const conCandidatos = () => reclamo({ posiblesDuplicados: { candidatos: CANDIDATOS } });
+    const tarjeta = (f: ComponentFixture<unknown>) => seccion(f, 'Posibles duplicados');
+    const textoTarjeta = (f: ComponentFixture<unknown>) => tarjeta(f)?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+    const URL_NUEVO = '/api/panel/reclamos/42/no-es-duplicado';
+
+    it('sinCandidatosNiMarcaNoMuestraLaTarjeta', () => {
+      const f = crear();
+
+      expect(tarjeta(f)).toBeUndefined();
+    });
+
+    it('conCandidatosAvisaYListaNumeroEstadoDistanciaFechaYDescripcion', () => {
+      const f = crear('42', conCandidatos());
+
+      const t = textoTarjeta(f);
+      expect(t).toContain('Hay 2 reclamos parecidos cerca');
+      const filas = Array.from(tarjeta(f)!.querySelectorAll('li'));
+      expect(filas.length).toBe(2);
+      expect(filas[0].querySelector('a')?.getAttribute('href')).toBe('/salsipuedes-cordoba/panel/reclamos/7');
+      expect(filas[0].querySelector('app-chip-estado')?.textContent).toContain('Recibido');
+      expect(filas[0].textContent).toContain('a 35 m');
+      expect(filas[0].textContent).toContain('01/11/2026');
+      expect(filas[0].textContent).toContain('Pozo grande en la esquina');
+      // El texto del vecino va como texto plano.
+      expect(filas[1].textContent).toContain('<b>Otro pozo</b>');
+      expect(filas[1].querySelector('b')).toBeNull();
+    });
+
+    it('conUnSoloCandidatoUsaElSingular', () => {
+      const f = crear('42', reclamo({ posiblesDuplicados: { candidatos: [CANDIDATOS[0]] } }));
+
+      expect(textoTarjeta(f)).toContain('Hay 1 reclamo parecido cerca');
+    });
+
+    it('esDuplicadoDeEsteAbreElDescarteConDuplicadoYElOriginalCargados', () => {
+      const f = crear('42', conCandidatos());
+
+      (tarjeta(f)!.querySelectorAll('li')[0].querySelector('button') as HTMLButtonElement).click();
+      f.detectChanges();
+
+      const ventana = el(f).querySelector('app-dialogo-descartar') as HTMLElement;
+      expect(ventana).not.toBeNull();
+      expect((ventana.querySelector('input[type="radio"]:checked') as HTMLInputElement)?.parentElement?.textContent).toContain('Ya había un reclamo por el mismo problema');
+      expect((ventana.querySelector('#original') as HTMLInputElement).value).toBe('7');
+    });
+
+    it('elBotonDescartarDeArribaAbreLaVentanaSinValoresCargados', () => {
+      const f = crear('42', conCandidatos());
+      (tarjeta(f)!.querySelectorAll('li')[0].querySelector('button') as HTMLButtonElement).click();
+      f.detectChanges();
+      (el(f).querySelector('app-dialogo-descartar button.sec') as HTMLButtonElement).click();
+      f.detectChanges();
+
+      boton(f, 'Descartar').click();
+      f.detectChanges();
+
+      expect(el(f).querySelector('app-dialogo-descartar input[type="radio"]:checked')).toBeNull();
+      expect(el(f).querySelector('app-dialogo-descartar #original')).toBeNull();
+    });
+
+    it('conElReclamoEnReparacionNoSePuedeVincularYLoExplica', () => {
+      const f = crear('42', reclamo({ estado: 'EN_REPARACION', posiblesDuplicados: { candidatos: CANDIDATOS } }));
+
+      const botones = Array.from(tarjeta(f)!.querySelectorAll('li button')) as HTMLButtonElement[];
+      expect(botones.every((b) => b.disabled)).toBe(true);
+      expect(textoTarjeta(f)).toContain('Mientras está en reparación no se puede vincular como duplicado');
+    });
+
+    it('esUnReclamoNuevoPideConfirmarYNoLlamaAlPutConElPrimerClic', () => {
+      const f = crear('42', conCandidatos());
+
+      boton(f, 'Es un reclamo nuevo').click();
+      f.detectChanges();
+
+      http.expectNone(URL_NUEVO);
+      expect(textoTarjeta(f)).toContain('¿Confirmás que es un reclamo nuevo? No se puede deshacer y este reclamo deja de mostrar el aviso.');
+      expect(boton(f, 'Sí, es nuevo')).toBeTruthy();
+      expect(Array.from(tarjeta(f)!.querySelectorAll('li button')).every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    });
+
+    it('cancelarVuelveAComoEstabaSinLlamarAlPut', () => {
+      const f = crear('42', conCandidatos());
+      boton(f, 'Es un reclamo nuevo').click();
+      f.detectChanges();
+
+      boton(f, 'Cancelar').click();
+      f.detectChanges();
+
+      http.expectNone(URL_NUEVO);
+      expect(boton(f, 'Es un reclamo nuevo').disabled).toBe(false);
+      expect(textoTarjeta(f)).not.toContain('¿Confirmás');
+      expect(Array.from(tarjeta(f)!.querySelectorAll('li button')).some((b) => (b as HTMLButtonElement).disabled)).toBe(false);
+    });
+
+    it('siEsNuevoMandaElPutSinCuerpoYRefrescaConLaRespuesta', () => {
+      const f = crear('42', conCandidatos());
+
+      boton(f, 'Es un reclamo nuevo').click();
+      f.detectChanges();
+      boton(f, 'Sí, es nuevo').click();
+      f.detectChanges();
+      const p = http.expectOne(URL_NUEVO);
+      expect(p.request.method).toBe('PUT');
+      expect(p.request.body).toBeNull();
+      expect(boton(f, 'Guardando…').disabled).toBe(true);
+      p.flush(reclamo({ posiblesDuplicados: { candidatos: [], marcadoNuevoPor: 'Marta Gil', marcadoNuevoEn: '2026-11-26T11:30:00' } }));
+      f.detectChanges();
+
+      expect(textoTarjeta(f)).toContain('Marcado como reclamo nuevo por Marta Gil el 26/11/2026.');
+      expect(tarjeta(f)!.querySelectorAll('button').length).toBe(0);
+      expect(tarjeta(f)!.querySelectorAll('li').length).toBe(0);
+    });
+
+    const casos: [string, string][] = [
+      ['RECLAMO_CERRADO', 'El reclamo ya está cerrado'],
+      ['YA_MARCADO', 'Este reclamo ya se había dejado como nuevo.'],
+      ['SIN_CANDIDATOS', 'Ya no hay reclamos parecidos cerca'],
+      ['CONFLICTO', 'Otra persona está cambiando este reclamo'],
+    ];
+    for (const [codigo, mensaje] of casos) {
+      it('errorDelServidor_' + codigo + '_SeExplicaEnEspanolYSeVuelveAMirarElReclamo', () => {
+        const f = crear('42', conCandidatos());
+
+        boton(f, 'Es un reclamo nuevo').click();
+        f.detectChanges();
+        boton(f, 'Sí, es nuevo').click();
+        http.expectOne(URL_NUEVO).flush({ codigo }, { status: 409, statusText: 'Conflicto' });
+        f.detectChanges();
+        http.expectOne('/api/panel/reclamos/42').flush(conCandidatos());
+        f.detectChanges();
+
+        expect(tarjeta(f)!.querySelector('[role="alert"]')?.textContent).toContain(mensaje);
+        expect(boton(f, 'Es un reclamo nuevo').disabled).toBe(false);
+      });
+    }
   });
 
   describe('sugerencia de la IA', () => {

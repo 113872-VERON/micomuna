@@ -9,7 +9,7 @@
     <app-chip-estado [estado]="r.estado" />
     <div class="acciones">
       <button type="button" class="btn pri chico" (click)="dialogo.set('estado')">Cambiar estado</button>
-      <button type="button" class="btn sec chico peligro" [disabled]="sinDescarte() !== null" [attr.title]="sinDescarte()" (click)="dialogo.set('descarte')">Descartar</button>
+      <button type="button" class="btn sec chico peligro" [disabled]="sinDescarte() !== null" [attr.title]="sinDescarte()" (click)="abrirDescarte()">Descartar</button>
     </div>
   </header>
 
@@ -101,6 +101,55 @@
             }
           }
           <p class="ia-aviso">La IA solo sugiere: el tipo lo decide la comuna.</p>
+        </section>
+      }
+
+      @if (hayAvisoDuplicados()) {
+        <section class="bloque ia dup" aria-labelledby="t-dup">
+          <h2 id="t-dup">Posibles duplicados</h2>
+          @if (candidatos().length > 0) {
+            <p class="ia-linea" role="status">{{ textoCandidatos() }}</p>
+            <p class="ia-sub">A 100 metros o menos, del mismo tipo y todavía abiertos. Si es el mismo problema, vinculalo: este reclamo se descarta como duplicado y el vecino sigue el avance del otro.</p>
+            <ul class="dup-lista">
+              @for (c of candidatos(); track c.numero) {
+                <li>
+                  <div class="h-arriba">
+                    <a [routerLink]="['/', slug(), 'panel', 'reclamos', c.numero]">Reclamo n.º {{ c.numero }}</a>
+                    <app-chip-estado [estado]="c.estado" />
+                  </div>
+                  <p class="ia-sub">a {{ c.distanciaMetros }} m · {{ c.creadoEn | date: 'dd/MM/yyyy' }}@if (c.direccion) { · {{ c.direccion }}}</p>
+                  @if (c.descripcion) {
+                    <p class="dup-desc" [attr.title]="c.descripcion">{{ c.descripcion }}</p>
+                  }
+                  <button type="button" class="btn sec chico" [disabled]="sinDescarte() !== null || confirmandoNuevo()" [attr.title]="sinDescarte()"
+                    [attr.aria-label]="'Es duplicado del reclamo n.º ' + c.numero" (click)="esDuplicadoDe(c.numero)">Es duplicado del n.º {{ c.numero }}</button>
+                </li>
+              }
+            </ul>
+            @if (sinDescarte()) {
+              <p class="ia-sub">Mientras está en reparación no se puede vincular como duplicado. Si es un reclamo nuevo, marcalo como tal.</p>
+            }
+            @if (confirmandoNuevo()) {
+              <div class="aviso-reasignar" role="alertdialog" aria-labelledby="texto-nuevo">
+                <p id="texto-nuevo" tabindex="-1">¿Confirmás que es un reclamo nuevo? No se puede deshacer y este reclamo deja de mostrar el aviso.</p>
+                <div class="botones">
+                  <button type="button" class="btn pri chico" [disabled]="marcandoNuevo()" (click)="marcarComoNuevo()">
+                    {{ marcandoNuevo() ? 'Guardando…' : 'Sí, es nuevo' }}
+                  </button>
+                  <button type="button" class="btn sec chico" [disabled]="marcandoNuevo()" (click)="cancelarNuevo()">Cancelar</button>
+                </div>
+              </div>
+            } @else {
+              <div class="botones">
+                <button type="button" id="btn-nuevo" class="btn pri chico" (click)="pedirConfirmarNuevo()">Es un reclamo nuevo</button>
+              </div>
+            }
+          } @else {
+            <p class="ia-linea">Marcado como reclamo nuevo por {{ duplicados()?.marcadoNuevoPor || 'el personal' }} el {{ duplicados()?.marcadoNuevoEn | date: 'dd/MM/yyyy' }}.</p>
+          }
+          @if (errorDuplicados(); as m) {
+            <div class="caja-error" role="alert">{{ m }}</div>
+          }
         </section>
       }
 
@@ -264,5 +313,5 @@
   <app-dialogo-cambiar-estado [reclamos]="elegido()" [agentes]="agentes()" [agentesFallo]="errorAgentes()" [slug]="slug()" (reintentarAgentes)="recargarAgentes()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
 }
 @if (dialogo() === 'descarte') {
-  <app-dialogo-descartar [reclamos]="elegido()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
+  <app-dialogo-descartar [reclamos]="elegido()" [motivoInicial]="originalElegido() !== null ? 'DUPLICADO' : null" [originalInicial]="originalElegido()" (cerrar)="cerrarDialogo()" (aplicado)="alAplicar()" />
 }
