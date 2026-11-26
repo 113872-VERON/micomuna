@@ -127,6 +127,29 @@ public interface ReclamoRepository extends JpaRepository<Reclamo, Long> {
 	@Query("select r from Reclamo r where r.comuna.id = :idComuna and r.numero = :numero")
 	Optional<Reclamo> bloquearPorNumero(@Param("idComuna") Long idComuna, @Param("numero") Integer numero);
 
+	// Candidatos a duplicado (MC-26): misma comuna y tipo, abiertos, con ubicación dentro de una caja de coordenadas y distintos
+	// del propio. La caja solo descarta rápido; la distancia exacta la calcula PosiblesDuplicadosService.
+	@Query("""
+			select new com.micomuna.models.CandidatoCercano(r.id, r.numero, r.estado, r.creadoEn, r.direccion, r.descripcion,
+				r.latitud, r.longitud)
+			from Reclamo r
+			where r.comuna.id = :idComuna and r.tipo.id = :idTipo and r.id <> :idPropio
+				and r.estado in (com.micomuna.enums.EstadoReclamo.RECIBIDO, com.micomuna.enums.EstadoReclamo.ASIGNADO,
+					com.micomuna.enums.EstadoReclamo.EN_REPARACION)
+				and r.latitud is not null and r.longitud is not null
+				and r.latitud between :latMin and :latMax and r.longitud between :lngMin and :lngMax
+			order by r.creadoEn, r.id
+			""")
+	List<com.micomuna.models.CandidatoCercano> candidatosCercanos(@Param("idComuna") Long idComuna,
+			@Param("idTipo") Long idTipo, @Param("idPropio") Long idPropio, @Param("latMin") java.math.BigDecimal latMin,
+			@Param("latMax") java.math.BigDecimal latMax, @Param("lngMin") java.math.BigDecimal lngMin,
+			@Param("lngMax") java.math.BigDecimal lngMax);
+
+	// Marca "no es duplicado" sin pasar por @PreUpdate: así no se mueve actualizado_en (no es un cambio del reclamo).
+	@org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = true)
+	@Query("update Reclamo r set r.usuarioNoDuplicado.id = :idUsuario, r.noDuplicadoEn = :cuando where r.id = :id")
+	int marcarNoDuplicado(@Param("id") Long id, @Param("idUsuario") Long idUsuario, @Param("cuando") Instant cuando);
+
 	// El agente asignado a un reclamo de la comuna (vacío si no tiene o el reclamo no existe).
 	@Query("select a from Reclamo r join r.agente a where r.comuna.id = :idComuna and r.numero = :numero")
 	Optional<com.micomuna.entities.Usuario> agenteDe(@Param("idComuna") Long idComuna, @Param("numero") Integer numero);

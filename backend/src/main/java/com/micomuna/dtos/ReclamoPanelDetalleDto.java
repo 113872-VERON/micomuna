@@ -25,5 +25,6 @@ public record ReclamoPanelDetalleDto(
 		@Schema(nullable = true, description = "Solo si el estado es DESCARTADO") DescartePanelDto descarte,
 		@Schema(nullable = true, description = "Solo si el estado es RESUELTO") String trabajoRealizado,
 		@Schema(description = "Números de los reclamos descartados como duplicados de este") List<Integer> duplicados,
-		@Schema(description = "La sugerencia de tipo de la IA vigente. Siempre presente") SugerenciaIaDto sugerenciaIa) {
+		@Schema(description = "La sugerencia de tipo de la IA vigente. Siempre presente") SugerenciaIaDto sugerenciaIa,
+		@Schema(description = "Aviso de posibles duplicados cercanos (MC-26). Siempre presente") PosiblesDuplicadosDto posiblesDuplicados) {
 }

@@ -118,6 +118,31 @@ class OpenApiTests {
 								"decididaEn")));
 	}
 
+	// MC-26: lo nuevo coincide con docs/api/openapi.yaml: marcar el reclamo como nuevo (sin cuerpo) y el aviso de posibles
+	// duplicados dentro del detalle del panel.
+	@Test
+	void marcarNoEsDuplicadoYElAvisoCoincidenConElContrato() throws Exception {
+		String marcar = "$.paths['/api/panel/reclamos/{numero}/no-es-duplicado'].put";
+		mockMvc.perform(get("/v3/api-docs"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath(marcar + ".operationId").value("marcarNoEsDuplicado"))
+				.andExpect(jsonPath(marcar + ".tags[0]").value("Panel de reclamos"))
+				.andExpect(jsonPath(marcar + ".requestBody").doesNotExist())
+				.andExpect(jsonPath(marcar + ".responses['200'].content['*/*'].schema['$ref']")
+						.value("#/components/schemas/ReclamoPanelDetalleDto"))
+				.andExpect(jsonPath(marcar + ".responses['401']").exists())
+				.andExpect(jsonPath(marcar + ".responses['403'].description").value(org.hamcrest.Matchers.containsString("ACCESO_DENEGADO")))
+				.andExpect(jsonPath("$.components.schemas.ReclamoPanelDetalleDto.properties.posiblesDuplicados['$ref']")
+						.value("#/components/schemas/PosiblesDuplicadosDto"))
+				.andExpect(jsonPath("$.components.schemas.PosiblesDuplicadosDto.properties.keys()")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("candidatos", "marcadoNuevoPor", "marcadoNuevoEn")))
+				.andExpect(jsonPath("$.components.schemas.PosiblesDuplicadosDto.properties.candidatos.items['$ref']")
+						.value("#/components/schemas/PosibleDuplicadoDto"))
+				.andExpect(jsonPath("$.components.schemas.PosibleDuplicadoDto.properties.keys()")
+						.value(org.hamcrest.Matchers.containsInAnyOrder("numero", "estado", "distanciaMetros", "creadoEn",
+								"direccion", "descripcion")));
+	}
+
 	@Test
 	void losEndpointsPublicosNoDocumentan401() throws Exception {
 		mockMvc.perform(get("/v3/api-docs"))
