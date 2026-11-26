@@ -36,6 +36,12 @@ export class AuthService {
     this.escribir(CLAVE_USUARIO, JSON.stringify(respuesta.usuario));
   }
 
+  // Cambia los datos del usuario sin tocar el token (por ejemplo, el nombre): la barra lo muestra al instante.
+  actualizarUsuario(usuario: UsuarioDto): void {
+    this.usuario.set(usuario);
+    this.escribir(CLAVE_USUARIO, JSON.stringify(usuario));
+  }
+
   cerrarSesion(): void {
     // Un aviso pendiente es de la sesión que se cierra: no tiene que aparecer en otra.
     this.avisosDelPanel.consumir();

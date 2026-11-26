@@ -1,0 +1,59 @@
+<section class="tarjeta" aria-labelledby="titulo-cambiar-clave">
+  @if (cambiada()) {
+    <h1 id="titulo-cambiar-clave" tabindex="-1">Cambiaste tu contraseña</h1>
+    <p class="aviso-ok" role="status">Listo. La próxima vez que ingreses, usá la contraseña nueva.</p>
+    <div class="acciones">
+      <a class="btn pri" [routerLink]="inicio()">Volver al inicio</a>
+    </div>
+  } @else {
+    <h1 id="titulo-cambiar-clave" tabindex="-1">Cambiar contraseña</h1>
+    <form [formGroup]="form" (ngSubmit)="cambiar()" novalidate>
+      <div class="campo-f">
+        <label for="clave-actual">Contraseña actual</label>
+        <input id="clave-actual" [type]="visible() ? 'text' : 'password'" formControlName="claveActual" autocomplete="current-password"
+          autocapitalize="none" spellcheck="false" enterkeyhint="next"
+          [attr.aria-invalid]="c.claveActual.touched && c.claveActual.invalid" aria-describedby="error-clave-actual" />
+        @if (c.claveActual.touched && c.claveActual.invalid) {
+          <p class="msg-error" id="error-clave-actual" role="alert">Escribí tu contraseña actual.</p>
+        }
+      </div>
+
+      <div class="campo-f">
+        <label for="clave-nueva">Contraseña nueva</label>
+        <input id="clave-nueva" [type]="visible() ? 'text' : 'password'" formControlName="claveNueva" autocomplete="new-password"
+          autocapitalize="none" spellcheck="false" enterkeyhint="next"
+          [attr.aria-invalid]="c.claveNueva.touched && c.claveNueva.invalid" aria-describedby="ayuda-clave-nueva error-clave-nueva" />
+        <p class="ayuda" id="ayuda-clave-nueva">De {{ min }} a {{ max }} caracteres, y distinta de la actual.</p>
+        @if (c.claveNueva.touched && c.claveNueva.invalid) {
+          <p class="msg-error" id="error-clave-nueva" role="alert">{{ mensajeNueva() }}</p>
+        }
+      </div>
+
+      <div class="campo-f">
+        <label for="clave-repetida">Repetí la contraseña nueva</label>
+        <input id="clave-repetida" [type]="visible() ? 'text' : 'password'" formControlName="claveRepetida" autocomplete="new-password"
+          autocapitalize="none" spellcheck="false" enterkeyhint="done"
+          [attr.aria-invalid]="c.claveRepetida.touched && c.claveRepetida.invalid" aria-describedby="error-clave-repetida" />
+        @if (c.claveRepetida.touched && c.claveRepetida.invalid) {
+          <p class="msg-error" id="error-clave-repetida" role="alert">{{ mensajeRepetida() }}</p>
+        }
+      </div>
+
+      <label class="mostrar">
+        <input type="checkbox" [checked]="visible()" (change)="visible.set(!visible())" />
+        Mostrar las contraseñas
+      </label>
+
+      @if (error(); as mensaje) {
+        <p class="caja-error" role="alert">{{ mensaje }}</p>
+      }
+
+      <div class="acciones">
+        <a class="btn sec" [routerLink]="inicio()">Cancelar</a>
+        <button type="submit" class="btn pri" [disabled]="enviando()" [attr.aria-busy]="enviando()">
+          {{ enviando() ? 'Cambiando…' : 'Cambiar contraseña' }}
+        </button>
+      </div>
+    </form>
+  }
+</section>

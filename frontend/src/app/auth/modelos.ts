@@ -146,3 +146,8 @@ export const NOMBRES_ESTADO: Record<EstadoUsuario, string> = {
   INACTIVO: 'Inactivo',
   PENDIENTE: 'Pendiente',
 };
+
+// Nombre del rol en texto claro, también para el superadmin (que no es un rol de comuna).
+export function nombreDeRol(rol: Rol): string {
+  return rol === 'SUPERADMIN' ? 'Superadmin' : NOMBRES_ROL[rol];
+}
